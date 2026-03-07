@@ -1,0 +1,12 @@
+.DS_Store
+.env
+bin/
+dist/
+node_modules/
+apps/web/dist/
+apps/api/data/
+apps/api/.cache/
+*.log
+
+
+.cache/
