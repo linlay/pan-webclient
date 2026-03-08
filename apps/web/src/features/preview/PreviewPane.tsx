@@ -1,5 +1,6 @@
 import type { FileEntry, MountRoot, PreviewMeta } from "../../../../../packages/contracts/index";
 import { rawFileUrl } from "../../app/api";
+import { IconDownload, IconEdit, IconFolder } from "../shared/Icons";
 import { renderMarkdown } from "../shared/markdown";
 
 export function PreviewPane(props: {
@@ -9,6 +10,10 @@ export function PreviewPane(props: {
   currentMount: MountRoot | null;
   currentPath: string;
   searchQuery: string;
+  canEdit: boolean;
+  onEnterEdit: () => void;
+  onShowTasks: () => void;
+  taskCount: number;
 }) {
   const entry = props.activeEntry;
 
@@ -17,9 +22,14 @@ export function PreviewPane(props: {
       <section className="panel-card inspector-card">
         <div className="panel-heading">
           <div>
-            <span>检查栏</span>
-            <strong>{props.selectedEntries.length} 个项目已选中</strong>
+            <span>当前选择</span>
+            <strong>{props.selectedEntries.length} 项</strong>
           </div>
+          {props.taskCount > 0 ? (
+            <button className="ghost-button compact-button" onClick={props.onShowTasks} type="button">
+              任务 {props.taskCount}
+            </button>
+          ) : null}
         </div>
         <div className="summary-stack">
           <p className="muted">
@@ -45,10 +55,19 @@ export function PreviewPane(props: {
       <section className="panel-card inspector-card">
         <div className="panel-heading">
           <div>
-            <span>目录摘要</span>
+            <span>文件夹</span>
             <strong>{entry.name}</strong>
           </div>
-          <span className="entry-badge is-directory">DIR</span>
+          <div className="toolbar">
+            {props.taskCount > 0 ? (
+              <button className="ghost-button compact-button" onClick={props.onShowTasks} type="button">
+                任务 {props.taskCount}
+              </button>
+            ) : null}
+            <span className="entry-badge is-directory">
+              <IconFolder size={14} />
+            </span>
+          </div>
         </div>
 
         <dl className="meta-grid">
@@ -72,7 +91,7 @@ export function PreviewPane(props: {
 
         <div className="preview-placeholder">
           <strong>目录已选中</strong>
-          <p>双击目录进入，或继续多选后执行批量操作。</p>
+          <p>单击目录会直接进入，也可以通过行尾菜单执行移动、复制、删除或下载。</p>
         </div>
       </section>
     );
@@ -83,25 +102,19 @@ export function PreviewPane(props: {
       <section className="panel-card inspector-card">
         <div className="panel-heading">
           <div>
-            <span>检查栏</span>
+            <span>工作区概览</span>
             <strong>{props.currentMount?.name ?? "未选择挂载点"}</strong>
           </div>
+          {props.taskCount > 0 ? (
+            <button className="ghost-button compact-button" onClick={props.onShowTasks} type="button">
+              任务 {props.taskCount}
+            </button>
+          ) : null}
         </div>
-
-        <dl className="meta-grid">
-          <div>
-            <dt>当前位置</dt>
-            <dd>{props.searchQuery ? `搜索：${props.searchQuery}` : props.currentPath}</dd>
-          </div>
-          <div>
-            <dt>模式</dt>
-            <dd>{props.searchQuery ? "搜索结果" : "目录浏览"}</dd>
-          </div>
-        </dl>
 
         <div className="preview-placeholder">
           <strong>选择一个项目查看详情</strong>
-          <p>单击文件可在右侧预览，双击目录可进入下一层。</p>
+          <p>{props.searchQuery ? `当前正在搜索 “${props.searchQuery}”` : `当前位置 ${props.currentPath}`}</p>
         </div>
       </section>
     );
@@ -116,9 +129,22 @@ export function PreviewPane(props: {
           <span>预览</span>
           <strong>{props.preview.name}</strong>
         </div>
-        <span className={`entry-badge ${props.preview.kind === "directory" ? "is-directory" : ""}`}>
-          {badgeFromPreview(props.preview)}
-        </span>
+        <div className="toolbar">
+          {props.canEdit ? (
+            <button className="primary-button compact-button" onClick={props.onEnterEdit} type="button">
+              <IconEdit size={14} />
+              编辑
+            </button>
+          ) : null}
+          {props.taskCount > 0 ? (
+            <button className="ghost-button compact-button" onClick={props.onShowTasks} type="button">
+              任务 {props.taskCount}
+            </button>
+          ) : null}
+          <span className={`entry-badge ${props.preview.kind === "directory" ? "is-directory" : ""}`}>
+            {badgeFromPreview(props.preview)}
+          </span>
+        </div>
       </div>
 
       <dl className="meta-grid">
@@ -154,6 +180,7 @@ export function PreviewPane(props: {
             <strong>当前类型仅支持下载</strong>
             <p>{props.preview.mime || "未知文件类型"} 暂不提供浏览器内预览。</p>
             <a className="primary-button inline-button" href={streamUrl} rel="noreferrer" target="_blank">
+              <IconDownload size={14} />
               下载文件
             </a>
           </div>

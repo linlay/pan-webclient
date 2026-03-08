@@ -11,13 +11,14 @@ import (
 )
 
 type DeletedRecord struct {
-	MountID    string
-	Original   string
-	TrashPath  string
-	DeletedAt  int64
-	IsDir      bool
-	Size       int64
-	OriginalID string
+	ID        string
+	Name      string
+	MountID   string
+	Original  string
+	TrashPath string
+	DeletedAt int64
+	IsDir     bool
+	Size      int64
 }
 
 func MoveToTrash(resolver *fsops.MountResolver, mountID, relPath, trashRoot string) (DeletedRecord, error) {
@@ -32,13 +33,15 @@ func MoveToTrash(resolver *fsops.MountResolver, mountID, relPath, trashRoot stri
 	if err != nil {
 		return DeletedRecord{}, err
 	}
-	stamp := time.Now().Format("20060102-150405")
+	now := time.Now()
+	stamp := now.Format("20060102-150405")
 	base := strings.TrimPrefix(clean, "/")
 	base = strings.ReplaceAll(base, "/", "_")
 	if base == "" {
 		base = "root"
 	}
-	targetRel := fmt.Sprintf("%s-%s", stamp, base)
+	id := fmt.Sprintf("%d", now.UnixNano())
+	targetRel := fmt.Sprintf("%s-%s-%s", stamp, id, base)
 	target := filepath.Join(trashRoot, targetRel)
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		return DeletedRecord{}, err
@@ -47,10 +50,12 @@ func MoveToTrash(resolver *fsops.MountResolver, mountID, relPath, trashRoot stri
 		return DeletedRecord{}, err
 	}
 	return DeletedRecord{
+		ID:        id,
+		Name:      filepath.Base(clean),
 		MountID:   mountID,
 		Original:  clean,
 		TrashPath: target,
-		DeletedAt: time.Now().Unix(),
+		DeletedAt: now.Unix(),
 		IsDir:     info.IsDir(),
 		Size:      info.Size(),
 	}, nil

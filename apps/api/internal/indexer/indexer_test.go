@@ -1,75 +1,116 @@
 package indexer
 
 import (
-	"encoding/json"
-	"os/exec"
+	"os"
 	"path/filepath"
 	"testing"
 
-	"pan-webclient/apps/api/internal/fsops"
+	"pan-webclient/apps/api/internal/mounts"
 )
 
-type pragmaColumn struct {
-	Name string `json:"name"`
-}
-
-func TestInitMigratesFilesTableAndSearchRespectsHidden(t *testing.T) {
-	dbPath := filepath.Join(t.TempDir(), "pan.db")
-	cmd := exec.Command("sqlite3", dbPath, "CREATE TABLE files (mount_id TEXT NOT NULL, rel_path TEXT NOT NULL, name TEXT NOT NULL, is_dir INTEGER NOT NULL, size INTEGER NOT NULL, mod_time INTEGER NOT NULL, mime TEXT NOT NULL, extension TEXT NOT NULL, PRIMARY KEY (mount_id, rel_path));")
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("create legacy db: %v: %s", err, string(output))
-	}
-
-	store := NewStore(dbPath)
-	if err := store.Init(); err != nil {
+func TestSearchMountsRespectsHidden(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "visible.txt"), []byte("visible"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.Init(); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, ".secret"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".secret", "note.txt"), []byte("note"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	output, err := store.queryJSON("PRAGMA table_info(files);")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var columns []pragmaColumn
-	if err := json.Unmarshal(output, &columns); err != nil {
-		t.Fatal(err)
-	}
-	if !hasColumn(columns, "hidden") {
-		t.Fatalf("expected hidden column after migration, got %+v", columns)
-	}
-
-	entries := []fsops.Entry{
-		{MountID: "root", Path: "/visible.txt", Name: "visible.txt", Mime: "text/plain", Extension: ".txt"},
-		{MountID: "root", Path: "/.secret/note.txt", Name: "note.txt", Mime: "text/plain", Extension: ".txt", Hidden: true},
-	}
-	if err := store.ReplaceMountSnapshot("root", entries); err != nil {
-		t.Fatal(err)
-	}
-
-	hiddenOff, err := store.Search("note", 10, false)
+	hiddenOff, err := SearchMounts([]mounts.Mount{{ID: "root", Name: "Root", Path: root}}, "note", 10, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(hiddenOff) != 0 {
-		t.Fatalf("expected hidden results to be filtered, got %+v", hiddenOff)
+		t.Fatalf("expected hidden entries to be filtered, got %+v", hiddenOff)
 	}
 
-	hiddenOn, err := store.Search("note", 10, true)
+	hiddenOn, err := SearchMounts([]mounts.Mount{{ID: "root", Name: "Root", Path: root}}, "note", 10, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(hiddenOn) != 1 || hiddenOn[0].Path != "/.secret/note.txt" {
-		t.Fatalf("expected hidden result with toggle enabled, got %+v", hiddenOn)
+		t.Fatalf("expected hidden search result, got %+v", hiddenOn)
 	}
 }
 
-func hasColumn(columns []pragmaColumn, name string) bool {
-	for _, column := range columns {
-		if column.Name == name {
-			return true
-		}
+func TestStoreReconcileTasksAndTrashRecords(t *testing.T) {
+	dataDir := t.TempDir()
+	store := NewStore(dataDir)
+	if err := store.Init(); err != nil {
+		t.Fatal(err)
 	}
-	return false
+
+	if err := store.PutTask(TaskRecord{
+		ID:        "pending",
+		Kind:      "download",
+		Status:    "pending",
+		Detail:    "queued",
+		CreatedAt: 10,
+		UpdatedAt: 10,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := store.PutTask(TaskRecord{
+		ID:          "success",
+		Kind:        "download",
+		Status:      "success",
+		Detail:      "ready",
+		Artifact:    filepath.Join(dataDir, "tasks", "artifacts", "missing.zip"),
+		DownloadURL: "/api/tasks/success/download",
+		CreatedAt:   20,
+		UpdatedAt:   20,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := store.ReconcileTasks(); err != nil {
+		t.Fatal(err)
+	}
+
+	items, err := store.ListTasks(10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("expected 2 tasks, got %d", len(items))
+	}
+	if items[0].Status != "failed" || items[1].Status != "failed" {
+		t.Fatalf("expected reconciled failed tasks, got %+v", items)
+	}
+
+	record := TrashRecord{
+		ID:           "trash-1",
+		MountID:      "root",
+		OriginalPath: "/gone.txt",
+		TrashPath:    filepath.Join(store.TrashItemsDir(), "gone.txt"),
+		DeletedAt:    30,
+		Name:         "gone.txt",
+	}
+	if err := store.PutTrash(record); err != nil {
+		t.Fatal(err)
+	}
+
+	trashItems, err := store.ListTrash(10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(trashItems) != 1 || trashItems[0].ID != "trash-1" {
+		t.Fatalf("expected stored trash item, got %+v", trashItems)
+	}
+
+	if err := store.DeleteTrashRecord("trash-1"); err != nil {
+		t.Fatal(err)
+	}
+	trashItems, err = store.ListTrash(10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(trashItems) != 0 {
+		t.Fatalf("expected empty trash metadata after delete, got %+v", trashItems)
+	}
 }

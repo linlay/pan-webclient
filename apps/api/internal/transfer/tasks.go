@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"pan-webclient/apps/api/internal/fsops"
@@ -26,22 +25,14 @@ type Task struct {
 
 type Manager struct {
 	store *indexer.Store
-	mu    sync.RWMutex
-	cache map[string]Task
 }
 
 func NewManager(store *indexer.Store) *Manager {
-	return &Manager{
-		store: store,
-		cache: map[string]Task{},
-	}
+	return &Manager{store: store}
 }
 
 func (m *Manager) Put(task Task, artifactPath string) error {
-	m.mu.Lock()
-	m.cache[task.ID] = task
-	m.mu.Unlock()
-	return m.store.UpsertTask(indexer.TaskRecord{
+	return m.store.PutTask(indexer.TaskRecord{
 		ID:          task.ID,
 		Kind:        task.Kind,
 		Status:      task.Status,
@@ -54,21 +45,11 @@ func (m *Manager) Put(task Task, artifactPath string) error {
 }
 
 func (m *Manager) Get(id string) (Task, string, error) {
-	m.mu.RLock()
-	task, ok := m.cache[id]
-	m.mu.RUnlock()
-	if ok {
-		record, err := m.store.GetTask(id)
-		if err == nil {
-			return task, record.Artifact, nil
-		}
-		return task, "", nil
-	}
 	record, err := m.store.GetTask(id)
 	if err != nil {
 		return Task{}, "", err
 	}
-	task = Task{
+	task := Task{
 		ID:          record.ID,
 		Kind:        record.Kind,
 		Status:      record.Status,
@@ -78,6 +59,26 @@ func (m *Manager) Get(id string) (Task, string, error) {
 		UpdatedAt:   record.UpdatedAt,
 	}
 	return task, record.Artifact, nil
+}
+
+func (m *Manager) List(limit int) ([]Task, error) {
+	records, err := m.store.ListTasks(limit)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]Task, 0, len(records))
+	for _, record := range records {
+		items = append(items, Task{
+			ID:          record.ID,
+			Kind:        record.Kind,
+			Status:      record.Status,
+			Detail:      record.Detail,
+			DownloadURL: record.DownloadURL,
+			CreatedAt:   record.CreatedAt,
+			UpdatedAt:   record.UpdatedAt,
+		})
+	}
+	return items, nil
 }
 
 func NewTask(kind, detail string) Task {

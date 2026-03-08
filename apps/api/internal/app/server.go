@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"pan-webclient/apps/api/internal/auth"
@@ -19,33 +20,15 @@ import (
 
 type Server struct {
 	httpServer *http.Server
-	stopSync   func()
 }
 
 func New(cfg config.Config) (*Server, error) {
 	mountList := mounts.FromConfig(cfg.Mounts)
 	resolver := fsops.NewMountResolver(mountList)
-	store := indexer.NewStore(cfg.SQLitePath)
+	store := indexer.NewStore(cfg.DataDir)
 	if err := store.Init(); err != nil {
 		return nil, err
 	}
-	syncIndex := func() error {
-		for _, mount := range mountList {
-			entries, err := fsops.CollectEntries(mount.ID, mount.Path, true)
-			if err != nil {
-				log.Printf("index mount %s failed: %v", mount.ID, err)
-				continue
-			}
-			if err := store.ReplaceMountSnapshot(mount.ID, entries); err != nil {
-				log.Printf("persist mount %s index failed: %v", mount.ID, err)
-			}
-		}
-		return nil
-	}
-	if err := syncIndex(); err != nil {
-		return nil, err
-	}
-	stopSync := indexer.SyncLoop(cfg.ScanEvery(), syncIndex)
 
 	authManager := auth.NewManager(cfg.SessionSecret, cfg.TokenSigningKey, cfg.AdminUsername, cfg.AdminPassword)
 	taskManager := transfer.NewManager(store)
@@ -65,7 +48,6 @@ func New(cfg config.Config) (*Server, error) {
 
 	return &Server{
 		httpServer: server,
-		stopSync:   stopSync,
 	}, nil
 }
 
@@ -79,9 +61,6 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
-	if s.stopSync != nil {
-		s.stopSync()
-	}
 	if err := s.httpServer.Shutdown(ctx); err != nil {
 		return fmt.Errorf("shutdown http server: %w", err)
 	}
@@ -89,8 +68,34 @@ func (s *Server) Shutdown(ctx context.Context) error {
 }
 
 func EnsureRuntimeDirs(cfg config.Config) error {
-	if err := os.MkdirAll(cfg.TrashDir, 0o755); err != nil {
+	store := indexer.NewStore(cfg.DataDir)
+	if err := migrateLegacyDir(filepath.Join("apps", "api", "data", "trash"), filepath.Join(cfg.DataDir, "trash")); err != nil {
 		return err
 	}
-	return os.MkdirAll(indexer.NewStore(cfg.SQLitePath).TasksDir(), 0o755)
+	if err := migrateLegacyDir(filepath.Join("apps", "api", "data", "tasks"), filepath.Join(cfg.DataDir, "tasks")); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(store.TrashItemsDir(), 0o755); err != nil {
+		return err
+	}
+	return os.MkdirAll(store.TasksDir(), 0o755)
+}
+
+func migrateLegacyDir(oldPath, newPath string) error {
+	_, oldErr := os.Stat(oldPath)
+	if oldErr != nil {
+		if os.IsNotExist(oldErr) {
+			return nil
+		}
+		return oldErr
+	}
+	if _, err := os.Stat(newPath); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(newPath), 0o755); err != nil {
+		return err
+	}
+	return os.Rename(oldPath, newPath)
 }

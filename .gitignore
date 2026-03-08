@@ -4,10 +4,10 @@ bin/
 dist/
 node_modules/
 apps/web/dist/
+data/
 apps/api/data/
 apps/api/**/data/
 apps/api/.cache/
-**/pan.db
 *.log
 
 

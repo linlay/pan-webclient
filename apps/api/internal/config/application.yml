@@ -1,12 +1,10 @@
 {
   "app_port": "8080",
   "web_origin": "http://127.0.0.1:5173",
-  "sqlite_path": "./data/pan.db",
-  "pan_trash_dir": "./data/trash",
+  "pan_data_dir": "./data",
   "session_cookie_name": "pan_session",
   "max_upload_bytes": 104857600,
   "max_edit_file_bytes": 1048576,
-  "scan_interval_seconds": 15,
   "mounts": [
     {
       "id": "workspace",

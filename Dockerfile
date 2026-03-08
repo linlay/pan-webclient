@@ -8,13 +8,11 @@ RUN npm run build
 
 FROM golang:1.26-alpine AS api-build
 WORKDIR /workspace/apps/api
-RUN apk add --no-cache sqlite
 COPY apps/api/go.mod ./
 COPY apps/api ./
 RUN go build -o /out/pan-api ./cmd/server
 
 FROM alpine:3.21
-RUN apk add --no-cache sqlite
 WORKDIR /app
 COPY --from=api-build /out/pan-api /app/pan-api
 COPY --from=web-build /workspace/apps/web/dist /app/web

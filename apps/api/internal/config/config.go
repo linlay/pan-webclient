@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 )
 
 //go:embed application.yml
@@ -24,8 +23,7 @@ type Config struct {
 	AppPort           string  `json:"app_port"`
 	WebOrigin         string  `json:"web_origin"`
 	StaticDir         string  `json:"pan_static_dir"`
-	SQLitePath        string  `json:"sqlite_path"`
-	TrashDir          string  `json:"pan_trash_dir"`
+	DataDir           string  `json:"pan_data_dir"`
 	SessionCookieName string  `json:"session_cookie_name"`
 	SessionSecret     string  `json:"-"`
 	TokenSigningKey   string  `json:"-"`
@@ -33,7 +31,6 @@ type Config struct {
 	AdminPassword     string  `json:"-"`
 	MaxUploadBytes    int64   `json:"max_upload_bytes"`
 	MaxEditFileBytes  int64   `json:"max_edit_file_bytes"`
-	ScanInterval      int     `json:"scan_interval_seconds"`
 	Mounts            []Mount `json:"mounts"`
 }
 
@@ -50,8 +47,7 @@ func Load() (Config, error) {
 	applyString(&cfg.AppPort, os.Getenv("APP_PORT"))
 	applyString(&cfg.WebOrigin, os.Getenv("WEB_ORIGIN"))
 	applyString(&cfg.StaticDir, os.Getenv("PAN_STATIC_DIR"))
-	applyString(&cfg.SQLitePath, os.Getenv("SQLITE_PATH"))
-	applyString(&cfg.TrashDir, os.Getenv("PAN_TRASH_DIR"))
+	applyString(&cfg.DataDir, os.Getenv("PAN_DATA_DIR"))
 	applyString(&cfg.SessionCookieName, os.Getenv("SESSION_COOKIE_NAME"))
 	applyString(&cfg.SessionSecret, os.Getenv("WEB_SESSION_SECRET"))
 	applyString(&cfg.TokenSigningKey, os.Getenv("APP_TOKEN_SIGNING_KEY"))
@@ -66,11 +62,6 @@ func Load() (Config, error) {
 	if v := os.Getenv("MAX_EDIT_FILE_BYTES"); v != "" {
 		if parsed, err := strconv.ParseInt(v, 10, 64); err == nil {
 			cfg.MaxEditFileBytes = parsed
-		}
-	}
-	if v := os.Getenv("SCAN_INTERVAL_SECONDS"); v != "" {
-		if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 {
-			cfg.ScanInterval = parsed
 		}
 	}
 	if v := os.Getenv("PAN_MOUNTS"); v != "" {
@@ -105,8 +96,8 @@ func Load() (Config, error) {
 	if cfg.MaxEditFileBytes <= 0 {
 		cfg.MaxEditFileBytes = 1024 * 1024
 	}
-	if cfg.ScanInterval <= 0 {
-		cfg.ScanInterval = 15
+	if cfg.DataDir == "" {
+		cfg.DataDir = "./data"
 	}
 	if len(cfg.Mounts) == 0 {
 		cfg.Mounts = []Mount{{ID: "workspace", Name: "Workspace", Path: "."}}
@@ -126,17 +117,12 @@ func Load() (Config, error) {
 		cfg.Mounts[i].Path = absPath
 	}
 
-	if err := ensureParentDir(cfg.SQLitePath); err != nil {
-		return cfg, err
+	absDataDir, err := filepath.Abs(cfg.DataDir)
+	if err != nil {
+		return cfg, fmt.Errorf("resolve data dir: %w", err)
 	}
-	if err := os.MkdirAll(cfg.TrashDir, 0o755); err != nil {
-		return cfg, fmt.Errorf("ensure trash dir: %w", err)
-	}
+	cfg.DataDir = absDataDir
 	return cfg, nil
-}
-
-func (c Config) ScanEvery() time.Duration {
-	return time.Duration(c.ScanInterval) * time.Second
 }
 
 func applyString(dst *string, v string) {
@@ -164,15 +150,4 @@ func parseMounts(raw string) ([]Mount, error) {
 		})
 	}
 	return result, nil
-}
-
-func ensureParentDir(filePath string) error {
-	if filePath == "" {
-		return fmt.Errorf("empty sqlite path")
-	}
-	parent := filepath.Dir(filePath)
-	if err := os.MkdirAll(parent, 0o755); err != nil {
-		return fmt.Errorf("create parent dir %s: %w", parent, err)
-	}
-	return nil
 }

@@ -1,10 +1,12 @@
 import type { TransferTask } from "../../../../../packages/contracts/index";
+import { IconArrowLeft, IconDownload, IconUpload } from "../shared/Icons";
 
 export function TaskPanel(props: {
   tasks: TransferTask[];
   collapsed: boolean;
   onToggle: () => void;
   onOpenTask: (id: string) => void;
+  onBack?: () => void;
 }) {
   const activeCount = props.tasks.filter((task) => task.status === "pending" || task.status === "running").length;
 
@@ -16,6 +18,11 @@ export function TaskPanel(props: {
           <strong>{props.tasks.length === 0 ? "暂无任务" : `${props.tasks.length} 条记录`}</strong>
         </div>
         <div className="toolbar">
+          {props.onBack ? (
+            <button className="icon-button" onClick={props.onBack} type="button">
+              <IconArrowLeft />
+            </button>
+          ) : null}
           {activeCount > 0 ? <span className="pill-label active-pill">{activeCount} 进行中</span> : null}
           <button className="ghost-button compact-button" onClick={props.onToggle} type="button">
             {props.collapsed ? "展开" : "收起"}
@@ -31,8 +38,11 @@ export function TaskPanel(props: {
         <div className="task-list">
           {props.tasks.map((task) => (
             <button className="task-item" key={task.id} onClick={() => props.onOpenTask(task.id)} type="button">
-              <div>
-                <strong>{task.kind === "upload" ? "上传" : "下载"}</strong>
+              <div className="task-item-copy">
+                <div className="task-item-title">
+                  {task.kind === "upload" ? <IconUpload size={16} /> : <IconDownload size={16} />}
+                  <strong>{task.kind === "upload" ? "上传" : "下载"}</strong>
+                </div>
                 <p>{task.detail}</p>
               </div>
               <span className={`task-status status-${task.status}`}>{translateStatus(task.status)}</span>

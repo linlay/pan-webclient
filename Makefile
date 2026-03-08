@@ -10,7 +10,8 @@ api-build:
 
 api-run:
 	mkdir -p $(GO_CACHE)
-	cd apps/api && set -a; [ ! -f ../../.env ] || . ../../.env; set +a; GOCACHE=$(GO_CACHE) go run ./cmd/server
+	cd apps/api && GOCACHE=$(GO_CACHE) go build -o ../../bin/$(APP_NAME) ./cmd/server
+	set -a; [ ! -f ./.env ] || . ./.env; set +a; ./bin/$(APP_NAME)
 
 api-test:
 	mkdir -p $(GO_CACHE)
@@ -26,4 +27,4 @@ web-build:
 	cd apps/web && npm run build
 
 clean:
-	rm -rf bin apps/web/dist apps/api/data
+	rm -rf bin apps/web/dist data

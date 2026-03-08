@@ -1,4 +1,6 @@
 import { type FormEvent, useState } from "react";
+import { IconDesktop, IconMoon, IconMore, IconSun } from "../shared/Icons";
+import { MenuButton } from "../shared/MenuButton";
 
 type ThemeMode = "system" | "light" | "dark";
 
@@ -34,25 +36,27 @@ export function LoginForm(props: {
           <div>
             <p className="eyebrow">Pan Workspace</p>
             <h1>登录到你的网盘工作区</h1>
-            <p className="muted">更紧凑的桌面网盘界面，保持原有文件管理、预览和文本编辑能力。</p>
+            <p className="muted">文件直接读磁盘，手机端优先的轻量文件工作区。</p>
           </div>
 
           <div className="login-theme-panel">
             <span className="theme-indicator">{props.resolvedTheme === "dark" ? "Night" : "Day"}</span>
-            <div className="segmented-control" role="tablist" aria-label="Theme mode">
-              {(["system", "light", "dark"] as ThemeMode[]).map((mode) => (
-                <button
-                  aria-selected={props.themeMode === mode}
-                  className={`segment ${props.themeMode === mode ? "is-active" : ""}`}
-                  key={mode}
-                  onClick={() => props.onThemeModeChange(mode)}
-                  role="tab"
-                  type="button"
-                >
-                  {mode === "system" ? "自动" : mode === "light" ? "浅色" : "深色"}
-                </button>
-              ))}
-            </div>
+            <MenuButton
+              actions={[
+                { label: "跟随系统", icon: <IconDesktop size={14} />, onSelect: () => props.onThemeModeChange("system") },
+                { label: "浅色", icon: <IconSun size={14} />, onSelect: () => props.onThemeModeChange("light") },
+                { label: "深色", icon: <IconMoon size={14} />, onSelect: () => props.onThemeModeChange("dark") },
+              ]}
+              align="right"
+              buttonClassName="ghost-button compact-button"
+              buttonContent={
+                <>
+                  <IconMore size={14} />
+                  主题
+                </>
+              }
+              buttonLabel="主题菜单"
+            />
           </div>
         </div>
 

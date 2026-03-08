@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"mime"
 	"net/http"
 	"net/url"
@@ -75,8 +74,12 @@ func New(deps Dependencies) http.Handler {
 	mux.HandleFunc("/api/files/content", a.withAuth(a.fileContent))
 	mux.HandleFunc("/api/files/raw", a.withAuth(a.raw))
 	mux.HandleFunc("/api/uploads", a.withAuth(a.uploads))
+	mux.HandleFunc("/api/tasks", a.withAuth(a.tasks))
 	mux.HandleFunc("/api/downloads/batch", a.withAuth(a.batchDownload))
 	mux.HandleFunc("/api/tasks/", a.withAuth(a.taskRoute))
+	mux.HandleFunc("/api/trash", a.withAuth(a.trash))
+	mux.HandleFunc("/api/trash/restore", a.withAuth(a.restoreTrash))
+	mux.HandleFunc("/api/trash/delete", a.withAuth(a.deleteTrash))
 
 	return a.wrap(mux)
 }
@@ -295,7 +298,7 @@ func (a *api) search(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, []indexer.SearchHit{})
 		return
 	}
-	hits, err := a.store.Search(query, 100, queryShowHidden(r))
+	hits, err := indexer.SearchMounts(a.resolver.Mounts(), query, 100, queryShowHidden(r))
 	if err != nil {
 		writeServerError(w, err)
 		return
@@ -321,7 +324,6 @@ func (a *api) mkdir(w http.ResponseWriter, r *http.Request) {
 		writeServerError(w, err)
 		return
 	}
-	_ = a.refreshMount(req.MountID)
 	writeJSON(w, http.StatusOK, entry)
 }
 
@@ -343,7 +345,6 @@ func (a *api) copy(w http.ResponseWriter, r *http.Request) {
 		writeServerError(w, err)
 		return
 	}
-	_ = a.refreshMount(req.MountID)
 	writeJSON(w, http.StatusOK, entry)
 }
 
@@ -365,7 +366,6 @@ func (a *api) move(w http.ResponseWriter, r *http.Request) {
 		writeServerError(w, err)
 		return
 	}
-	_ = a.refreshMount(req.MountID)
 	writeJSON(w, http.StatusOK, entry)
 }
 
@@ -387,7 +387,6 @@ func (a *api) rename(w http.ResponseWriter, r *http.Request) {
 		writeServerError(w, err)
 		return
 	}
-	_ = a.refreshMount(req.MountID)
 	writeJSON(w, http.StatusOK, entry)
 }
 
@@ -403,15 +402,24 @@ func (a *api) remove(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	record, err := trash.MoveToTrash(a.resolver, req.MountID, req.Path, a.cfg.TrashDir)
+	record, err := trash.MoveToTrash(a.resolver, req.MountID, req.Path, a.store.TrashItemsDir())
 	if err != nil {
 		writeServerError(w, err)
 		return
 	}
-	if err := a.store.RecordDelete(record); err != nil {
-		log.Printf("record delete failed: %v", err)
+	if err := a.store.PutTrash(indexer.TrashRecord{
+		ID:           record.ID,
+		MountID:      record.MountID,
+		OriginalPath: record.Original,
+		TrashPath:    record.TrashPath,
+		DeletedAt:    record.DeletedAt,
+		IsDir:        record.IsDir,
+		Size:         record.Size,
+		Name:         record.Name,
+	}); err != nil {
+		writeServerError(w, err)
+		return
 	}
-	_ = a.refreshMount(req.MountID)
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
@@ -461,7 +469,6 @@ func (a *api) fileContent(w http.ResponseWriter, r *http.Request) {
 			writeServerError(w, err)
 			return
 		}
-		_ = a.refreshMount(req.MountID)
 		writeJSON(w, http.StatusOK, doc)
 	default:
 		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
@@ -528,8 +535,20 @@ func (a *api) uploads(w http.ResponseWriter, r *http.Request) {
 	task.Detail = fmt.Sprintf("Uploaded %d files", uploaded)
 	task.UpdatedAt = time.Now().Unix()
 	_ = a.taskManager.Put(task, "")
-	_ = a.refreshMount(mountID)
 	writeJSON(w, http.StatusOK, task)
+}
+
+func (a *api) tasks(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	items, err := a.taskManager.List(100)
+	if err != nil {
+		writeServerError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, items)
 }
 
 func (a *api) batchDownload(w http.ResponseWriter, r *http.Request) {
@@ -577,16 +596,109 @@ func (a *api) taskRoute(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, task)
 }
 
-func (a *api) refreshMount(mountID string) error {
-	mount, _, _, err := a.resolver.Resolve(mountID, "/")
-	if err != nil {
-		return err
+func (a *api) trash(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
 	}
-	entries, err := fsops.CollectEntries(mount.ID, mount.Path, true)
+	items, err := a.store.ListTrash(100)
 	if err != nil {
-		return err
+		writeServerError(w, err)
+		return
 	}
-	return a.store.ReplaceMountSnapshot(mount.ID, entries)
+	writeJSON(w, http.StatusOK, items)
+}
+
+func (a *api) restoreTrash(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	ids, ok := decodeIDs(w, r)
+	if !ok {
+		return
+	}
+
+	restored := 0
+	conflicts := make([]string, 0)
+	for _, id := range ids {
+		record, err := a.store.GetTrash(id)
+		if err != nil {
+			conflicts = append(conflicts, id)
+			continue
+		}
+		_, targetAbs, _, err := a.resolver.Resolve(record.MountID, record.OriginalPath)
+		if err != nil {
+			conflicts = append(conflicts, id)
+			continue
+		}
+		if _, err := os.Stat(targetAbs); err == nil {
+			conflicts = append(conflicts, record.Name)
+			continue
+		} else if !os.IsNotExist(err) {
+			conflicts = append(conflicts, record.Name)
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(targetAbs), 0o755); err != nil {
+			conflicts = append(conflicts, record.Name)
+			continue
+		}
+		if err := os.Rename(record.TrashPath, targetAbs); err != nil {
+			conflicts = append(conflicts, record.Name)
+			continue
+		}
+		if err := a.store.DeleteTrashRecord(id); err != nil {
+			conflicts = append(conflicts, record.Name)
+			continue
+		}
+		restored++
+	}
+	status := http.StatusOK
+	if len(conflicts) > 0 {
+		status = http.StatusConflict
+	}
+	writeJSON(w, status, map[string]any{
+		"restored":  restored,
+		"conflicts": conflicts,
+	})
+}
+
+func (a *api) deleteTrash(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	ids, ok := decodeIDs(w, r)
+	if !ok {
+		return
+	}
+
+	deleted := 0
+	missing := make([]string, 0)
+	for _, id := range ids {
+		record, err := a.store.GetTrash(id)
+		if err != nil {
+			missing = append(missing, id)
+			continue
+		}
+		if err := os.RemoveAll(record.TrashPath); err != nil {
+			missing = append(missing, record.Name)
+			continue
+		}
+		if err := a.store.DeleteTrashRecord(id); err != nil {
+			missing = append(missing, record.Name)
+			continue
+		}
+		deleted++
+	}
+	status := http.StatusOK
+	if len(missing) > 0 {
+		status = http.StatusConflict
+	}
+	writeJSON(w, status, map[string]any{
+		"deleted": deleted,
+		"missing": missing,
+	})
 }
 
 func requirePathQuery(w http.ResponseWriter, r *http.Request) (string, string) {
@@ -630,6 +742,20 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 		return false
 	}
 	return true
+}
+
+func decodeIDs(w http.ResponseWriter, r *http.Request) ([]string, bool) {
+	var req struct {
+		IDs []string `json:"ids"`
+	}
+	if !decodeJSON(w, r, &req) {
+		return nil, false
+	}
+	if len(req.IDs) == 0 {
+		writeError(w, http.StatusBadRequest, "BAD_REQUEST", "ids is required")
+		return nil, false
+	}
+	return req.IDs, true
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {

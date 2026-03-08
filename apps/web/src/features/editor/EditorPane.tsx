@@ -6,6 +6,7 @@ export function EditorPane(props: {
   activeEntry: FileEntry | null;
   selectionCount: number;
   onSave: (content: string) => Promise<void>;
+  onBack: () => void;
 }) {
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
@@ -56,6 +57,9 @@ export function EditorPane(props: {
         </div>
         <div className="toolbar">
           <small className="pill-label">{props.editor.language}</small>
+          <button className="ghost-button compact-button" onClick={props.onBack} type="button">
+            返回预览
+          </button>
           <button className="primary-button compact-button" onClick={() => void save()} type="button">
             {saving ? "保存中..." : "保存"}
           </button>
@@ -103,7 +107,7 @@ function emptyDescription(selectionCount: number, activeEntry: FileEntry | null)
   }
 
   if (activeEntry?.isDir) {
-    return "目录会在上方显示摘要信息，双击后可进入目录内部继续浏览。";
+    return "目录不会进入编辑状态；单击目录会直接进入该层级。";
   }
 
   if (activeEntry) {

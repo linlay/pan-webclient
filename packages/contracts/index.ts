@@ -64,6 +64,17 @@ export interface TransferTask {
   updatedAt: number;
 }
 
+export interface TrashItem {
+  id: string;
+  mountId: string;
+  originalPath: string;
+  trashPath: string;
+  deletedAt: number;
+  isDir: boolean;
+  size: number;
+  name: string;
+}
+
 export interface SearchHit {
   mountId: string;
   path: string;

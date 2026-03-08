@@ -30,40 +30,21 @@ type pathRow struct {
 	Path string `json:"path"`
 }
 
+type trashRow struct {
+	ID           string `json:"id"`
+	OriginalPath string `json:"originalPath"`
+}
+
 func TestProtectedRouteRejectsTraversal(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "hello.txt"), []byte("hi"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	dbPath := filepath.Join(t.TempDir(), "pan.db")
-	store := indexer.NewStore(dbPath)
-	if err := store.Init(); err != nil {
-		t.Fatal(err)
-	}
-	resolver := fsops.NewMountResolver([]mounts.Mount{{ID: "root", Name: "Root", Path: root}})
-	handler := New(Dependencies{
-		Config: config.Config{
-			SessionCookieName: "pan_session",
-			SessionSecret:     "secret",
-			TokenSigningKey:   "secret2",
-			AdminUsername:     "admin",
-			AdminPassword:     "pw",
-			TrashDir:          filepath.Join(t.TempDir(), "trash"),
-			MaxEditFileBytes:  1024 * 1024,
-		},
-		Resolver:    resolver,
-		Store:       store,
-		Auth:        auth.NewManager("secret", "secret2", "admin", "pw"),
-		TaskManager: transfer.NewManager(store),
-	})
-
-	session, err := auth.NewManager("secret", "secret2", "admin", "pw").IssueSession("admin", 0x7fffffffffffffff)
-	if err != nil {
-		t.Fatal(err)
-	}
+	handler := newTestHandler(t, root)
+	cookie := issueTestSession(t, auth.NewManager("secret", "secret2", "admin", "pw"))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/files?mountId=root&path=../../", nil)
-	req.AddCookie(&http.Cookie{Name: "pan_session", Value: session})
+	req.AddCookie(cookie)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -72,27 +53,8 @@ func TestProtectedRouteRejectsTraversal(t *testing.T) {
 }
 
 func TestWebLoginAndSessionMe(t *testing.T) {
-	dbPath := filepath.Join(t.TempDir(), "pan.db")
-	store := indexer.NewStore(dbPath)
-	if err := store.Init(); err != nil {
-		t.Fatal(err)
-	}
 	root := t.TempDir()
-	handler := New(Dependencies{
-		Config: config.Config{
-			SessionCookieName: "pan_session",
-			SessionSecret:     "secret",
-			TokenSigningKey:   "secret2",
-			AdminUsername:     "admin",
-			AdminPassword:     "pw",
-			TrashDir:          filepath.Join(t.TempDir(), "trash"),
-			MaxEditFileBytes:  1024 * 1024,
-		},
-		Resolver:    fsops.NewMountResolver([]mounts.Mount{{ID: "root", Name: "Root", Path: root}}),
-		Store:       store,
-		Auth:        auth.NewManager("secret", "secret2", "admin", "pw"),
-		TaskManager: transfer.NewManager(store),
-	})
+	handler := newTestHandler(t, root)
 
 	body, _ := json.Marshal(map[string]string{"username": "admin", "password": "pw"})
 	loginReq := httptest.NewRequest(http.MethodPost, "/api/web/session/login", bytes.NewReader(body))
@@ -130,37 +92,8 @@ func TestHiddenFilesToggleAffectsFilesTreeAndSearch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	dbPath := filepath.Join(t.TempDir(), "pan.db")
-	store := indexer.NewStore(dbPath)
-	if err := store.Init(); err != nil {
-		t.Fatal(err)
-	}
-	resolver := fsops.NewMountResolver([]mounts.Mount{{ID: "root", Name: "Root", Path: root}})
-	entries, err := fsops.CollectEntries("root", root, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := store.ReplaceMountSnapshot("root", entries); err != nil {
-		t.Fatal(err)
-	}
-
-	authManager := auth.NewManager("secret", "secret2", "admin", "pw")
-	handler := New(Dependencies{
-		Config: config.Config{
-			SessionCookieName: "pan_session",
-			SessionSecret:     "secret",
-			TokenSigningKey:   "secret2",
-			AdminUsername:     "admin",
-			AdminPassword:     "pw",
-			TrashDir:          filepath.Join(t.TempDir(), "trash"),
-			MaxEditFileBytes:  1024 * 1024,
-		},
-		Resolver:    resolver,
-		Store:       store,
-		Auth:        authManager,
-		TaskManager: transfer.NewManager(store),
-	})
-	cookie := issueTestSession(t, authManager)
+	handler := newTestHandler(t, root)
+	cookie := issueTestSession(t, auth.NewManager("secret", "secret2", "admin", "pw"))
 
 	filesRec := authedRequest(handler, cookie, http.MethodGet, "/api/files?mountId=root&path=/", nil)
 	if filesRec.Code != http.StatusOK {
@@ -218,6 +151,125 @@ func TestHiddenFilesToggleAffectsFilesTreeAndSearch(t *testing.T) {
 	if len(hiddenOn) != 1 || hiddenOn[0].Path != "/.secret/note.txt" {
 		t.Fatalf("expected hidden search result with toggle, got %+v", hiddenOn)
 	}
+}
+
+func TestTrashLifecycleAndTaskList(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "gone.txt"), []byte("gone"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	store := indexer.NewStore(t.TempDir())
+	if err := store.Init(); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.PutTask(indexer.TaskRecord{
+		ID:        "task-1",
+		Kind:      "upload",
+		Status:    "success",
+		Detail:    "done",
+		CreatedAt: 1,
+		UpdatedAt: 2,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	handler := newHandlerWithStore(root, store)
+	cookie := issueTestSession(t, auth.NewManager("secret", "secret2", "admin", "pw"))
+
+	taskRec := authedRequest(handler, cookie, http.MethodGet, "/api/tasks", nil)
+	if taskRec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", taskRec.Code)
+	}
+	var taskRows []indexer.TaskRecord
+	if err := json.Unmarshal(taskRec.Body.Bytes(), &taskRows); err != nil {
+		t.Fatal(err)
+	}
+	if len(taskRows) != 1 || taskRows[0].ID != "task-1" {
+		t.Fatalf("expected persisted task list, got %+v", taskRows)
+	}
+
+	deleteBody, _ := json.Marshal(map[string]string{"mountId": "root", "path": "/gone.txt"})
+	deleteRec := authedRequest(handler, cookie, http.MethodPost, "/api/files/delete", deleteBody)
+	if deleteRec.Code != http.StatusOK {
+		t.Fatalf("expected delete 200, got %d: %s", deleteRec.Code, deleteRec.Body.String())
+	}
+
+	trashRec := authedRequest(handler, cookie, http.MethodGet, "/api/trash", nil)
+	if trashRec.Code != http.StatusOK {
+		t.Fatalf("expected trash 200, got %d", trashRec.Code)
+	}
+	var trashRows []trashRow
+	if err := json.Unmarshal(trashRec.Body.Bytes(), &trashRows); err != nil {
+		t.Fatal(err)
+	}
+	if len(trashRows) != 1 || trashRows[0].OriginalPath != "/gone.txt" {
+		t.Fatalf("expected deleted item in trash, got %+v", trashRows)
+	}
+
+	restoreBody, _ := json.Marshal(map[string][]string{"ids": []string{trashRows[0].ID}})
+	restoreRec := authedRequest(handler, cookie, http.MethodPost, "/api/trash/restore", restoreBody)
+	if restoreRec.Code != http.StatusOK {
+		t.Fatalf("expected restore 200, got %d: %s", restoreRec.Code, restoreRec.Body.String())
+	}
+	if _, err := os.Stat(filepath.Join(root, "gone.txt")); err != nil {
+		t.Fatalf("expected restored file: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(root, "gone.txt"), []byte("gone"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	deleteRec = authedRequest(handler, cookie, http.MethodPost, "/api/files/delete", deleteBody)
+	if deleteRec.Code != http.StatusOK {
+		t.Fatalf("expected delete 200, got %d: %s", deleteRec.Code, deleteRec.Body.String())
+	}
+	trashRec = authedRequest(handler, cookie, http.MethodGet, "/api/trash", nil)
+	if trashRec.Code != http.StatusOK {
+		t.Fatalf("expected trash 200, got %d", trashRec.Code)
+	}
+	if err := json.Unmarshal(trashRec.Body.Bytes(), &trashRows); err != nil {
+		t.Fatal(err)
+	}
+
+	purgeBody, _ := json.Marshal(map[string][]string{"ids": []string{trashRows[0].ID}})
+	purgeRec := authedRequest(handler, cookie, http.MethodPost, "/api/trash/delete", purgeBody)
+	if purgeRec.Code != http.StatusOK {
+		t.Fatalf("expected purge 200, got %d: %s", purgeRec.Code, purgeRec.Body.String())
+	}
+	trashRec = authedRequest(handler, cookie, http.MethodGet, "/api/trash", nil)
+	if trashRec.Code != http.StatusOK {
+		t.Fatalf("expected trash 200, got %d", trashRec.Code)
+	}
+	if err := json.Unmarshal(trashRec.Body.Bytes(), &trashRows); err != nil {
+		t.Fatal(err)
+	}
+	if len(trashRows) != 0 {
+		t.Fatalf("expected empty trash after purge, got %+v", trashRows)
+	}
+}
+
+func newTestHandler(t *testing.T, root string) http.Handler {
+	t.Helper()
+	store := indexer.NewStore(t.TempDir())
+	if err := store.Init(); err != nil {
+		t.Fatal(err)
+	}
+	return newHandlerWithStore(root, store)
+}
+
+func newHandlerWithStore(root string, store *indexer.Store) http.Handler {
+	return New(Dependencies{
+		Config: config.Config{
+			SessionCookieName: "pan_session",
+			SessionSecret:     "secret",
+			TokenSigningKey:   "secret2",
+			AdminUsername:     "admin",
+			AdminPassword:     "pw",
+			MaxEditFileBytes:  1024 * 1024,
+		},
+		Resolver:    fsops.NewMountResolver([]mounts.Mount{{ID: "root", Name: "Root", Path: root}}),
+		Store:       store,
+		Auth:        auth.NewManager("secret", "secret2", "admin", "pw"),
+		TaskManager: transfer.NewManager(store),
+	})
 }
 
 func issueTestSession(t *testing.T, manager *auth.Manager) *http.Cookie {

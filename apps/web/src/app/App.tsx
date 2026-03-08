@@ -6,6 +6,7 @@ import type {
   MountRoot,
   SearchHit,
   SessionUser,
+  TrashItem,
   TransferTask,
 } from "../../../../packages/contracts/index";
 import { LoginForm } from "../features/auth/LoginForm";
@@ -13,12 +14,32 @@ import { EditorPane } from "../features/editor/EditorPane";
 import { FileTable } from "../features/files/FileTable";
 import { SidebarTree } from "../features/files/SidebarTree";
 import { PreviewPane } from "../features/preview/PreviewPane";
+import {
+  IconCopy,
+  IconDesktop,
+  IconDownload,
+  IconFolder,
+  IconLogout,
+  IconMoon,
+  IconMore,
+  IconPlus,
+  IconRefresh,
+  IconSearch,
+  IconSun,
+  IconTrash,
+  IconUpload,
+  IconArrowLeft,
+  IconMove,
+  IconEdit,
+} from "../features/shared/Icons";
+import { MenuButton } from "../features/shared/MenuButton";
 import { TaskPanel } from "../features/tasks/TaskPanel";
+import { TrashPanel } from "../features/tasks/TrashPanel";
 import { api } from "./api";
 
 type Notice = { tone: "info" | "error"; text: string } | null;
 type ThemeMode = "system" | "light" | "dark";
-type MobilePanel = "nav" | "inspect" | null;
+type InspectorMode = "preview" | "editor" | "tasks" | "trash";
 type DialogBase = { error: string; submitting: boolean };
 type OperationDialog =
   | ({ kind: "create-folder"; value: string } & DialogBase)
@@ -45,6 +66,7 @@ export function App() {
   const [preview, setPreview] = useState<Awaited<ReturnType<typeof api.preview>> | null>(null);
   const [editor, setEditor] = useState<EditorDocument | null>(null);
   const [tasks, setTasks] = useState<TransferTask[]>([]);
+  const [trashItems, setTrashItems] = useState<TrashItem[]>([]);
   const [searchText, setSearchText] = useState("");
   const deferredSearch = useDeferredValue(searchText);
   const [searchResults, setSearchResults] = useState<SearchHit[]>([]);
@@ -52,9 +74,11 @@ export function App() {
   const [showHidden, setShowHidden] = useState(() => readStoredShowHidden());
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => readStoredThemeMode());
   const [prefersDark, setPrefersDark] = useState(false);
-  const [mobilePanel, setMobilePanel] = useState<MobilePanel>(null);
+  const [inspectorMode, setInspectorMode] = useState<InspectorMode>("preview");
   const [taskPanelCollapsed, setTaskPanelCollapsed] = useState(true);
   const [dialog, setDialog] = useState<OperationDialog>(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const inspectRequestRef = useRef(0);
   const isMobile = useMediaQuery(MOBILE_MEDIA_QUERY);
@@ -77,6 +101,7 @@ export function App() {
     () => tasks.some((task) => task.status === "pending" || task.status === "running"),
     [tasks],
   );
+  const canEditActiveEntry = Boolean(editor && activeEntry && !activeEntry.isDir);
 
   const visibleRows = useMemo(() => {
     if (!searchQuery) {
@@ -130,6 +155,7 @@ export function App() {
   useEffect(() => {
     setSelectedEntries([]);
     clearInspector(inspectRequestRef, setPreview, setEditor);
+    setInspectorMode("preview");
   }, [searchQuery]);
 
   useEffect(() => {
@@ -147,12 +173,15 @@ export function App() {
     setCurrentPath("/");
     setSelectedEntries([]);
     clearInspector(inspectRequestRef, setPreview, setEditor);
-    setMobilePanel(null);
+    setInspectorMode("preview");
+    setMobileNavOpen(false);
+    setMobileInspectorOpen(false);
   }, [currentPath, editor, preview, showHidden]);
 
   useEffect(() => {
     if (!isMobile) {
-      setMobilePanel(null);
+      setMobileNavOpen(false);
+      setMobileInspectorOpen(false);
     }
   }, [isMobile]);
 
@@ -214,16 +243,20 @@ export function App() {
   }, [hasActiveTask]);
 
   useEffect(() => {
+    if (inspectorMode === "editor" && !canEditActiveEntry) {
+      setInspectorMode("preview");
+    }
+  }, [canEditActiveEntry, inspectorMode]);
+
+  useEffect(() => {
     if (!dialog) {
       return;
     }
-
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !dialog.submitting) {
         setDialog(null);
       }
     };
-
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [dialog]);
@@ -232,7 +265,7 @@ export function App() {
     try {
       const me = await api.sessionMe();
       setUser(me);
-      await loadMountBootstrap();
+      await Promise.all([loadMountBootstrap(), loadRuntimeData()]);
     } catch {
       setUser(null);
     } finally {
@@ -252,6 +285,17 @@ export function App() {
     setCurrentPath("/");
   }
 
+  async function loadRuntimeData() {
+    const [taskList, trashList] = await Promise.all([api.tasks(), api.trash()]);
+    setTasks(taskList);
+    setTrashItems(trashList);
+  }
+
+  async function reloadTrash() {
+    const list = await api.trash();
+    setTrashItems(list);
+  }
+
   async function reloadSearchResults() {
     if (!searchQuery) {
       return;
@@ -264,7 +308,7 @@ export function App() {
     const me = await api.login(username, password);
     setUser(me);
     setNotice({ tone: "info", text: "登录成功" });
-    await loadMountBootstrap();
+    await Promise.all([loadMountBootstrap(), loadRuntimeData()]);
   }
 
   async function handleLogout() {
@@ -278,10 +322,13 @@ export function App() {
     setTreeCache({});
     clearInspector(inspectRequestRef, setPreview, setEditor);
     setTasks([]);
+    setTrashItems([]);
     setSearchResults([]);
     setSearchText("");
     setDialog(null);
-    setMobilePanel(null);
+    setInspectorMode("preview");
+    setMobileNavOpen(false);
+    setMobileInspectorOpen(false);
   }
 
   async function inspectEntry(entry: FileEntry, revealOnMobile: boolean) {
@@ -290,8 +337,9 @@ export function App() {
     if (entry.isDir) {
       setPreview(null);
       setEditor(null);
+      setInspectorMode("preview");
       if (revealOnMobile && isMobile) {
-        setMobilePanel("inspect");
+        setMobileInspectorOpen(true);
       }
       return;
     }
@@ -314,8 +362,10 @@ export function App() {
         setEditor(null);
       }
 
+      setInspectorMode("preview");
+
       if (revealOnMobile && isMobile) {
-        setMobilePanel("inspect");
+        setMobileInspectorOpen(true);
       }
     } catch (error) {
       if (requestId !== inspectRequestRef.current) {
@@ -331,14 +381,11 @@ export function App() {
 
     if (next.length !== 1) {
       clearInspector(inspectRequestRef, setPreview, setEditor);
+      setInspectorMode("preview");
       return;
     }
 
     void inspectEntry(next[0], revealOnMobile);
-  }
-
-  function handleInspect(entry: FileEntry) {
-    commitSelection([entry], true);
   }
 
   function handleToggleSelection(entry: FileEntry) {
@@ -350,26 +397,25 @@ export function App() {
     commitSelection(next, false);
   }
 
-  function handleOpen(entry: FileEntry) {
+  function handleActivateEntry(entry: FileEntry) {
     if (entry.isDir) {
       clearInspector(inspectRequestRef, setPreview, setEditor);
       setSelectedEntries([]);
+      setInspectorMode("preview");
       if (searchQuery) {
         startTransition(() => setSearchText(""));
         setSearchResults([]);
       }
       setCurrentMountId(entry.mountId);
       setCurrentPath(entry.path);
-      if (isMobile) {
-        setMobilePanel(null);
-      }
+      setMobileNavOpen(false);
       return;
     }
 
-    if (!activeEntry || !sameEntry(activeEntry, entry)) {
+    if (!activeEntry || !sameEntry(activeEntry, entry) || inspectorMode !== "preview") {
       commitSelection([entry], true);
     } else if (isMobile) {
-      setMobilePanel("inspect");
+      setMobileInspectorOpen(true);
     }
   }
 
@@ -387,6 +433,7 @@ export function App() {
       loadFiles(currentMountId, currentPath, searchQuery, setEntries, setSelectedEntries, showHidden),
       ...treeLoads,
       reloadSearchResults(),
+      loadRuntimeData(),
     ]);
   }
 
@@ -394,78 +441,88 @@ export function App() {
     setDialog({ kind: "create-folder", value: "", error: "", submitting: false });
   }
 
-  function openRenameDialog() {
-    if (selectedEntries.length !== 1) {
+  function openRenameDialog(entry = selectedEntries[0]) {
+    if (!entry) {
       setNotice({ tone: "error", text: "请选择一个项目重命名。" });
       return;
     }
-
     setDialog({
       kind: "rename",
-      entry: selectedEntries[0],
-      value: basename(selectedEntries[0].path),
+      entry,
+      value: basename(entry.path),
       error: "",
       submitting: false,
     });
   }
 
-  function openMoveCopyDialog(kind: "move" | "copy") {
-    if (!selectedEntries.length) {
+  function openMoveCopyDialog(kind: "move" | "copy", entriesArg = selectedEntries) {
+    if (!entriesArg.length) {
       setNotice({ tone: "error", text: "请先选择文件或目录。" });
       return;
     }
 
-    if (selectionMountIds.length !== 1) {
+    const mountId = getSingleMountId(entriesArg);
+    if (!mountId) {
       setNotice({ tone: "error", text: "批量操作暂不支持跨挂载点选择。" });
       return;
     }
 
     setDialog({
       kind,
-      entries: selectedEntries,
-      targetDir: defaultTargetDir(selectedEntries, currentMountId, currentPath),
+      entries: entriesArg,
+      targetDir: defaultTargetDir(entriesArg, currentMountId, currentPath),
       error: "",
       submitting: false,
     });
   }
 
-  function openDeleteDialog() {
-    if (!selectedEntries.length) {
+  function openDeleteDialog(entriesArg = selectedEntries) {
+    if (!entriesArg.length) {
       setNotice({ tone: "error", text: "请先选择要删除的项目。" });
       return;
     }
-
-    if (selectionMountIds.length !== 1) {
+    if (!getSingleMountId(entriesArg)) {
       setNotice({ tone: "error", text: "删除操作暂不支持跨挂载点选择。" });
       return;
     }
-
     setDialog({
       kind: "delete",
-      entries: selectedEntries,
+      entries: entriesArg,
       error: "",
       submitting: false,
     });
   }
 
-  function openBatchDownloadDialog() {
-    if (!selectedEntries.length) {
+  function openBatchDownloadDialog(entriesArg = selectedEntries) {
+    if (!entriesArg.length) {
       setNotice({ tone: "error", text: "请先选择要下载的项目。" });
       return;
     }
-
-    if (selectionMountIds.length !== 1) {
+    if (!getSingleMountId(entriesArg)) {
       setNotice({ tone: "error", text: "批量下载暂不支持跨挂载点选择。" });
       return;
     }
-
     setDialog({
       kind: "batch-download",
-      entries: selectedEntries,
+      entries: entriesArg,
       value: "bundle.zip",
       error: "",
       submitting: false,
     });
+  }
+
+  function openTasksPanel() {
+    setInspectorMode("tasks");
+    if (isMobile) {
+      setMobileInspectorOpen(true);
+    }
+  }
+
+  function openTrashPanel() {
+    setInspectorMode("trash");
+    if (isMobile) {
+      setMobileInspectorOpen(true);
+    }
   }
 
   async function submitDialog() {
@@ -541,12 +598,11 @@ export function App() {
         }
 
         await Promise.all(dialog.entries.map((entry) => api.remove(mountId, entry.path)));
-
         setDialog(null);
         setSelectedEntries([]);
         clearInspector(inspectRequestRef, setPreview, setEditor);
         await refreshCurrentView();
-        setNotice({ tone: "info", text: "已移入回收目录" });
+        setNotice({ tone: "info", text: "已移入垃圾桶" });
         return;
       }
 
@@ -567,6 +623,7 @@ export function App() {
         setTaskPanelCollapsed(false);
         setDialog(null);
         setNotice({ tone: "info", text: "已创建下载任务" });
+        openTasksPanel();
       }
     } catch (error) {
       setDialog((current) =>
@@ -591,19 +648,18 @@ export function App() {
     setTaskPanelCollapsed(false);
     await refreshCurrentView();
     setNotice({ tone: "info", text: task.detail });
-    if (isMobile) {
-      setMobilePanel("inspect");
-    }
+    openTasksPanel();
   }
 
   async function handleOpenTask(taskId: string) {
     const task = await api.task(taskId);
     setTasks((previous) => mergeTasks(previous, [task]));
+    setInspectorMode("tasks");
     if (task.status === "success" && task.downloadUrl) {
       window.open(api.taskDownloadUrl(task.id), "_blank", "noopener,noreferrer");
     }
     if (isMobile) {
-      setMobilePanel("inspect");
+      setMobileInspectorOpen(true);
     }
   }
 
@@ -633,6 +689,24 @@ export function App() {
     setNotice({ tone: "info", text: "保存成功" });
   }
 
+  async function handleRestoreTrash(id: string) {
+    const result = await api.restoreTrash([id]);
+    await reloadTrash();
+    setNotice({
+      tone: result.conflicts.length ? "error" : "info",
+      text: result.conflicts.length ? `恢复失败：${result.conflicts.join("、")}` : "已恢复到原位置",
+    });
+  }
+
+  async function handleDeleteTrash(id: string) {
+    const result = await api.deleteTrash([id]);
+    await reloadTrash();
+    setNotice({
+      tone: result.missing.length ? "error" : "info",
+      text: result.missing.length ? `删除失败：${result.missing.join("、")}` : "已彻底删除",
+    });
+  }
+
   if (loadingSession) {
     return <div className="loading-screen">正在连接你的工作区...</div>;
   }
@@ -651,183 +725,113 @@ export function App() {
     );
   }
 
+  const inspectorPane = renderInspectorPane({
+    activeEntry,
+    canEditActiveEntry,
+    currentMount,
+    currentPath,
+    editor,
+    handleOpenTask,
+    handleRestoreTrash,
+    handleDeleteTrash,
+    inspectorMode,
+    onBack: () => setInspectorMode("preview"),
+    onEnterEdit: () => setInspectorMode("editor"),
+    onRefreshTrash: () => void reloadTrash(),
+    onSaveEditor: handleSaveEditor,
+    onShowTasks: openTasksPanel,
+    preview,
+    searchQuery,
+    selectedEntries,
+    setTaskPanelCollapsed,
+    taskPanelCollapsed,
+    tasks,
+    trashItems,
+  });
+
   return (
     <div className="app-shell">
       <header className="app-topbar">
-        <div className="brand-cluster">
-          <p className="eyebrow">Pan Workspace</p>
-          <div className="hero-line">
-            <h1>文件总览</h1>
-            <span className="theme-indicator">{resolvedTheme === "dark" ? "Night" : "Day"}</span>
+        <div className="topbar-primary">
+          {isMobile ? (
+            <button className="icon-button" onClick={() => setMobileNavOpen(true)} type="button">
+              <IconFolder />
+            </button>
+          ) : null}
+          <div className="toolbar-context">
+            <strong>{currentMount?.name ?? "Workspace"}</strong>
+            <span>{searchQuery ? `搜索：${searchQuery}` : currentPath}</span>
           </div>
-          <p className="muted">更紧凑的桌面网盘界面，目录、文件、预览和文本编辑保持在同一工作平面。</p>
         </div>
 
-        <div className="topbar-tools">
-          <div className="toolbar-cluster primary-tools">
-            <button className="primary-button compact-button" onClick={() => fileInputRef.current?.click()} type="button">
-              上传
-            </button>
-            <button className="ghost-button compact-button" onClick={openCreateFolderDialog} type="button">
-              新建目录
-            </button>
+        <div className="topbar-actions">
+          <label className="search-shell">
+            <IconSearch size={16} />
             <input
-              ref={fileInputRef}
-              hidden
-              multiple
-              type="file"
-              onChange={(event) => void handleUpload(event.target.files)}
-            />
-          </div>
-
-          <div className="toolbar-cluster secondary-tools">
-            <button className="tool-button" disabled={selectedEntries.length !== 1} onClick={openRenameDialog} type="button">
-              重命名
-            </button>
-            <button
-              className="tool-button"
-              disabled={selectedEntries.length === 0 || selectionMountIds.length !== 1}
-              onClick={() => openMoveCopyDialog("move")}
-              type="button"
-            >
-              移动
-            </button>
-            <button
-              className="tool-button"
-              disabled={selectedEntries.length === 0 || selectionMountIds.length !== 1}
-              onClick={() => openMoveCopyDialog("copy")}
-              type="button"
-            >
-              复制
-            </button>
-            <button
-              className="tool-button danger"
-              disabled={selectedEntries.length === 0 || selectionMountIds.length !== 1}
-              onClick={openDeleteDialog}
-              type="button"
-            >
-              删除
-            </button>
-            <button
-              className="tool-button"
-              disabled={selectedEntries.length === 0 || selectionMountIds.length !== 1}
-              onClick={openBatchDownloadDialog}
-              type="button"
-            >
-              批量下载
-            </button>
-          </div>
-
-          <label className="search-field">
-            <span>搜索</span>
-            <input
-              className="search-input"
+              className="search-input naked-input"
               onChange={(event) => {
                 startTransition(() => setSearchText(event.target.value));
               }}
-              placeholder="文件名、路径、目录"
+              placeholder="搜索文件名、路径、目录"
               value={searchText}
             />
           </label>
 
-          <div className="toolbar-cluster preference-tools">
-            <button
-              className={`toggle-chip compact-toggle ${showHidden ? "is-active" : ""}`}
-              onClick={() => setShowHidden((previous) => !previous)}
-              type="button"
-            >
-              {showHidden ? "显示隐藏文件" : "隐藏隐藏文件"}
+          <button className="icon-button primary-action" onClick={() => fileInputRef.current?.click()} type="button">
+            <IconUpload />
+          </button>
+          <button className="icon-button" onClick={openCreateFolderDialog} type="button">
+            <IconPlus />
+          </button>
+          {isMobile ? (
+            <button className="icon-button" onClick={() => setMobileInspectorOpen(true)} type="button">
+              {inspectorMode === "trash" ? <IconTrash /> : <IconArrowLeft style={{ transform: "rotate(180deg)" }} />}
             </button>
-
-            <div className="segmented-control" role="tablist" aria-label="Theme mode">
-              {(["system", "light", "dark"] as ThemeMode[]).map((mode) => (
-                <button
-                  aria-selected={themeMode === mode}
-                  className={`segment ${themeMode === mode ? "is-active" : ""}`}
-                  key={mode}
-                  onClick={() => setThemeMode(mode)}
-                  role="tab"
-                  type="button"
-                >
-                  {mode === "system" ? "自动" : mode === "light" ? "浅色" : "深色"}
-                </button>
-              ))}
-            </div>
-
-            <button className="ghost-button compact-button" onClick={() => void handleLogout()} type="button">
-              退出
-            </button>
-          </div>
+          ) : null}
+          <MenuButton
+            actions={[
+              { label: "刷新", icon: <IconRefresh size={14} />, onSelect: () => void refreshCurrentView() },
+              {
+                label: showHidden ? "隐藏隐藏项" : "显示隐藏项",
+                icon: <IconFolder size={14} />,
+                onSelect: () => setShowHidden((previous) => !previous),
+              },
+              { label: "任务", icon: <IconUpload size={14} />, onSelect: openTasksPanel },
+              { label: "垃圾桶", icon: <IconTrash size={14} />, onSelect: openTrashPanel },
+              { label: "跟随系统", icon: <IconDesktop size={14} />, onSelect: () => setThemeMode("system") },
+              { label: "浅色", icon: <IconSun size={14} />, onSelect: () => setThemeMode("light") },
+              { label: "深色", icon: <IconMoon size={14} />, onSelect: () => setThemeMode("dark") },
+              { label: "退出", icon: <IconLogout size={14} />, danger: true, onSelect: () => void handleLogout() },
+            ]}
+            align="right"
+            buttonClassName="icon-button"
+            buttonContent={<IconMore />}
+            buttonLabel="更多操作"
+          />
+          <input
+            ref={fileInputRef}
+            hidden
+            multiple
+            type="file"
+            onChange={(event) => void handleUpload(event.target.files)}
+          />
         </div>
       </header>
 
-      <section className="status-strip">
-        <div className="status-item">
-          <span className="status-label">挂载点</span>
-          <strong>{currentMount?.name ?? "未挂载"}</strong>
-        </div>
-        <div className="status-item status-item-wide">
-          <span className="status-label">{searchQuery ? "搜索上下文" : "当前位置"}</span>
-          <strong>{searchQuery ? `“${searchQuery}”` : currentPath}</strong>
-        </div>
-        <div className="status-item">
-          <span className="status-label">目录 / 文件</span>
-          <strong>
-            {directoryCount} / {fileCount}
-          </strong>
-        </div>
-        <div className="status-item">
-          <span className="status-label">选中</span>
-          <strong>{selectedEntries.length}</strong>
-        </div>
-      </section>
-
-      {isMobile ? (
-        <div className="mobile-switcher" role="tablist" aria-label="Mobile panels">
-          <button
-            aria-selected={mobilePanel === "nav"}
-            className={`mobile-switch ${mobilePanel === "nav" ? "is-active" : ""}`}
-            onClick={() => setMobilePanel((previous) => (previous === "nav" ? null : "nav"))}
-            role="tab"
-            type="button"
-          >
-            目录
-          </button>
-          <button
-            aria-selected={mobilePanel === null}
-            className={`mobile-switch ${mobilePanel === null ? "is-active" : ""}`}
-            onClick={() => setMobilePanel(null)}
-            role="tab"
-            type="button"
-          >
-            文件
-          </button>
-          <button
-            aria-selected={mobilePanel === "inspect"}
-            className={`mobile-switch ${mobilePanel === "inspect" ? "is-active" : ""}`}
-            onClick={() => setMobilePanel((previous) => (previous === "inspect" ? null : "inspect"))}
-            role="tab"
-            type="button"
-          >
-            详情
-          </button>
-        </div>
-      ) : null}
-
       <main className="workspace-grid">
-        <aside className={`sidebar-panel ${isMobile ? "mobile-sheet" : ""} ${mobilePanel === "nav" ? "is-open" : ""}`}>
+        <aside className={`sidebar-panel ${isMobile ? "mobile-sheet mobile-nav-sheet" : ""} ${mobileNavOpen ? "is-open" : ""}`}>
           <div className="panel-heading">
             <div>
               <span>目录树</span>
               <strong>{currentMount?.path ?? "No mount selected"}</strong>
             </div>
             <div className="toolbar">
-              <button className="ghost-button compact-button" onClick={() => void loadMountBootstrap()} type="button">
-                刷新
+              <button className="icon-button" onClick={() => void loadMountBootstrap()} type="button">
+                <IconRefresh />
               </button>
               {isMobile ? (
-                <button className="ghost-button compact-button" onClick={() => setMobilePanel(null)} type="button">
-                  关闭
+                <button className="icon-button" onClick={() => setMobileNavOpen(false)} type="button">
+                  <IconArrowLeft />
                 </button>
               ) : null}
             </div>
@@ -841,11 +845,10 @@ export function App() {
             onSelect={(mountId, path) => {
               clearInspector(inspectRequestRef, setPreview, setEditor);
               setSelectedEntries([]);
+              setInspectorMode("preview");
               setCurrentMountId(mountId);
               setCurrentPath(path);
-              if (isMobile) {
-                setMobilePanel(null);
-              }
+              setMobileNavOpen(false);
             }}
             onToggle={async (mountId, path) => {
               setExpandedPaths((previous) =>
@@ -863,10 +866,10 @@ export function App() {
         <section className="content-panel">
           <div className="content-head">
             {searchQuery ? (
-              <div className="search-context">
-                <span className="eyebrow">Search Result</span>
+              <div className="search-context compact-callout">
+                <span className="eyebrow">Search</span>
                 <strong>{visibleRows.length} 条结果</strong>
-                <small>单击项目查看详情，双击目录进入目录并退出搜索态。</small>
+                <small>当前搜索 “{searchQuery}”</small>
               </div>
             ) : (
               <nav aria-label="Breadcrumb" className="breadcrumb-trail">
@@ -877,6 +880,7 @@ export function App() {
                     onClick={() => {
                       clearInspector(inspectRequestRef, setPreview, setEditor);
                       setSelectedEntries([]);
+                      setInspectorMode("preview");
                       setCurrentPath(crumb.path);
                     }}
                     type="button"
@@ -887,22 +891,36 @@ export function App() {
               </nav>
             )}
 
-            <div className="content-summary">
-              <div>
-                <span className="status-label">浏览状态</span>
-                <strong>{searchQuery ? "跨挂载搜索结果" : currentPath}</strong>
+            {selectedEntries.length > 0 ? (
+              <div className="selection-toolbar">
+                <span>{selectedEntries.length} 项已选</span>
+                <button className="icon-button" disabled={selectedEntries.length !== 1} onClick={() => openRenameDialog()} type="button">
+                  <IconEdit />
+                </button>
+                <button className="icon-button" onClick={() => openMoveCopyDialog("move")} type="button">
+                  <IconMove />
+                </button>
+                <button className="icon-button" onClick={() => openMoveCopyDialog("copy")} type="button">
+                  <IconCopy />
+                </button>
+                <button className="icon-button" onClick={() => openBatchDownloadDialog()} type="button">
+                  <IconDownload />
+                </button>
+                <button className="icon-button danger-text" onClick={() => openDeleteDialog()} type="button">
+                  <IconTrash />
+                </button>
               </div>
-              <div>
-                <span className="status-label">隐藏文件</span>
-                <strong>{showHidden ? "已显示" : "已折叠"}</strong>
-              </div>
-            </div>
+            ) : null}
           </div>
 
           <FileTable
             entries={visibleRows}
-            onInspect={handleInspect}
-            onOpen={handleOpen}
+            onActivate={handleActivateEntry}
+            onCopy={(entry) => openMoveCopyDialog("copy", [entry])}
+            onDelete={(entry) => openDeleteDialog([entry])}
+            onDownload={(entry) => openBatchDownloadDialog([entry])}
+            onMove={(entry) => openMoveCopyDialog("move", [entry])}
+            onRename={(entry) => openRenameDialog(entry)}
             onToggleSelection={handleToggleSelection}
             selectedEntries={selectedEntries}
             showPath={Boolean(searchQuery)}
@@ -911,41 +929,30 @@ export function App() {
           {notice ? <div className={`notice notice-${notice.tone}`}>{notice.text}</div> : null}
         </section>
 
-        <aside className={`inspector-column ${isMobile ? "mobile-sheet" : ""} ${mobilePanel === "inspect" ? "is-open" : ""}`}>
-          {isMobile ? (
-            <div className="mobile-detail-head">
-              <div>
-                <span>详情</span>
-                <small>预览、编辑与任务</small>
-              </div>
-              <button className="ghost-button compact-button" onClick={() => setMobilePanel(null)} type="button">
-                关闭
-              </button>
-            </div>
-          ) : null}
-
-          <PreviewPane
-            activeEntry={activeEntry}
-            currentMount={currentMount}
-            currentPath={currentPath}
-            preview={preview}
-            searchQuery={searchQuery}
-            selectedEntries={selectedEntries}
-          />
-          <EditorPane
-            activeEntry={activeEntry}
-            editor={editor}
-            onSave={handleSaveEditor}
-            selectionCount={selectedEntries.length}
-          />
-          <TaskPanel
-            collapsed={taskPanelCollapsed}
-            onOpenTask={(id) => void handleOpenTask(id)}
-            onToggle={() => setTaskPanelCollapsed((previous) => !previous)}
-            tasks={tasks}
-          />
-        </aside>
+        {!isMobile ? <aside className="inspector-column">{inspectorPane}</aside> : null}
       </main>
+
+      {isMobile ? (
+        <aside className={`inspector-column mobile-sheet mobile-inspector-sheet ${mobileInspectorOpen ? "is-open" : ""}`}>
+          <div className="mobile-detail-head">
+            <div>
+              <span>{inspectorMode === "trash" ? "垃圾桶" : inspectorMode === "tasks" ? "任务" : "工作区"}</span>
+              <small>{inspectorMode === "editor" ? "编辑" : inspectorMode === "preview" ? "预览" : "列表"}</small>
+            </div>
+            <button className="icon-button" onClick={() => setMobileInspectorOpen(false)} type="button">
+              <IconArrowLeft />
+            </button>
+          </div>
+          {inspectorPane}
+        </aside>
+      ) : null}
+
+      <footer className="status-bar">
+        <span>{searchQuery ? `搜索 “${searchQuery}”` : `当前位置 ${currentPath}`}</span>
+        <span>目录 {directoryCount} · 文件 {fileCount}</span>
+        <span>选中 {selectedEntries.length}</span>
+        <span>任务 {tasks.length}</span>
+      </footer>
 
       {dialog ? (
         <OperationDialogView
@@ -977,6 +984,81 @@ export function App() {
         />
       ) : null}
     </div>
+  );
+}
+
+function renderInspectorPane(props: {
+  activeEntry: FileEntry | null;
+  canEditActiveEntry: boolean;
+  currentMount: MountRoot | null;
+  currentPath: string;
+  editor: EditorDocument | null;
+  handleDeleteTrash: (id: string) => void;
+  handleOpenTask: (taskId: string) => Promise<void>;
+  handleRestoreTrash: (id: string) => void;
+  inspectorMode: InspectorMode;
+  onBack: () => void;
+  onEnterEdit: () => void;
+  onRefreshTrash: () => void;
+  onSaveEditor: (nextContent: string) => Promise<void>;
+  onShowTasks: () => void;
+  preview: Awaited<ReturnType<typeof api.preview>> | null;
+  searchQuery: string;
+  selectedEntries: FileEntry[];
+  setTaskPanelCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+  taskPanelCollapsed: boolean;
+  tasks: TransferTask[];
+  trashItems: TrashItem[];
+}) {
+  if (props.inspectorMode === "editor") {
+    return (
+      <EditorPane
+        activeEntry={props.activeEntry}
+        editor={props.editor}
+        onBack={props.onBack}
+        onSave={props.onSaveEditor}
+        selectionCount={props.selectedEntries.length}
+      />
+    );
+  }
+
+  if (props.inspectorMode === "tasks") {
+    return (
+      <TaskPanel
+        collapsed={props.taskPanelCollapsed}
+        onBack={props.onBack}
+        onOpenTask={(id) => void props.handleOpenTask(id)}
+        onToggle={() => props.setTaskPanelCollapsed((previous) => !previous)}
+        tasks={props.tasks}
+      />
+    );
+  }
+
+  if (props.inspectorMode === "trash") {
+    return (
+      <TrashPanel
+        items={props.trashItems}
+        onBack={props.onBack}
+        onDelete={props.handleDeleteTrash}
+        onRefresh={props.onRefreshTrash}
+        onRestore={props.handleRestoreTrash}
+      />
+    );
+  }
+
+  return (
+    <PreviewPane
+      activeEntry={props.activeEntry}
+      canEdit={props.canEditActiveEntry}
+      currentMount={props.currentMount}
+      currentPath={props.currentPath}
+      onEnterEdit={props.onEnterEdit}
+      onShowTasks={props.onShowTasks}
+      preview={props.preview}
+      searchQuery={props.searchQuery}
+      selectedEntries={props.selectedEntries}
+      taskCount={props.tasks.length}
+    />
   );
 }
 
@@ -1073,11 +1155,9 @@ function dialogEyebrow(kind: NonNullable<OperationDialog>["kind"]) {
   if (kind === "delete") {
     return "Danger Zone";
   }
-
   if (kind === "batch-download") {
     return "Archive";
   }
-
   return "Operation";
 }
 
@@ -1109,7 +1189,7 @@ function dialogDescription(dialog: NonNullable<OperationDialog>) {
     case "copy":
       return "输入目标目录路径，所有选中项目都会复制过去。";
     case "delete":
-      return "删除会进入回收目录，不会直接执行不可恢复删除。";
+      return "删除会进入垃圾桶，不会直接执行不可恢复删除。";
     case "batch-download":
       return "系统会在后台创建压缩包任务，成功后可在任务区下载。";
   }

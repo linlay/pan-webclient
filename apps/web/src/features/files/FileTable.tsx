@@ -1,23 +1,33 @@
 import type { FileEntry } from "../../../../../packages/contracts/index";
+import {
+  IconAudio,
+  IconCopy,
+  IconDownload,
+  IconEdit,
+  IconFile,
+  IconFolder,
+  IconImage,
+  IconMore,
+  IconMove,
+  IconTrash,
+  IconVideo,
+} from "../shared/Icons";
+import { MenuButton } from "../shared/MenuButton";
 
 export function FileTable(props: {
   entries: FileEntry[];
   selectedEntries: FileEntry[];
   showPath: boolean;
-  onInspect: (entry: FileEntry) => void;
-  onOpen: (entry: FileEntry) => void;
+  onActivate: (entry: FileEntry) => void;
   onToggleSelection: (entry: FileEntry) => void;
+  onRename: (entry: FileEntry) => void;
+  onMove: (entry: FileEntry) => void;
+  onCopy: (entry: FileEntry) => void;
+  onDelete: (entry: FileEntry) => void;
+  onDownload: (entry: FileEntry) => void;
 }) {
   return (
     <section className="file-table">
-      <div className="file-table-head" role="row">
-        <span className="file-col-select" />
-        <span className="file-col-name">名称</span>
-        <span className="file-col-date">修改时间</span>
-        <span className="file-col-type">类型</span>
-        <span className="file-col-size">大小</span>
-      </div>
-
       <div className="file-table-body">
         {props.entries.map((entry) => {
           const selected = props.selectedEntries.some(
@@ -27,17 +37,16 @@ export function FileTable(props: {
             <div
               className={`file-row ${selected ? "is-selected" : ""}`}
               key={`${entry.mountId}:${entry.path}`}
-              onDoubleClick={() => props.onOpen(entry)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
-                  props.onOpen(entry);
+                  props.onActivate(entry);
                 }
                 if (event.key === " ") {
                   event.preventDefault();
-                  props.onInspect(entry);
+                  props.onToggleSelection(entry);
                 }
               }}
-              onClick={() => props.onInspect(entry)}
+              onClick={() => props.onActivate(entry)}
               role="button"
               tabIndex={0}
             >
@@ -54,17 +63,31 @@ export function FileTable(props: {
                 <span />
               </button>
 
-              <div className="file-row-name">
-                <span className={`entry-badge ${entry.isDir ? "is-directory" : ""}`}>{badgeLabel(entry)}</span>
-                <span className="file-row-namecopy">
+              <div className="file-row-main">
+                <span className="file-icon">{entryIcon(entry)}</span>
+                <div className="file-row-namecopy">
                   <strong>{entry.name}</strong>
-                  {props.showPath ? <small>{entry.path}</small> : null}
-                </span>
+                  <small>{props.showPath ? entry.path : describeEntry(entry)}</small>
+                </div>
               </div>
 
-              <span className="file-row-date">{formatDateTime(entry.modTime)}</span>
-              <span className="file-row-type">{describeMime(entry.mime, entry.isDir)}</span>
-              <span className="file-row-size">{entry.isDir ? "DIR" : formatBytes(entry.size)}</span>
+              <div className="file-row-meta">
+                <span>{formatDateTime(entry.modTime)}</span>
+                <span>{entry.isDir ? "文件夹" : formatBytes(entry.size)}</span>
+              </div>
+
+              <MenuButton
+                actions={[
+                  { label: "重命名", icon: <IconEdit size={14} />, disabled: false, onSelect: () => props.onRename(entry) },
+                  { label: "移动", icon: <IconMove size={14} />, onSelect: () => props.onMove(entry) },
+                  { label: "复制", icon: <IconCopy size={14} />, onSelect: () => props.onCopy(entry) },
+                  { label: "下载", icon: <IconDownload size={14} />, onSelect: () => props.onDownload(entry) },
+                  { label: "删除", icon: <IconTrash size={14} />, danger: true, onSelect: () => props.onDelete(entry) },
+                ]}
+                buttonClassName="icon-button"
+                buttonContent={<IconMore />}
+                buttonLabel={`${entry.name} 操作`}
+              />
             </div>
           );
         })}
@@ -80,13 +103,27 @@ export function FileTable(props: {
   );
 }
 
-function badgeLabel(entry: FileEntry) {
+function entryIcon(entry: FileEntry) {
   if (entry.isDir) {
-    return "DIR";
+    return <IconFolder />;
   }
+  if (entry.mime.startsWith("image/")) {
+    return <IconImage />;
+  }
+  if (entry.mime.startsWith("video/")) {
+    return <IconVideo />;
+  }
+  if (entry.mime.startsWith("audio/")) {
+    return <IconAudio />;
+  }
+  return <IconFile />;
+}
 
-  const extension = entry.extension.replace(".", "").toUpperCase();
-  return extension || "FILE";
+function describeEntry(entry: FileEntry) {
+  if (entry.isDir) {
+    return "文件夹";
+  }
+  return entry.mime.replace("application/", "").replace("text/", "") || "文件";
 }
 
 function formatBytes(value: number) {
@@ -98,12 +135,4 @@ function formatBytes(value: number) {
 
 function formatDateTime(value: number) {
   return new Date(value * 1000).toLocaleString();
-}
-
-function describeMime(value: string, isDir: boolean) {
-  if (isDir || value === "inode/directory") {
-    return "文件夹";
-  }
-
-  return value.replace("application/", "").replace("text/", "") || "文件";
 }

@@ -6,6 +6,7 @@ import type {
   PreviewMeta,
   SearchHit,
   SessionUser,
+  TrashItem,
   TransferTask,
 } from "../../../../packages/contracts/index";
 
@@ -111,6 +112,7 @@ export const api = {
     }
     return (await response.json()) as TransferTask;
   },
+  tasks: () => request<TransferTask[]>("/api/tasks"),
   batchDownload: (mountId: string, items: string[], archiveName: string) =>
     request<TransferTask>("/api/downloads/batch", {
       method: "POST",
@@ -118,4 +120,15 @@ export const api = {
     }),
   task: (id: string) => request<TransferTask>(`/api/tasks/${id}`),
   taskDownloadUrl: (id: string) => `${API_BASE}/api/tasks/${id}/download`,
+  trash: () => request<TrashItem[]>("/api/trash"),
+  restoreTrash: (ids: string[]) =>
+    request<{ restored: number; conflicts: string[] }>("/api/trash/restore", {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    }),
+  deleteTrash: (ids: string[]) =>
+    request<{ deleted: number; missing: string[] }>("/api/trash/delete", {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    }),
 };
