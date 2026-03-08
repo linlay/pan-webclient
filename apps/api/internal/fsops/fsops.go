@@ -31,6 +31,7 @@ type Entry struct {
 	ModTime   int64  `json:"modTime"`
 	Mime      string `json:"mime"`
 	Extension string `json:"extension"`
+	Hidden    bool   `json:"-"`
 }
 
 type TreeNode struct {
@@ -80,7 +81,7 @@ func (r *MountResolver) Mounts() []mounts.Mount {
 	return items
 }
 
-func ListDirectory(resolver *MountResolver, mountID, relPath string) ([]Entry, error) {
+func ListDirectory(resolver *MountResolver, mountID, relPath string, showHidden bool) ([]Entry, error) {
 	mount, abs, clean, err := resolver.Resolve(mountID, relPath)
 	if err != nil {
 		return nil, err
@@ -98,7 +99,7 @@ func ListDirectory(resolver *MountResolver, mountID, relPath string) ([]Entry, e
 	}
 	result := make([]Entry, 0, len(entries))
 	for _, item := range entries {
-		if strings.HasPrefix(item.Name(), ".") {
+		if !showHidden && isHiddenName(item.Name()) {
 			continue
 		}
 		info, err := item.Info()
@@ -109,7 +110,7 @@ func ListDirectory(resolver *MountResolver, mountID, relPath string) ([]Entry, e
 			continue
 		}
 		childRel := cleanRelPath(filepath.Join(clean, item.Name()))
-		result = append(result, entryFromInfo(mount.ID, childRel, item.Name(), info))
+		result = append(result, entryFromInfo(mount.ID, childRel, item.Name(), info, isHiddenRelPath(childRel)))
 	}
 	sort.Slice(result, func(i, j int) bool {
 		if result[i].IsDir != result[j].IsDir {
@@ -120,8 +121,8 @@ func ListDirectory(resolver *MountResolver, mountID, relPath string) ([]Entry, e
 	return result, nil
 }
 
-func Tree(resolver *MountResolver, mountID, relPath string) ([]TreeNode, error) {
-	entries, err := ListDirectory(resolver, mountID, relPath)
+func Tree(resolver *MountResolver, mountID, relPath string, showHidden bool) ([]TreeNode, error) {
+	entries, err := ListDirectory(resolver, mountID, relPath, showHidden)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +135,7 @@ func Tree(resolver *MountResolver, mountID, relPath string) ([]TreeNode, error) 
 		children, err := os.ReadDir(filepath.Join(resolver.byID[mountID].Path, "."+item.Path))
 		if err == nil {
 			for _, child := range children {
-				if !strings.HasPrefix(child.Name(), ".") {
+				if showHidden || !isHiddenName(child.Name()) {
 					hasChildren = true
 					break
 				}
@@ -210,7 +211,8 @@ func Mkdir(resolver *MountResolver, mountID, relPath, name string) (Entry, error
 	if err != nil {
 		return Entry{}, err
 	}
-	return entryFromInfo(mountID, cleanRelPath(filepath.Join(clean, filepath.Base(name))), filepath.Base(name), info), nil
+	childRel := cleanRelPath(filepath.Join(clean, filepath.Base(name)))
+	return entryFromInfo(mountID, childRel, filepath.Base(name), info, isHiddenRelPath(childRel)), nil
 }
 
 func Rename(resolver *MountResolver, mountID, relPath, newName string) (Entry, error) {
@@ -233,7 +235,7 @@ func Rename(resolver *MountResolver, mountID, relPath, newName string) (Entry, e
 		return Entry{}, err
 	}
 	newRel := cleanRelPath(filepath.Join(filepath.Dir(clean), filepath.Base(newName)))
-	return entryFromInfo(mountID, newRel, filepath.Base(newName), info), nil
+	return entryFromInfo(mountID, newRel, filepath.Base(newName), info, isHiddenRelPath(newRel)), nil
 }
 
 func Move(resolver *MountResolver, mountID, relPath, targetDir string) (Entry, error) {
@@ -259,7 +261,8 @@ func Move(resolver *MountResolver, mountID, relPath, targetDir string) (Entry, e
 	if err != nil {
 		return Entry{}, err
 	}
-	return entryFromInfo(mountID, cleanRelPath(filepath.Join(targetClean, filepath.Base(abs))), filepath.Base(abs), newInfo), nil
+	newRel := cleanRelPath(filepath.Join(targetClean, filepath.Base(abs)))
+	return entryFromInfo(mountID, newRel, filepath.Base(abs), newInfo, isHiddenRelPath(newRel)), nil
 }
 
 func Copy(resolver *MountResolver, mountID, relPath, targetDir string) (Entry, error) {
@@ -285,7 +288,8 @@ func Copy(resolver *MountResolver, mountID, relPath, targetDir string) (Entry, e
 	if err != nil {
 		return Entry{}, err
 	}
-	return entryFromInfo(mountID, cleanRelPath(filepath.Join(targetClean, filepath.Base(srcAbs))), filepath.Base(srcAbs), newInfo), nil
+	newRel := cleanRelPath(filepath.Join(targetClean, filepath.Base(srcAbs)))
+	return entryFromInfo(mountID, newRel, filepath.Base(srcAbs), newInfo, isHiddenRelPath(newRel)), nil
 }
 
 func SaveUploadedFile(resolver *MountResolver, mountID, relPath, filename string, src io.Reader) (Entry, error) {
@@ -307,7 +311,8 @@ func SaveUploadedFile(resolver *MountResolver, mountID, relPath, filename string
 	if err != nil {
 		return Entry{}, err
 	}
-	return entryFromInfo(mountID, cleanRelPath(filepath.Join(clean, targetName)), targetName, info), nil
+	targetRel := cleanRelPath(filepath.Join(clean, targetName))
+	return entryFromInfo(mountID, targetRel, targetName, info, isHiddenRelPath(targetRel)), nil
 }
 
 func OpenFile(resolver *MountResolver, mountID, relPath string) (*os.File, os.FileInfo, error) {
@@ -326,7 +331,7 @@ func OpenFile(resolver *MountResolver, mountID, relPath string) (*os.File, os.Fi
 	return file, info, nil
 }
 
-func CollectEntries(mountID, root string) ([]Entry, error) {
+func CollectEntries(mountID, root string, includeHidden bool) ([]Entry, error) {
 	entries := make([]Entry, 0, 256)
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -336,7 +341,12 @@ func CollectEntries(mountID, root string) ([]Entry, error) {
 			return nil
 		}
 		name := d.Name()
-		if strings.HasPrefix(name, ".") {
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return nil
+		}
+		hidden := isHiddenRelPath(rel)
+		if hidden && !includeHidden {
 			if d.IsDir() {
 				return filepath.SkipDir
 			}
@@ -346,11 +356,7 @@ func CollectEntries(mountID, root string) ([]Entry, error) {
 		if err != nil || info.Mode()&os.ModeSymlink != 0 {
 			return nil
 		}
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
-			return nil
-		}
-		entries = append(entries, entryFromInfo(mountID, cleanRelPath(rel), name, info))
+		entries = append(entries, entryFromInfo(mountID, cleanRelPath(rel), name, info, hidden))
 		return nil
 	})
 	return entries, err
@@ -379,7 +385,7 @@ func VersionFromInfo(info os.FileInfo) string {
 	return fmt.Sprintf("%d", info.ModTime().UnixNano())
 }
 
-func entryFromInfo(mountID, relPath, name string, info os.FileInfo) Entry {
+func entryFromInfo(mountID, relPath, name string, info os.FileInfo, hidden bool) Entry {
 	return Entry{
 		MountID:   mountID,
 		Path:      cleanRelPath(relPath),
@@ -389,6 +395,7 @@ func entryFromInfo(mountID, relPath, name string, info os.FileInfo) Entry {
 		ModTime:   info.ModTime().Unix(),
 		Mime:      mimeTypeForInfo(name, info),
 		Extension: strings.ToLower(filepath.Ext(name)),
+		Hidden:    hidden,
 	}
 }
 
@@ -411,6 +418,20 @@ func cleanRelPath(path string) string {
 		return "/"
 	}
 	return clean
+}
+
+func isHiddenName(name string) bool {
+	return strings.HasPrefix(name, ".")
+}
+
+func isHiddenRelPath(path string) bool {
+	clean := cleanRelPath(path)
+	for _, part := range strings.Split(strings.Trim(clean, "/"), "/") {
+		if isHiddenName(part) {
+			return true
+		}
+	}
+	return false
 }
 
 func hasTraversal(path string) bool {

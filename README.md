@@ -14,6 +14,8 @@
 cp .env.example .env
 ```
 
+`.env.example` 中的 `SQLITE_PATH` / `PAN_TRASH_DIR` 默认按 `make api-run` 的工作目录 `apps/api` 解析。
+
 ### 本地启动后端
 ```bash
 make api-run
@@ -48,7 +50,7 @@ make api-test
 ```bash
 make api-build
 make web-build
-PAN_STATIC_DIR=apps/web/dist ./bin/pan-api
+SQLITE_PATH=./apps/api/data/pan.db PAN_TRASH_DIR=./apps/api/data/trash PAN_STATIC_DIR=apps/web/dist ./bin/pan-api
 ```
 
 ### 容器构建

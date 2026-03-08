@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS files (
   mod_time INTEGER NOT NULL,
   mime TEXT NOT NULL,
   extension TEXT NOT NULL,
+  hidden INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (mount_id, rel_path)
 );
 CREATE INDEX IF NOT EXISTS idx_files_name ON files(name);
@@ -82,7 +83,10 @@ CREATE TABLE IF NOT EXISTS deleted_items (
   is_dir INTEGER NOT NULL,
   size INTEGER NOT NULL
 );`
-	return s.exec(schema)
+	if err := s.exec(schema); err != nil {
+		return err
+	}
+	return s.ensureFilesSchema()
 }
 
 func (s *Store) ReplaceMountSnapshot(mountID string, entries []fsops.Entry) error {
@@ -95,7 +99,7 @@ func (s *Store) ReplaceMountSnapshot(mountID string, entries []fsops.Entry) erro
 	builder.WriteString(escape(mountID))
 	builder.WriteString("';")
 	for _, item := range entries {
-		builder.WriteString("INSERT INTO files (mount_id, rel_path, name, is_dir, size, mod_time, mime, extension) VALUES ('")
+		builder.WriteString("INSERT INTO files (mount_id, rel_path, name, is_dir, size, mod_time, mime, extension, hidden) VALUES ('")
 		builder.WriteString(escape(item.MountID))
 		builder.WriteString("','")
 		builder.WriteString(escape(item.Path))
@@ -111,20 +115,27 @@ func (s *Store) ReplaceMountSnapshot(mountID string, entries []fsops.Entry) erro
 		builder.WriteString(escape(item.Mime))
 		builder.WriteString("','")
 		builder.WriteString(escape(item.Extension))
-		builder.WriteString("');")
+		builder.WriteString("',")
+		builder.WriteString(boolInt(item.Hidden))
+		builder.WriteString(");")
 	}
 	builder.WriteString("COMMIT;")
 	return s.exec(builder.String())
 }
 
-func (s *Store) Search(query string, limit int) ([]SearchHit, error) {
+func (s *Store) Search(query string, limit int, showHidden bool) ([]SearchHit, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	pattern := "%" + escapeLike(query) + "%"
+	hiddenFilter := " AND hidden = 0"
+	if showHidden {
+		hiddenFilter = ""
+	}
 	sql := fmt.Sprintf(
-		"SELECT mount_id AS mountId, rel_path AS path, name, is_dir AS isDir, size, mod_time AS modTime, mime FROM files WHERE name LIKE '%s' ESCAPE '\\' OR rel_path LIKE '%s' ESCAPE '\\' ORDER BY is_dir DESC, name ASC LIMIT %d;",
+		"SELECT mount_id AS mountId, rel_path AS path, name, is_dir AS isDir, size, mod_time AS modTime, mime FROM files WHERE (name LIKE '%s' ESCAPE '\\' OR rel_path LIKE '%s' ESCAPE '\\')%s ORDER BY is_dir DESC, name ASC LIMIT %d;",
 		pattern,
 		pattern,
+		hiddenFilter,
 		limit,
 	)
 	output, err := s.queryJSON(sql)
@@ -160,6 +171,27 @@ func (s *Store) Search(query string, limit int) ([]SearchHit, error) {
 		})
 	}
 	return hits, nil
+}
+
+func (s *Store) ensureFilesSchema() error {
+	type pragmaColumn struct {
+		Name string `json:"name"`
+	}
+
+	output, err := s.queryJSON("PRAGMA table_info(files);")
+	if err != nil {
+		return err
+	}
+	var columns []pragmaColumn
+	if err := json.Unmarshal(output, &columns); err != nil {
+		return err
+	}
+	for _, column := range columns {
+		if column.Name == "hidden" {
+			return nil
+		}
+	}
+	return s.exec("ALTER TABLE files ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0;")
 }
 
 func (s *Store) UpsertTask(task TaskRecord) error {

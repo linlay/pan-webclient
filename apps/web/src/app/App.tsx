@@ -4,20 +4,33 @@ import type {
   FileEntry,
   FileTreeNode,
   MountRoot,
-  PreviewMeta,
   SearchHit,
   SessionUser,
   TransferTask,
 } from "../../../../packages/contracts/index";
-import { api } from "./api";
 import { LoginForm } from "../features/auth/LoginForm";
-import { SidebarTree } from "../features/files/SidebarTree";
-import { FileTable } from "../features/files/FileTable";
-import { PreviewPane } from "../features/preview/PreviewPane";
 import { EditorPane } from "../features/editor/EditorPane";
+import { FileTable } from "../features/files/FileTable";
+import { SidebarTree } from "../features/files/SidebarTree";
+import { PreviewPane } from "../features/preview/PreviewPane";
 import { TaskPanel } from "../features/tasks/TaskPanel";
+import { api } from "./api";
 
 type Notice = { tone: "info" | "error"; text: string } | null;
+type ThemeMode = "system" | "light" | "dark";
+type MobilePanel = "nav" | "inspect" | null;
+type DialogBase = { error: string; submitting: boolean };
+type OperationDialog =
+  | ({ kind: "create-folder"; value: string } & DialogBase)
+  | ({ kind: "rename"; entry: FileEntry; value: string } & DialogBase)
+  | ({ kind: "move" | "copy"; entries: FileEntry[]; targetDir: string } & DialogBase)
+  | ({ kind: "delete"; entries: FileEntry[] } & DialogBase)
+  | ({ kind: "batch-download"; entries: FileEntry[]; value: string } & DialogBase)
+  | null;
+
+const SHOW_HIDDEN_STORAGE_KEY = "pan-webclient:show-hidden";
+const THEME_STORAGE_KEY = "pan-webclient:theme-mode";
+const MOBILE_MEDIA_QUERY = "(max-width: 960px)";
 
 export function App() {
   const [user, setUser] = useState<SessionUser | null>(null);
@@ -29,18 +42,49 @@ export function App() {
   const [selectedEntries, setSelectedEntries] = useState<FileEntry[]>([]);
   const [treeCache, setTreeCache] = useState<Record<string, FileTreeNode[]>>({});
   const [expandedPaths, setExpandedPaths] = useState<string[]>(["/"]);
-  const [preview, setPreview] = useState<PreviewMeta | null>(null);
+  const [preview, setPreview] = useState<Awaited<ReturnType<typeof api.preview>> | null>(null);
   const [editor, setEditor] = useState<EditorDocument | null>(null);
   const [tasks, setTasks] = useState<TransferTask[]>([]);
   const [searchText, setSearchText] = useState("");
   const deferredSearch = useDeferredValue(searchText);
   const [searchResults, setSearchResults] = useState<SearchHit[]>([]);
   const [notice, setNotice] = useState<Notice>(null);
+  const [showHidden, setShowHidden] = useState(() => readStoredShowHidden());
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => readStoredThemeMode());
+  const [prefersDark, setPrefersDark] = useState(false);
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>(null);
+  const [taskPanelCollapsed, setTaskPanelCollapsed] = useState(true);
+  const [dialog, setDialog] = useState<OperationDialog>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const inspectRequestRef = useRef(0);
+  const isMobile = useMediaQuery(MOBILE_MEDIA_QUERY);
+
+  const resolvedTheme = themeMode === "system" ? (prefersDark ? "dark" : "light") : themeMode;
+  const searchQuery = deferredSearch.trim();
+  const currentMount = useMemo(
+    () => mounts.find((item) => item.id === currentMountId) ?? null,
+    [currentMountId, mounts],
+  );
+  const activeEntry = selectedEntries.length === 1 ? selectedEntries[0] : null;
+  const selectionMountIds = useMemo(
+    () => Array.from(new Set(selectedEntries.map((item) => item.mountId))),
+    [selectedEntries],
+  );
+  const breadcrumbs = useMemo(() => buildBreadcrumbs(currentMount, currentPath), [currentMount, currentPath]);
+  const directoryCount = useMemo(() => entries.filter((item) => item.isDir).length, [entries]);
+  const fileCount = useMemo(() => entries.filter((item) => !item.isDir).length, [entries]);
+  const hasActiveTask = useMemo(
+    () => tasks.some((task) => task.status === "pending" || task.status === "running"),
+    [tasks],
+  );
 
   const visibleRows = useMemo(() => {
-    if (deferredSearch.trim()) {
-      return searchResults.map((hit) => ({
+    if (!searchQuery) {
+      return sortEntries(entries);
+    }
+
+    return sortEntries(
+      searchResults.map((hit) => ({
         mountId: hit.mountId,
         path: hit.path,
         name: hit.name,
@@ -48,58 +92,141 @@ export function App() {
         size: hit.size,
         modTime: hit.modTime,
         mime: hit.mime,
-        extension: "",
-      }));
-    }
-    return entries;
-  }, [deferredSearch, entries, searchResults]);
+        extension: extensionFromPath(hit.path),
+      })),
+    );
+  }, [entries, searchQuery, searchResults]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const sync = () => setPrefersDark(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(SHOW_HIDDEN_STORAGE_KEY, showHidden ? "1" : "0");
+  }, [showHidden]);
+
+  useEffect(() => {
+    window.localStorage.setItem(THEME_STORAGE_KEY, themeMode);
+  }, [themeMode]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = resolvedTheme;
+    document.documentElement.style.colorScheme = resolvedTheme;
+  }, [resolvedTheme]);
 
   useEffect(() => {
     void bootstrap();
   }, []);
 
   useEffect(() => {
+    setTreeCache({});
+    setExpandedPaths(["/"]);
+  }, [showHidden]);
+
+  useEffect(() => {
+    setSelectedEntries([]);
+    clearInspector(inspectRequestRef, setPreview, setEditor);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (!showHidden) {
+      setSelectedEntries((previous) => previous.filter((item) => !hasHiddenPath(item.path)));
+      if ((preview && hasHiddenPath(preview.path)) || (editor && hasHiddenPath(editor.path))) {
+        clearInspector(inspectRequestRef, setPreview, setEditor);
+      }
+    }
+
+    if (showHidden || !hasHiddenPath(currentPath)) {
+      return;
+    }
+
+    setCurrentPath("/");
+    setSelectedEntries([]);
+    clearInspector(inspectRequestRef, setPreview, setEditor);
+    setMobilePanel(null);
+  }, [currentPath, editor, preview, showHidden]);
+
+  useEffect(() => {
+    if (!isMobile) {
+      setMobilePanel(null);
+    }
+  }, [isMobile]);
+
+  useEffect(() => {
     if (!user || !currentMountId) {
       return;
     }
-    void loadFiles(currentMountId, currentPath);
-    void loadTree(currentMountId, currentPath);
-  }, [user, currentMountId, currentPath]);
+
+    void loadFiles(currentMountId, currentPath, searchQuery, setEntries, setSelectedEntries, showHidden);
+    void loadTree(currentMountId, "/", showHidden, setTreeCache);
+    if (currentPath !== "/") {
+      void loadTree(currentMountId, currentPath, showHidden, setTreeCache);
+    }
+  }, [currentMountId, currentPath, searchQuery, showHidden, user]);
 
   useEffect(() => {
     if (!user) {
       return;
     }
-    if (!deferredSearch.trim()) {
+
+    if (!searchQuery) {
       setSearchResults([]);
       return;
     }
+
     const handle = window.setTimeout(() => {
       void api
-        .search(deferredSearch.trim())
+        .search(searchQuery, showHidden)
         .then(setSearchResults)
         .catch((error: Error) => setNotice({ tone: "error", text: error.message }));
     }, 180);
+
     return () => window.clearTimeout(handle);
-  }, [deferredSearch, user]);
+  }, [searchQuery, showHidden, user]);
 
   useEffect(() => {
     if (!tasks.length) {
       return;
     }
+
     const active = tasks.filter((task) => task.status === "pending" || task.status === "running");
     if (!active.length) {
       return;
     }
+
     const handle = window.setInterval(() => {
       void Promise.all(active.map((task) => api.task(task.id)))
-        .then((next) => {
-          setTasks((previous) => mergeTasks(previous, next));
-        })
+        .then((next) => setTasks((previous) => mergeTasks(previous, next)))
         .catch((error: Error) => setNotice({ tone: "error", text: error.message }));
     }, 1500);
+
     return () => window.clearInterval(handle);
   }, [tasks]);
+
+  useEffect(() => {
+    if (hasActiveTask) {
+      setTaskPanelCollapsed(false);
+    }
+  }, [hasActiveTask]);
+
+  useEffect(() => {
+    if (!dialog) {
+      return;
+    }
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !dialog.submitting) {
+        setDialog(null);
+      }
+    };
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [dialog]);
 
   async function bootstrap() {
     try {
@@ -116,21 +243,21 @@ export function App() {
   async function loadMountBootstrap() {
     const list = await api.mounts();
     setMounts(list);
-    if (list.length > 0) {
-      setCurrentMountId((existing) => existing || list[0].id);
-      setCurrentPath("/");
+    setCurrentMountId((existing) => {
+      if (existing && list.some((item) => item.id === existing)) {
+        return existing;
+      }
+      return list[0]?.id ?? "";
+    });
+    setCurrentPath("/");
+  }
+
+  async function reloadSearchResults() {
+    if (!searchQuery) {
+      return;
     }
-  }
-
-  async function loadFiles(mountId: string, path: string) {
-    const rows = await api.files(mountId, path);
-    setEntries(rows);
-    setSelectedEntries([]);
-  }
-
-  async function loadTree(mountId: string, path: string) {
-    const nodes = await api.tree(mountId, path);
-    setTreeCache((previous) => ({ ...previous, [`${mountId}:${path}`]: nodes }));
+    const results = await api.search(searchQuery, showHidden);
+    setSearchResults(results);
   }
 
   async function handleLogin(username: string, password: string) {
@@ -143,26 +270,106 @@ export function App() {
   async function handleLogout() {
     await api.logout();
     setUser(null);
+    setMounts([]);
+    setCurrentMountId("");
+    setCurrentPath("/");
     setEntries([]);
-    setPreview(null);
-    setEditor(null);
+    setSelectedEntries([]);
+    setTreeCache({});
+    clearInspector(inspectRequestRef, setPreview, setEditor);
+    setTasks([]);
+    setSearchResults([]);
+    setSearchText("");
+    setDialog(null);
+    setMobilePanel(null);
   }
 
-  async function handleOpen(entry: FileEntry) {
+  async function inspectEntry(entry: FileEntry, revealOnMobile: boolean) {
+    const requestId = ++inspectRequestRef.current;
+
     if (entry.isDir) {
-      setCurrentMountId(entry.mountId);
-      setCurrentPath(entry.path);
       setPreview(null);
       setEditor(null);
+      if (revealOnMobile && isMobile) {
+        setMobilePanel("inspect");
+      }
       return;
     }
-    const data = await api.preview(entry.mountId, entry.path);
-    setPreview(data);
-    if (data.kind === "text" || data.kind === "markdown") {
-      const doc = await api.getContent(entry.mountId, entry.path);
-      setEditor(doc);
-    } else {
-      setEditor(null);
+
+    try {
+      const nextPreview = await api.preview(entry.mountId, entry.path);
+      if (requestId !== inspectRequestRef.current) {
+        return;
+      }
+
+      setPreview(nextPreview);
+
+      if (nextPreview.kind === "text" || nextPreview.kind === "markdown") {
+        const document = await api.getContent(entry.mountId, entry.path);
+        if (requestId !== inspectRequestRef.current) {
+          return;
+        }
+        setEditor(document);
+      } else {
+        setEditor(null);
+      }
+
+      if (revealOnMobile && isMobile) {
+        setMobilePanel("inspect");
+      }
+    } catch (error) {
+      if (requestId !== inspectRequestRef.current) {
+        return;
+      }
+      clearInspector(inspectRequestRef, setPreview, setEditor);
+      setNotice({ tone: "error", text: error instanceof Error ? error.message : "加载预览失败" });
+    }
+  }
+
+  function commitSelection(next: FileEntry[], revealOnMobile = false) {
+    setSelectedEntries(next);
+
+    if (next.length !== 1) {
+      clearInspector(inspectRequestRef, setPreview, setEditor);
+      return;
+    }
+
+    void inspectEntry(next[0], revealOnMobile);
+  }
+
+  function handleInspect(entry: FileEntry) {
+    commitSelection([entry], true);
+  }
+
+  function handleToggleSelection(entry: FileEntry) {
+    const exists = selectedEntries.some((item) => sameEntry(item, entry));
+    const next = exists
+      ? selectedEntries.filter((item) => !sameEntry(item, entry))
+      : [...selectedEntries, entry];
+
+    commitSelection(next, false);
+  }
+
+  function handleOpen(entry: FileEntry) {
+    if (entry.isDir) {
+      clearInspector(inspectRequestRef, setPreview, setEditor);
+      setSelectedEntries([]);
+      if (searchQuery) {
+        startTransition(() => setSearchText(""));
+        setSearchResults([]);
+      }
+      setCurrentMountId(entry.mountId);
+      setCurrentPath(entry.path);
+      if (isMobile) {
+        setMobilePanel(null);
+      }
+      return;
+    }
+
+    if (!activeEntry || !sameEntry(activeEntry, entry)) {
+      commitSelection([entry], true);
+    } else if (isMobile) {
+      setMobilePanel("inspect");
     }
   }
 
@@ -170,106 +377,223 @@ export function App() {
     if (!currentMountId) {
       return;
     }
-    await Promise.all([loadFiles(currentMountId, currentPath), loadTree(currentMountId, currentPath)]);
-  }
 
-  async function handleCreateFolder() {
-    const name = window.prompt("新建文件夹名称");
-    if (!name || !currentMountId) {
-      return;
+    const treeLoads = [loadTree(currentMountId, "/", showHidden, setTreeCache)];
+    if (currentPath !== "/") {
+      treeLoads.push(loadTree(currentMountId, currentPath, showHidden, setTreeCache));
     }
-    await api.createFolder(currentMountId, currentPath, name);
-    await refreshCurrentView();
-    setNotice({ tone: "info", text: `已创建 ${name}` });
+
+    await Promise.all([
+      loadFiles(currentMountId, currentPath, searchQuery, setEntries, setSelectedEntries, showHidden),
+      ...treeLoads,
+      reloadSearchResults(),
+    ]);
   }
 
-  async function handleRename() {
+  function openCreateFolderDialog() {
+    setDialog({ kind: "create-folder", value: "", error: "", submitting: false });
+  }
+
+  function openRenameDialog() {
     if (selectedEntries.length !== 1) {
-      setNotice({ tone: "error", text: "请选择一个文件或目录重命名" });
+      setNotice({ tone: "error", text: "请选择一个项目重命名。" });
       return;
     }
-    const current = selectedEntries[0];
-    const nextName = window.prompt("新的名称", basename(current.path));
-    if (!nextName) {
-      return;
-    }
-    await api.rename(current.mountId, current.path, nextName);
-    await refreshCurrentView();
-    setNotice({ tone: "info", text: "重命名成功" });
+
+    setDialog({
+      kind: "rename",
+      entry: selectedEntries[0],
+      value: basename(selectedEntries[0].path),
+      error: "",
+      submitting: false,
+    });
   }
 
-  async function handleMoveCopy(kind: "move" | "copy") {
+  function openMoveCopyDialog(kind: "move" | "copy") {
     if (!selectedEntries.length) {
-      setNotice({ tone: "error", text: "请先选择文件或目录" });
+      setNotice({ tone: "error", text: "请先选择文件或目录。" });
       return;
     }
-    const selectionMountId = requireSingleMountSelection();
-    if (!selectionMountId) {
+
+    if (selectionMountIds.length !== 1) {
+      setNotice({ tone: "error", text: "批量操作暂不支持跨挂载点选择。" });
       return;
     }
-    const targetDir = window.prompt(`输入${kind === "move" ? "移动" : "复制"}目标目录`, currentPath);
-    if (!targetDir) {
+
+    setDialog({
+      kind,
+      entries: selectedEntries,
+      targetDir: defaultTargetDir(selectedEntries, currentMountId, currentPath),
+      error: "",
+      submitting: false,
+    });
+  }
+
+  function openDeleteDialog() {
+    if (!selectedEntries.length) {
+      setNotice({ tone: "error", text: "请先选择要删除的项目。" });
       return;
     }
-    for (const selected of selectedEntries) {
-      if (kind === "move") {
-        await api.move(selectionMountId, selected.path, targetDir);
-      } else {
-        await api.copy(selectionMountId, selected.path, targetDir);
+
+    if (selectionMountIds.length !== 1) {
+      setNotice({ tone: "error", text: "删除操作暂不支持跨挂载点选择。" });
+      return;
+    }
+
+    setDialog({
+      kind: "delete",
+      entries: selectedEntries,
+      error: "",
+      submitting: false,
+    });
+  }
+
+  function openBatchDownloadDialog() {
+    if (!selectedEntries.length) {
+      setNotice({ tone: "error", text: "请先选择要下载的项目。" });
+      return;
+    }
+
+    if (selectionMountIds.length !== 1) {
+      setNotice({ tone: "error", text: "批量下载暂不支持跨挂载点选择。" });
+      return;
+    }
+
+    setDialog({
+      kind: "batch-download",
+      entries: selectedEntries,
+      value: "bundle.zip",
+      error: "",
+      submitting: false,
+    });
+  }
+
+  async function submitDialog() {
+    if (!dialog) {
+      return;
+    }
+
+    setDialog((current) => (current ? { ...current, submitting: true, error: "" } : current));
+
+    try {
+      if (dialog.kind === "create-folder") {
+        const name = dialog.value.trim();
+        if (!name) {
+          throw new Error("请输入目录名称。");
+        }
+        if (!currentMountId) {
+          throw new Error("当前没有可用挂载点。");
+        }
+
+        await api.createFolder(currentMountId, currentPath, name);
+        setDialog(null);
+        await refreshCurrentView();
+        setNotice({ tone: "info", text: `已创建 ${name}` });
+        return;
       }
-    }
-    await refreshCurrentView();
-    setNotice({ tone: "info", text: kind === "move" ? "移动完成" : "复制完成" });
-  }
 
-  async function handleDelete() {
-    if (!selectedEntries.length) {
-      setNotice({ tone: "error", text: "请先选择文件或目录" });
-      return;
+      if (dialog.kind === "rename") {
+        const nextName = dialog.value.trim();
+        if (!nextName) {
+          throw new Error("请输入新的名称。");
+        }
+
+        await api.rename(dialog.entry.mountId, dialog.entry.path, nextName);
+        setDialog(null);
+        setSelectedEntries([]);
+        clearInspector(inspectRequestRef, setPreview, setEditor);
+        await refreshCurrentView();
+        setNotice({ tone: "info", text: "重命名成功" });
+        return;
+      }
+
+      if (dialog.kind === "move" || dialog.kind === "copy") {
+        const mountId = getSingleMountId(dialog.entries);
+        if (!mountId) {
+          throw new Error("批量操作暂不支持跨挂载点选择。");
+        }
+
+        const targetDir = normalizeDirectory(dialog.targetDir);
+        if (!targetDir) {
+          throw new Error("请输入目标目录。");
+        }
+
+        await Promise.all(
+          dialog.entries.map((entry) =>
+            dialog.kind === "move"
+              ? api.move(mountId, entry.path, targetDir)
+              : api.copy(mountId, entry.path, targetDir),
+          ),
+        );
+
+        setDialog(null);
+        setSelectedEntries([]);
+        clearInspector(inspectRequestRef, setPreview, setEditor);
+        await refreshCurrentView();
+        setNotice({ tone: "info", text: dialog.kind === "move" ? "移动完成" : "复制完成" });
+        return;
+      }
+
+      if (dialog.kind === "delete") {
+        const mountId = getSingleMountId(dialog.entries);
+        if (!mountId) {
+          throw new Error("删除操作暂不支持跨挂载点选择。");
+        }
+
+        await Promise.all(dialog.entries.map((entry) => api.remove(mountId, entry.path)));
+
+        setDialog(null);
+        setSelectedEntries([]);
+        clearInspector(inspectRequestRef, setPreview, setEditor);
+        await refreshCurrentView();
+        setNotice({ tone: "info", text: "已移入回收目录" });
+        return;
+      }
+
+      if (dialog.kind === "batch-download") {
+        const mountId = getSingleMountId(dialog.entries);
+        if (!mountId) {
+          throw new Error("批量下载暂不支持跨挂载点选择。");
+        }
+
+        const archiveName = dialog.value.trim() || "bundle.zip";
+        const task = await api.batchDownload(
+          mountId,
+          dialog.entries.map((entry) => entry.path),
+          archiveName,
+        );
+
+        setTasks((previous) => mergeTasks(previous, [task]));
+        setTaskPanelCollapsed(false);
+        setDialog(null);
+        setNotice({ tone: "info", text: "已创建下载任务" });
+      }
+    } catch (error) {
+      setDialog((current) =>
+        current
+          ? {
+              ...current,
+              submitting: false,
+              error: error instanceof Error ? error.message : "操作失败",
+            }
+          : current,
+      );
     }
-    const selectionMountId = requireSingleMountSelection();
-    if (!selectionMountId) {
-      return;
-    }
-    if (!window.confirm(`确认将 ${selectedEntries.length} 个项目移入回收目录？`)) {
-      return;
-    }
-    for (const selected of selectedEntries) {
-      await api.remove(selectionMountId, selected.path);
-    }
-    await refreshCurrentView();
-    setPreview(null);
-    setEditor(null);
-    setNotice({ tone: "info", text: "已移入回收目录" });
   }
 
   async function handleUpload(files: FileList | null) {
     if (!files || !currentMountId) {
       return;
     }
+
     const task = await api.upload(currentMountId, currentPath, files);
     setTasks((previous) => mergeTasks(previous, [task]));
+    setTaskPanelCollapsed(false);
     await refreshCurrentView();
     setNotice({ tone: "info", text: task.detail });
-  }
-
-  async function handleBatchDownload() {
-    if (!selectedEntries.length) {
-      setNotice({ tone: "error", text: "请先选择要下载的项目" });
-      return;
+    if (isMobile) {
+      setMobilePanel("inspect");
     }
-    const selectionMountId = requireSingleMountSelection();
-    if (!selectionMountId) {
-      return;
-    }
-    const archiveName = window.prompt("ZIP 文件名", "bundle.zip") ?? "bundle.zip";
-    const task = await api.batchDownload(
-      selectionMountId,
-      selectedEntries.map((item) => item.path),
-      archiveName,
-    );
-    setTasks((previous) => mergeTasks(previous, [task]));
-    setNotice({ tone: "info", text: "已创建下载任务" });
   }
 
   async function handleOpenTask(taskId: string) {
@@ -278,18 +602,23 @@ export function App() {
     if (task.status === "success" && task.downloadUrl) {
       window.open(api.taskDownloadUrl(task.id), "_blank", "noopener,noreferrer");
     }
+    if (isMobile) {
+      setMobilePanel("inspect");
+    }
   }
 
   async function handleSaveEditor(nextContent: string) {
     if (!editor) {
       return;
     }
+
     const saved = await api.saveContent({
       mountId: editor.mountId,
       path: editor.path,
       content: nextContent,
       version: editor.version,
     });
+
     setEditor(saved);
     setPreview((previous) =>
       previous
@@ -304,132 +633,549 @@ export function App() {
     setNotice({ tone: "info", text: "保存成功" });
   }
 
-  function requireSingleMountSelection() {
-    const mountIds = Array.from(new Set(selectedEntries.map((item) => item.mountId)));
-    if (mountIds.length !== 1) {
-      setNotice({ tone: "error", text: "批量操作暂不支持跨挂载点，请在同一挂载点内选择。" });
-      return "";
-    }
-    return mountIds[0];
-  }
-
   if (loadingSession) {
-    return <div className="loading-screen">Loading workspace...</div>;
+    return <div className="loading-screen">正在连接你的工作区...</div>;
   }
 
   if (!user) {
     return (
       <div className="auth-shell">
-        <LoginForm onLogin={handleLogin} notice={notice} />
+        <LoginForm
+          notice={notice}
+          onLogin={handleLogin}
+          onThemeModeChange={setThemeMode}
+          resolvedTheme={resolvedTheme}
+          themeMode={themeMode}
+        />
       </div>
     );
   }
 
   return (
     <div className="app-shell">
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">Pan Webclient</p>
-          <h1>Local Disk Navigator</h1>
+      <header className="app-topbar">
+        <div className="brand-cluster">
+          <p className="eyebrow">Pan Workspace</p>
+          <div className="hero-line">
+            <h1>文件总览</h1>
+            <span className="theme-indicator">{resolvedTheme === "dark" ? "Night" : "Day"}</span>
+          </div>
+          <p className="muted">更紧凑的桌面网盘界面，目录、文件、预览和文本编辑保持在同一工作平面。</p>
         </div>
-        <div className="topbar-actions">
-          <input
-            className="search-input"
-            value={searchText}
-            onChange={(event) => {
-              startTransition(() => setSearchText(event.target.value));
-            }}
-            placeholder="搜索文件名或路径"
-          />
-          <button className="ghost-button" onClick={() => void handleLogout()}>
-            退出
-          </button>
+
+        <div className="topbar-tools">
+          <div className="toolbar-cluster primary-tools">
+            <button className="primary-button compact-button" onClick={() => fileInputRef.current?.click()} type="button">
+              上传
+            </button>
+            <button className="ghost-button compact-button" onClick={openCreateFolderDialog} type="button">
+              新建目录
+            </button>
+            <input
+              ref={fileInputRef}
+              hidden
+              multiple
+              type="file"
+              onChange={(event) => void handleUpload(event.target.files)}
+            />
+          </div>
+
+          <div className="toolbar-cluster secondary-tools">
+            <button className="tool-button" disabled={selectedEntries.length !== 1} onClick={openRenameDialog} type="button">
+              重命名
+            </button>
+            <button
+              className="tool-button"
+              disabled={selectedEntries.length === 0 || selectionMountIds.length !== 1}
+              onClick={() => openMoveCopyDialog("move")}
+              type="button"
+            >
+              移动
+            </button>
+            <button
+              className="tool-button"
+              disabled={selectedEntries.length === 0 || selectionMountIds.length !== 1}
+              onClick={() => openMoveCopyDialog("copy")}
+              type="button"
+            >
+              复制
+            </button>
+            <button
+              className="tool-button danger"
+              disabled={selectedEntries.length === 0 || selectionMountIds.length !== 1}
+              onClick={openDeleteDialog}
+              type="button"
+            >
+              删除
+            </button>
+            <button
+              className="tool-button"
+              disabled={selectedEntries.length === 0 || selectionMountIds.length !== 1}
+              onClick={openBatchDownloadDialog}
+              type="button"
+            >
+              批量下载
+            </button>
+          </div>
+
+          <label className="search-field">
+            <span>搜索</span>
+            <input
+              className="search-input"
+              onChange={(event) => {
+                startTransition(() => setSearchText(event.target.value));
+              }}
+              placeholder="文件名、路径、目录"
+              value={searchText}
+            />
+          </label>
+
+          <div className="toolbar-cluster preference-tools">
+            <button
+              className={`toggle-chip compact-toggle ${showHidden ? "is-active" : ""}`}
+              onClick={() => setShowHidden((previous) => !previous)}
+              type="button"
+            >
+              {showHidden ? "显示隐藏文件" : "隐藏隐藏文件"}
+            </button>
+
+            <div className="segmented-control" role="tablist" aria-label="Theme mode">
+              {(["system", "light", "dark"] as ThemeMode[]).map((mode) => (
+                <button
+                  aria-selected={themeMode === mode}
+                  className={`segment ${themeMode === mode ? "is-active" : ""}`}
+                  key={mode}
+                  onClick={() => setThemeMode(mode)}
+                  role="tab"
+                  type="button"
+                >
+                  {mode === "system" ? "自动" : mode === "light" ? "浅色" : "深色"}
+                </button>
+              ))}
+            </div>
+
+            <button className="ghost-button compact-button" onClick={() => void handleLogout()} type="button">
+              退出
+            </button>
+          </div>
         </div>
       </header>
 
+      <section className="status-strip">
+        <div className="status-item">
+          <span className="status-label">挂载点</span>
+          <strong>{currentMount?.name ?? "未挂载"}</strong>
+        </div>
+        <div className="status-item status-item-wide">
+          <span className="status-label">{searchQuery ? "搜索上下文" : "当前位置"}</span>
+          <strong>{searchQuery ? `“${searchQuery}”` : currentPath}</strong>
+        </div>
+        <div className="status-item">
+          <span className="status-label">目录 / 文件</span>
+          <strong>
+            {directoryCount} / {fileCount}
+          </strong>
+        </div>
+        <div className="status-item">
+          <span className="status-label">选中</span>
+          <strong>{selectedEntries.length}</strong>
+        </div>
+      </section>
+
+      {isMobile ? (
+        <div className="mobile-switcher" role="tablist" aria-label="Mobile panels">
+          <button
+            aria-selected={mobilePanel === "nav"}
+            className={`mobile-switch ${mobilePanel === "nav" ? "is-active" : ""}`}
+            onClick={() => setMobilePanel((previous) => (previous === "nav" ? null : "nav"))}
+            role="tab"
+            type="button"
+          >
+            目录
+          </button>
+          <button
+            aria-selected={mobilePanel === null}
+            className={`mobile-switch ${mobilePanel === null ? "is-active" : ""}`}
+            onClick={() => setMobilePanel(null)}
+            role="tab"
+            type="button"
+          >
+            文件
+          </button>
+          <button
+            aria-selected={mobilePanel === "inspect"}
+            className={`mobile-switch ${mobilePanel === "inspect" ? "is-active" : ""}`}
+            onClick={() => setMobilePanel((previous) => (previous === "inspect" ? null : "inspect"))}
+            role="tab"
+            type="button"
+          >
+            详情
+          </button>
+        </div>
+      ) : null}
+
       <main className="workspace-grid">
-        <aside className="sidebar-card">
+        <aside className={`sidebar-panel ${isMobile ? "mobile-sheet" : ""} ${mobilePanel === "nav" ? "is-open" : ""}`}>
           <div className="panel-heading">
-            <span>挂载目录</span>
-            <button className="tiny-button" onClick={() => void loadMountBootstrap()}>
-              刷新
-            </button>
+            <div>
+              <span>目录树</span>
+              <strong>{currentMount?.path ?? "No mount selected"}</strong>
+            </div>
+            <div className="toolbar">
+              <button className="ghost-button compact-button" onClick={() => void loadMountBootstrap()} type="button">
+                刷新
+              </button>
+              {isMobile ? (
+                <button className="ghost-button compact-button" onClick={() => setMobilePanel(null)} type="button">
+                  关闭
+                </button>
+              ) : null}
+            </div>
           </div>
+
           <SidebarTree
-            mounts={mounts}
             currentMountId={currentMountId}
             currentPath={currentPath}
-            treeCache={treeCache}
             expandedPaths={expandedPaths}
+            mounts={mounts}
             onSelect={(mountId, path) => {
+              clearInspector(inspectRequestRef, setPreview, setEditor);
+              setSelectedEntries([]);
               setCurrentMountId(mountId);
               setCurrentPath(path);
+              if (isMobile) {
+                setMobilePanel(null);
+              }
             }}
             onToggle={async (mountId, path) => {
               setExpandedPaths((previous) =>
                 previous.includes(path) ? previous.filter((item) => item !== path) : [...previous, path],
               );
-              if (!treeCache[`${mountId}:${path}`]) {
-                await loadTree(mountId, path);
+              if (!treeCache[treeCacheKey(mountId, path, showHidden)]) {
+                await loadTree(mountId, path, showHidden, setTreeCache);
               }
             }}
+            treeCache={treeCache}
+            treeCacheKeySuffix={showHidden ? "1" : "0"}
           />
         </aside>
 
-        <section className="content-card">
-          <div className="panel-heading">
-            <div>
-              <span className="crumb">{mounts.find((item) => item.id === currentMountId)?.name ?? "No mount"}</span>
-              <strong>{deferredSearch.trim() ? `搜索：${deferredSearch}` : currentPath}</strong>
-            </div>
-            <div className="toolbar">
-              <button className="tiny-button" onClick={() => void handleCreateFolder()}>
-                新建目录
-              </button>
-              <button className="tiny-button" onClick={() => void handleRename()}>
-                重命名
-              </button>
-              <button className="tiny-button" onClick={() => void handleMoveCopy("move")}>
-                移动
-              </button>
-              <button className="tiny-button" onClick={() => void handleMoveCopy("copy")}>
-                复制
-              </button>
-              <button className="tiny-button" onClick={() => void handleDelete()}>
-                删除
-              </button>
-              <button className="tiny-button" onClick={() => fileInputRef.current?.click()}>
-                上传
-              </button>
-              <button className="tiny-button accent" onClick={() => void handleBatchDownload()}>
-                批量下载
-              </button>
-              <input
-                ref={fileInputRef}
-                hidden
-                multiple
-                type="file"
-                onChange={(event) => void handleUpload(event.target.files)}
-              />
+        <section className="content-panel">
+          <div className="content-head">
+            {searchQuery ? (
+              <div className="search-context">
+                <span className="eyebrow">Search Result</span>
+                <strong>{visibleRows.length} 条结果</strong>
+                <small>单击项目查看详情，双击目录进入目录并退出搜索态。</small>
+              </div>
+            ) : (
+              <nav aria-label="Breadcrumb" className="breadcrumb-trail">
+                {breadcrumbs.map((crumb, index) => (
+                  <button
+                    className={`breadcrumb-item ${index === breadcrumbs.length - 1 ? "is-active" : ""}`}
+                    key={crumb.path}
+                    onClick={() => {
+                      clearInspector(inspectRequestRef, setPreview, setEditor);
+                      setSelectedEntries([]);
+                      setCurrentPath(crumb.path);
+                    }}
+                    type="button"
+                  >
+                    {crumb.label}
+                  </button>
+                ))}
+              </nav>
+            )}
+
+            <div className="content-summary">
+              <div>
+                <span className="status-label">浏览状态</span>
+                <strong>{searchQuery ? "跨挂载搜索结果" : currentPath}</strong>
+              </div>
+              <div>
+                <span className="status-label">隐藏文件</span>
+                <strong>{showHidden ? "已显示" : "已折叠"}</strong>
+              </div>
             </div>
           </div>
+
           <FileTable
             entries={visibleRows}
+            onInspect={handleInspect}
+            onOpen={handleOpen}
+            onToggleSelection={handleToggleSelection}
             selectedEntries={selectedEntries}
-            onSelect={(items) => setSelectedEntries(items)}
-            onOpen={(entry) => void handleOpen(entry)}
+            showPath={Boolean(searchQuery)}
           />
+
           {notice ? <div className={`notice notice-${notice.tone}`}>{notice.text}</div> : null}
         </section>
 
-        <aside className="detail-column">
-          <PreviewPane preview={preview} />
-          <EditorPane editor={editor} onSave={handleSaveEditor} />
-          <TaskPanel tasks={tasks} onOpenTask={(id) => void handleOpenTask(id)} />
+        <aside className={`inspector-column ${isMobile ? "mobile-sheet" : ""} ${mobilePanel === "inspect" ? "is-open" : ""}`}>
+          {isMobile ? (
+            <div className="mobile-detail-head">
+              <div>
+                <span>详情</span>
+                <small>预览、编辑与任务</small>
+              </div>
+              <button className="ghost-button compact-button" onClick={() => setMobilePanel(null)} type="button">
+                关闭
+              </button>
+            </div>
+          ) : null}
+
+          <PreviewPane
+            activeEntry={activeEntry}
+            currentMount={currentMount}
+            currentPath={currentPath}
+            preview={preview}
+            searchQuery={searchQuery}
+            selectedEntries={selectedEntries}
+          />
+          <EditorPane
+            activeEntry={activeEntry}
+            editor={editor}
+            onSave={handleSaveEditor}
+            selectionCount={selectedEntries.length}
+          />
+          <TaskPanel
+            collapsed={taskPanelCollapsed}
+            onOpenTask={(id) => void handleOpenTask(id)}
+            onToggle={() => setTaskPanelCollapsed((previous) => !previous)}
+            tasks={tasks}
+          />
         </aside>
       </main>
+
+      {dialog ? (
+        <OperationDialogView
+          dialog={dialog}
+          isMobile={isMobile}
+          onChange={(value) => {
+            setDialog((current) => {
+              if (!current) {
+                return current;
+              }
+
+              if (current.kind === "create-folder" || current.kind === "rename" || current.kind === "batch-download") {
+                return { ...current, value, error: "" };
+              }
+
+              if (current.kind === "move" || current.kind === "copy") {
+                return { ...current, targetDir: value, error: "" };
+              }
+
+              return current;
+            });
+          }}
+          onClose={() => {
+            if (!dialog.submitting) {
+              setDialog(null);
+            }
+          }}
+          onSubmit={() => void submitDialog()}
+        />
+      ) : null}
     </div>
   );
+}
+
+function OperationDialogView(props: {
+  dialog: NonNullable<OperationDialog>;
+  isMobile: boolean;
+  onClose: () => void;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+}) {
+  const value =
+    props.dialog.kind === "create-folder" || props.dialog.kind === "rename" || props.dialog.kind === "batch-download"
+      ? props.dialog.value
+      : props.dialog.kind === "move" || props.dialog.kind === "copy"
+        ? props.dialog.targetDir
+        : "";
+
+  const requiresInput = props.dialog.kind !== "delete";
+  const selectedItems =
+    props.dialog.kind === "create-folder" || props.dialog.kind === "rename" ? [] : props.dialog.entries;
+
+  return (
+    <div
+      className="modal-backdrop"
+      onClick={() => {
+        if (!props.dialog.submitting) {
+          props.onClose();
+        }
+      }}
+      role="presentation"
+    >
+      <form
+        className={`app-modal ${props.isMobile ? "is-mobile" : ""} ${props.dialog.kind === "delete" ? "is-danger" : ""}`}
+        onClick={(event) => event.stopPropagation()}
+        onSubmit={(event) => {
+          event.preventDefault();
+          props.onSubmit();
+        }}
+      >
+        <div className="modal-head">
+          <div>
+            <p className="eyebrow">{dialogEyebrow(props.dialog.kind)}</p>
+            <h2>{dialogTitle(props.dialog)}</h2>
+            <p className="muted">{dialogDescription(props.dialog)}</p>
+          </div>
+          <button className="modal-close" disabled={props.dialog.submitting} onClick={props.onClose} type="button">
+            x
+          </button>
+        </div>
+
+        {requiresInput ? (
+          <label className="field modal-field">
+            <span>{dialogFieldLabel(props.dialog.kind)}</span>
+            <input autoFocus onChange={(event) => props.onChange(event.target.value)} value={value} />
+          </label>
+        ) : null}
+
+        {selectedItems.length > 0 ? (
+          <div className="modal-selection">
+            <span className="status-label">涉及项目</span>
+            <div className="selection-list">
+              {selectedItems.slice(0, 6).map((entry) => (
+                <span className="selection-pill" key={`${entry.mountId}:${entry.path}`}>
+                  {entry.name}
+                </span>
+              ))}
+              {selectedItems.length > 6 ? (
+                <span className="selection-pill muted">+{selectedItems.length - 6}</span>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
+        {props.dialog.error ? <div className="notice notice-error">{props.dialog.error}</div> : null}
+
+        <div className="modal-actions">
+          <button className="ghost-button compact-button" disabled={props.dialog.submitting} onClick={props.onClose} type="button">
+            取消
+          </button>
+          <button
+            className={`primary-button compact-button ${props.dialog.kind === "delete" ? "danger-button" : ""}`}
+            disabled={props.dialog.submitting}
+            type="submit"
+          >
+            {props.dialog.submitting ? "处理中..." : dialogConfirmLabel(props.dialog.kind)}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function dialogEyebrow(kind: NonNullable<OperationDialog>["kind"]) {
+  if (kind === "delete") {
+    return "Danger Zone";
+  }
+
+  if (kind === "batch-download") {
+    return "Archive";
+  }
+
+  return "Operation";
+}
+
+function dialogTitle(dialog: NonNullable<OperationDialog>) {
+  switch (dialog.kind) {
+    case "create-folder":
+      return "新建目录";
+    case "rename":
+      return `重命名 ${dialog.entry.name}`;
+    case "move":
+      return `移动 ${dialog.entries.length} 个项目`;
+    case "copy":
+      return `复制 ${dialog.entries.length} 个项目`;
+    case "delete":
+      return `删除 ${dialog.entries.length} 个项目`;
+    case "batch-download":
+      return `批量下载 ${dialog.entries.length} 个项目`;
+  }
+}
+
+function dialogDescription(dialog: NonNullable<OperationDialog>) {
+  switch (dialog.kind) {
+    case "create-folder":
+      return "目录会创建在当前工作目录下。";
+    case "rename":
+      return "仅修改名称，不改变所在目录。";
+    case "move":
+      return "输入目标目录路径，所有选中项目都会移动过去。";
+    case "copy":
+      return "输入目标目录路径，所有选中项目都会复制过去。";
+    case "delete":
+      return "删除会进入回收目录，不会直接执行不可恢复删除。";
+    case "batch-download":
+      return "系统会在后台创建压缩包任务，成功后可在任务区下载。";
+  }
+}
+
+function dialogFieldLabel(kind: NonNullable<OperationDialog>["kind"]) {
+  switch (kind) {
+    case "create-folder":
+      return "目录名称";
+    case "rename":
+      return "新名称";
+    case "move":
+    case "copy":
+      return "目标目录";
+    case "batch-download":
+      return "ZIP 文件名";
+    case "delete":
+      return "";
+  }
+}
+
+function dialogConfirmLabel(kind: NonNullable<OperationDialog>["kind"]) {
+  switch (kind) {
+    case "create-folder":
+      return "创建";
+    case "rename":
+      return "保存名称";
+    case "move":
+      return "确认移动";
+    case "copy":
+      return "确认复制";
+    case "delete":
+      return "确认删除";
+    case "batch-download":
+      return "创建任务";
+  }
+}
+
+async function loadFiles(
+  mountId: string,
+  path: string,
+  searchQuery: string,
+  setEntries: (value: FileEntry[]) => void,
+  setSelectedEntries: React.Dispatch<React.SetStateAction<FileEntry[]>>,
+  showHidden: boolean,
+) {
+  const rows = await api.files(mountId, path, showHidden);
+  setEntries(rows);
+
+  if (!searchQuery) {
+    setSelectedEntries((previous) =>
+      previous
+        .map((item) => rows.find((row) => sameEntry(row, item)) ?? null)
+        .filter((item): item is FileEntry => item !== null),
+    );
+  }
+}
+
+async function loadTree(
+  mountId: string,
+  path: string,
+  showHidden: boolean,
+  setTreeCache: React.Dispatch<React.SetStateAction<Record<string, FileTreeNode[]>>>,
+) {
+  const nodes = await api.tree(mountId, path, showHidden);
+  setTreeCache((previous) => ({ ...previous, [treeCacheKey(mountId, path, showHidden)]: nodes }));
 }
 
 function mergeTasks(previous: TransferTask[], next: TransferTask[]) {
@@ -441,4 +1187,123 @@ function mergeTasks(previous: TransferTask[], next: TransferTask[]) {
 function basename(path: string) {
   const parts = path.split("/").filter(Boolean);
   return parts.at(-1) ?? "";
+}
+
+function dirname(path: string) {
+  const parts = path.split("/").filter(Boolean);
+  if (parts.length <= 1) {
+    return "/";
+  }
+  return `/${parts.slice(0, -1).join("/")}`;
+}
+
+function treeCacheKey(mountId: string, path: string, showHidden: boolean) {
+  return `${mountId}:${showHidden ? "1" : "0"}:${path}`;
+}
+
+function extensionFromPath(path: string) {
+  const name = basename(path);
+  const index = name.lastIndexOf(".");
+  if (index <= 0) {
+    return "";
+  }
+  return name.slice(index).toLowerCase();
+}
+
+function hasHiddenPath(path: string) {
+  return path
+    .split("/")
+    .filter(Boolean)
+    .some((part) => part.startsWith("."));
+}
+
+function readStoredShowHidden() {
+  const raw = window.localStorage.getItem(SHOW_HIDDEN_STORAGE_KEY);
+  return raw === "1";
+}
+
+function readStoredThemeMode(): ThemeMode {
+  const raw = window.localStorage.getItem(THEME_STORAGE_KEY);
+  if (raw === "light" || raw === "dark" || raw === "system") {
+    return raw;
+  }
+  return "system";
+}
+
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const handleChange = () => setMatches(media.matches);
+    handleChange();
+    media.addEventListener("change", handleChange);
+    return () => media.removeEventListener("change", handleChange);
+  }, [query]);
+
+  return matches;
+}
+
+function clearInspector(
+  inspectRequestRef: React.MutableRefObject<number>,
+  setPreview: React.Dispatch<React.SetStateAction<Awaited<ReturnType<typeof api.preview>> | null>>,
+  setEditor: React.Dispatch<React.SetStateAction<EditorDocument | null>>,
+) {
+  inspectRequestRef.current += 1;
+  setPreview(null);
+  setEditor(null);
+}
+
+function sameEntry(left: Pick<FileEntry, "mountId" | "path">, right: Pick<FileEntry, "mountId" | "path">) {
+  return left.mountId === right.mountId && left.path === right.path;
+}
+
+function getSingleMountId(entries: FileEntry[]) {
+  const ids = Array.from(new Set(entries.map((entry) => entry.mountId)));
+  return ids.length === 1 ? ids[0] : "";
+}
+
+function normalizeDirectory(path: string) {
+  const trimmed = path.trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (trimmed === "/") {
+    return "/";
+  }
+  const normalized = trimmed.replace(/\/+$/, "");
+  return normalized.startsWith("/") ? normalized : `/${normalized}`;
+}
+
+function defaultTargetDir(entries: FileEntry[], currentMountId: string, currentPath: string) {
+  const first = entries[0];
+  if (!first) {
+    return currentPath;
+  }
+  return first.mountId === currentMountId ? currentPath : dirname(first.path);
+}
+
+function buildBreadcrumbs(currentMount: MountRoot | null, currentPath: string) {
+  const parts = currentPath.split("/").filter(Boolean);
+  const crumbs = [{ label: currentMount?.name ?? "根目录", path: "/" }];
+  let cursor = "";
+
+  for (const part of parts) {
+    cursor += `/${part}`;
+    crumbs.push({ label: part, path: cursor });
+  }
+
+  return crumbs;
+}
+
+function sortEntries(rows: FileEntry[]) {
+  return [...rows].sort((left, right) => {
+    if (left.isDir && !right.isDir) {
+      return -1;
+    }
+    if (!left.isDir && right.isDir) {
+      return 1;
+    }
+    return left.name.localeCompare(right.name, "zh-CN", { numeric: true, sensitivity: "base" });
+  });
 }

@@ -31,7 +31,7 @@ func New(cfg config.Config) (*Server, error) {
 	}
 	syncIndex := func() error {
 		for _, mount := range mountList {
-			entries, err := fsops.CollectEntries(mount.ID, mount.Path)
+			entries, err := fsops.CollectEntries(mount.ID, mount.Path, true)
 			if err != nil {
 				log.Printf("index mount %s failed: %v", mount.ID, err)
 				continue

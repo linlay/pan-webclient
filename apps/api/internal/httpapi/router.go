@@ -268,7 +268,7 @@ func (a *api) tree(w http.ResponseWriter, r *http.Request) {
 	if mountID == "" {
 		return
 	}
-	nodes, err := fsops.Tree(a.resolver, mountID, path)
+	nodes, err := fsops.Tree(a.resolver, mountID, path, queryShowHidden(r))
 	if err != nil {
 		writeServerError(w, err)
 		return
@@ -281,7 +281,7 @@ func (a *api) files(w http.ResponseWriter, r *http.Request) {
 	if mountID == "" {
 		return
 	}
-	entries, err := fsops.ListDirectory(a.resolver, mountID, path)
+	entries, err := fsops.ListDirectory(a.resolver, mountID, path, queryShowHidden(r))
 	if err != nil {
 		writeServerError(w, err)
 		return
@@ -295,7 +295,7 @@ func (a *api) search(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, []indexer.SearchHit{})
 		return
 	}
-	hits, err := a.store.Search(query, 100)
+	hits, err := a.store.Search(query, 100, queryShowHidden(r))
 	if err != nil {
 		writeServerError(w, err)
 		return
@@ -582,7 +582,7 @@ func (a *api) refreshMount(mountID string) error {
 	if err != nil {
 		return err
 	}
-	entries, err := fsops.CollectEntries(mount.ID, mount.Path)
+	entries, err := fsops.CollectEntries(mount.ID, mount.Path, true)
 	if err != nil {
 		return err
 	}
@@ -600,6 +600,15 @@ func requirePathQuery(w http.ResponseWriter, r *http.Request) (string, string) {
 		path = "/"
 	}
 	return mountID, path
+}
+
+func queryShowHidden(r *http.Request) bool {
+	switch strings.ToLower(strings.TrimSpace(r.URL.Query().Get("showHidden"))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 func writeServerError(w http.ResponseWriter, err error) {

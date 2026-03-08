@@ -34,6 +34,10 @@ export function rawFileUrl(mountId: string, path: string) {
   return `${API_BASE}/api/files/raw?${params.toString()}`;
 }
 
+function hiddenParams(showHidden: boolean) {
+  return `showHidden=${showHidden ? "1" : "0"}`;
+}
+
 export const api = {
   login: (username: string, password: string) =>
     request<SessionUser>("/api/web/session/login", {
@@ -47,12 +51,16 @@ export const api = {
     }),
   sessionMe: () => request<SessionUser>("/api/web/session/me"),
   mounts: () => request<MountRoot[]>("/api/mounts"),
-  tree: (mountId: string, path: string) =>
-    request<FileTreeNode[]>(`/api/tree?mountId=${encodeURIComponent(mountId)}&path=${encodeURIComponent(path)}`),
-  files: (mountId: string, path: string) =>
-    request<FileEntry[]>(`/api/files?mountId=${encodeURIComponent(mountId)}&path=${encodeURIComponent(path)}`),
-  search: (query: string) =>
-    request<SearchHit[]>(`/api/search?q=${encodeURIComponent(query)}`),
+  tree: (mountId: string, path: string, showHidden: boolean) =>
+    request<FileTreeNode[]>(
+      `/api/tree?mountId=${encodeURIComponent(mountId)}&path=${encodeURIComponent(path)}&${hiddenParams(showHidden)}`,
+    ),
+  files: (mountId: string, path: string, showHidden: boolean) =>
+    request<FileEntry[]>(
+      `/api/files?mountId=${encodeURIComponent(mountId)}&path=${encodeURIComponent(path)}&${hiddenParams(showHidden)}`,
+    ),
+  search: (query: string, showHidden: boolean) =>
+    request<SearchHit[]>(`/api/search?q=${encodeURIComponent(query)}&${hiddenParams(showHidden)}`),
   preview: (mountId: string, path: string) =>
     request<PreviewMeta>(`/api/preview?mountId=${encodeURIComponent(mountId)}&path=${encodeURIComponent(path)}`),
   getContent: (mountId: string, path: string) =>

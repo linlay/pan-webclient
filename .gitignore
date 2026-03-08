@@ -5,7 +5,9 @@ dist/
 node_modules/
 apps/web/dist/
 apps/api/data/
+apps/api/**/data/
 apps/api/.cache/
+**/pan.db
 *.log
 
 

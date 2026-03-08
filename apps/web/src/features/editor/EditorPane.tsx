@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import type { EditorDocument } from "../../../../../packages/contracts/index";
+import type { EditorDocument, FileEntry } from "../../../../../packages/contracts/index";
 
 export function EditorPane(props: {
   editor: EditorDocument | null;
+  activeEntry: FileEntry | null;
+  selectionCount: number;
   onSave: (content: string) => Promise<void>;
 }) {
   const [content, setContent] = useState("");
@@ -16,16 +18,20 @@ export function EditorPane(props: {
 
   if (!props.editor) {
     return (
-      <section className="panel-card">
+      <section className="panel-card editor-card">
         <div className="panel-heading">
-          <span>编辑器</span>
+          <div>
+            <span>编辑器</span>
+            <strong>只读或未选择</strong>
+          </div>
         </div>
-        <div className="empty-state compact">文本与 Markdown 文件会在这里打开。</div>
+        <div className="preview-placeholder slim">
+          <strong>{emptyTitle(props.selectionCount, props.activeEntry)}</strong>
+          <p>{emptyDescription(props.selectionCount, props.activeEntry)}</p>
+        </div>
       </section>
     );
   }
-
-  const isMarkdown = props.editor.language === "markdown";
 
   async function save() {
     setSaving(true);
@@ -39,47 +45,70 @@ export function EditorPane(props: {
     }
   }
 
+  const lineCount = content.split("\n").length;
+
   return (
     <section className="panel-card editor-card">
       <div className="panel-heading">
-        <span>编辑器</span>
+        <div>
+          <span>编辑器</span>
+          <strong>{props.editor.name}</strong>
+        </div>
         <div className="toolbar">
-          <small>{props.editor.language}</small>
-          <button className="tiny-button accent" onClick={() => void save()}>
+          <small className="pill-label">{props.editor.language}</small>
+          <button className="primary-button compact-button" onClick={() => void save()} type="button">
             {saving ? "保存中..." : "保存"}
           </button>
         </div>
       </div>
+
+      <div className="editor-meta">
+        <span>{lineCount} 行</span>
+        <span>{content.length} 字符</span>
+      </div>
+
       {error ? <div className="notice notice-error">{error}</div> : null}
-      <div className={`editor-grid ${isMarkdown ? "is-markdown" : ""}`}>
-        <textarea value={content} onChange={(event) => setContent(event.target.value)} />
-        {isMarkdown ? (
-          <article className="markdown-preview" dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }} />
-        ) : null}
+
+      <div className="editor-shell">
+        <textarea
+          className="editor-textarea"
+          onChange={(event) => setContent(event.target.value)}
+          spellCheck={false}
+          value={content}
+        />
       </div>
     </section>
   );
 }
 
-function renderMarkdown(source: string) {
-  const lines = source.split("\n");
-  const html = lines
-    .map((line) => {
-      const escaped = escapeHtml(line);
-      if (escaped.startsWith("### ")) return `<h3>${escaped.slice(4)}</h3>`;
-      if (escaped.startsWith("## ")) return `<h2>${escaped.slice(3)}</h2>`;
-      if (escaped.startsWith("# ")) return `<h1>${escaped.slice(2)}</h1>`;
-      if (escaped.startsWith("- ")) return `<li>${escaped.slice(2)}</li>`;
-      if (escaped.startsWith("> ")) return `<blockquote>${escaped.slice(2)}</blockquote>`;
-      return `<p>${escaped.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\*(.+?)\*/g, "<em>$1</em>")}</p>`;
-    })
-    .join("");
-  return html.replace(/(<li>.*?<\/li>)+/g, (segment) => `<ul>${segment}</ul>`);
+function emptyTitle(selectionCount: number, activeEntry: FileEntry | null) {
+  if (selectionCount > 1) {
+    return "批量选择不进入编辑模式";
+  }
+
+  if (activeEntry?.isDir) {
+    return "目录不可直接编辑";
+  }
+
+  if (activeEntry) {
+    return "该文件当前仅支持预览";
+  }
+
+  return "选择文本文件进入编辑";
 }
 
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+function emptyDescription(selectionCount: number, activeEntry: FileEntry | null) {
+  if (selectionCount > 1) {
+    return "先收敛到单个文本或 Markdown 文件，再在这里修改内容。";
+  }
+
+  if (activeEntry?.isDir) {
+    return "目录会在上方显示摘要信息，双击后可进入目录内部继续浏览。";
+  }
+
+  if (activeEntry) {
+    return "现阶段只支持文本类文件和 Markdown 的在线编辑。";
+  }
+
+  return "支持纯文本、Markdown，以及后端当前已识别的其它文本类型。";
 }
