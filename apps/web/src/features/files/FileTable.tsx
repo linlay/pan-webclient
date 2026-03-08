@@ -33,6 +33,7 @@ export function FileTable(props: {
           const selected = props.selectedEntries.some(
             (item) => item.mountId === entry.mountId && item.path === entry.path,
           );
+          const secondaryText = describeEntry(entry, props.showPath);
           return (
             <div
               className={`file-row ${selected ? "is-selected" : ""}`}
@@ -67,7 +68,7 @@ export function FileTable(props: {
                 <span className="file-icon">{entryIcon(entry)}</span>
                 <div className="file-row-namecopy">
                   <strong>{entry.name}</strong>
-                  <small>{props.showPath ? entry.path : describeEntry(entry)}</small>
+                  {secondaryText ? <small>{secondaryText}</small> : null}
                 </div>
               </div>
 
@@ -119,9 +120,12 @@ function entryIcon(entry: FileEntry) {
   return <IconFile />;
 }
 
-function describeEntry(entry: FileEntry) {
+function describeEntry(entry: FileEntry, showPath: boolean) {
+  if (showPath) {
+    return entry.path;
+  }
   if (entry.isDir) {
-    return "文件夹";
+    return null;
   }
   return entry.mime.replace("application/", "").replace("text/", "") || "文件";
 }

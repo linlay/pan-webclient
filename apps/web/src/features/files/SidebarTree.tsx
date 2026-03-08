@@ -2,6 +2,7 @@ import type { FileTreeNode, MountRoot } from "../../../../../packages/contracts/
 
 export function SidebarTree(props: {
   mounts: MountRoot[];
+  singleMountMode: boolean;
   currentMountId: string;
   currentPath: string;
   treeCache: Record<string, FileTreeNode[]>;
@@ -18,16 +19,18 @@ export function SidebarTree(props: {
 
         return (
           <section className="tree-group" key={mount.id}>
-            <button
-              className={`tree-node tree-root-node ${activeRoot ? "is-active" : ""}`}
-              onClick={() => props.onSelect(mount.id, "/")}
-              type="button"
-            >
-              <span className="tree-node-title">{mount.name}</span>
-              <small>{mount.path}</small>
-            </button>
+            {props.singleMountMode ? null : (
+              <button
+                className={`tree-node tree-root-node ${activeRoot ? "is-active" : ""}`}
+                onClick={() => props.onSelect(mount.id, "/")}
+                type="button"
+              >
+                <span className="tree-node-title">{mount.name}</span>
+                <small>{mount.path}</small>
+              </button>
+            )}
 
-            <div className="tree-children">
+            <div className={`tree-children ${props.singleMountMode ? "tree-children-root" : ""}`}>
               {children.map((child) => (
                 <TreeBranch
                   currentMountId={props.currentMountId}

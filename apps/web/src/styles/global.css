@@ -137,8 +137,7 @@ textarea:focus {
 .content-panel,
 .inspector-column,
 .panel-card,
-.app-modal,
-.status-bar {
+.app-modal {
   background: var(--surface);
   box-shadow: var(--shadow);
   border: 1px solid var(--line);
@@ -190,7 +189,7 @@ textarea:focus {
 .app-shell {
   min-height: 100vh;
   padding: 14px;
-  padding-bottom: calc(84px + env(safe-area-inset-bottom));
+  padding-bottom: calc(14px + env(safe-area-inset-bottom));
 }
 
 .app-topbar {
@@ -469,6 +468,28 @@ textarea:focus {
   font-size: 15px;
 }
 
+.workspace-config-note {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface-2);
+}
+
+.workspace-config-note div {
+  display: grid;
+  gap: 4px;
+}
+
+.workspace-config-note strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
 .tree-root,
 .tree-children {
   display: grid;
@@ -481,6 +502,10 @@ textarea:focus {
 
 .tree-children {
   padding-left: 8px;
+}
+
+.tree-children-root {
+  padding-left: 0;
 }
 
 .tree-branch {
@@ -824,26 +849,6 @@ textarea:focus {
   border-top: 1px solid var(--line);
 }
 
-.status-bar {
-  position: fixed;
-  left: 14px;
-  right: 14px;
-  bottom: 14px;
-  z-index: 20;
-  display: flex;
-  gap: 16px;
-  justify-content: space-between;
-  padding: 10px 14px;
-  border-radius: 999px;
-  font-size: 12px;
-  color: var(--muted);
-  overflow-x: auto;
-}
-
-.status-bar span {
-  white-space: nowrap;
-}
-
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -916,7 +921,7 @@ textarea:focus {
 
 @media (max-width: 960px) {
   .app-shell {
-    padding-bottom: calc(88px + env(safe-area-inset-bottom));
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
   }
 
   .login-header {
@@ -996,11 +1001,6 @@ textarea:focus {
 
   .meta-grid {
     grid-template-columns: 1fr;
-  }
-
-  .status-bar {
-    gap: 12px;
-    justify-content: flex-start;
   }
 }
 

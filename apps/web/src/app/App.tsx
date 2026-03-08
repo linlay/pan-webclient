@@ -89,14 +89,9 @@ export function App() {
     () => mounts.find((item) => item.id === currentMountId) ?? null,
     [currentMountId, mounts],
   );
+  const singleMountMode = mounts.length <= 1;
   const activeEntry = selectedEntries.length === 1 ? selectedEntries[0] : null;
-  const selectionMountIds = useMemo(
-    () => Array.from(new Set(selectedEntries.map((item) => item.mountId))),
-    [selectedEntries],
-  );
   const breadcrumbs = useMemo(() => buildBreadcrumbs(currentMount, currentPath), [currentMount, currentPath]);
-  const directoryCount = useMemo(() => entries.filter((item) => item.isDir).length, [entries]);
-  const fileCount = useMemo(() => entries.filter((item) => !item.isDir).length, [entries]);
   const hasActiveTask = useMemo(
     () => tasks.some((task) => task.status === "pending" || task.status === "running"),
     [tasks],
@@ -759,8 +754,14 @@ export function App() {
             </button>
           ) : null}
           <div className="toolbar-context">
-            <strong>{currentMount?.name ?? "Workspace"}</strong>
-            <span>{searchQuery ? `搜索：${searchQuery}` : currentPath}</span>
+            {singleMountMode ? (
+              <span>{searchQuery ? `搜索：${searchQuery}` : `当前位置 ${currentPath}`}</span>
+            ) : (
+              <>
+                <strong>{currentMount?.name ?? "未选择挂载点"}</strong>
+                <span>{searchQuery ? `搜索：${searchQuery}` : currentPath}</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -823,7 +824,7 @@ export function App() {
           <div className="panel-heading">
             <div>
               <span>目录树</span>
-              <strong>{currentMount?.path ?? "No mount selected"}</strong>
+              <strong>{singleMountMode ? "当前工作目录" : currentMount?.name ?? "未选择挂载点"}</strong>
             </div>
             <div className="toolbar">
               <button className="icon-button" onClick={() => void loadMountBootstrap()} type="button">
@@ -837,11 +838,22 @@ export function App() {
             </div>
           </div>
 
+          {singleMountMode && currentMount ? (
+            <section className="workspace-config-note">
+              <div>
+                <span className="status-label">工作目录</span>
+                <strong>{currentMount.path}</strong>
+              </div>
+              <p className="muted">此目录来自项目 `.env` 的 `PAN_MOUNTS` 配置，修改后需要重启后端生效。</p>
+            </section>
+          ) : null}
+
           <SidebarTree
             currentMountId={currentMountId}
             currentPath={currentPath}
             expandedPaths={expandedPaths}
             mounts={mounts}
+            singleMountMode={singleMountMode}
             onSelect={(mountId, path) => {
               clearInspector(inspectRequestRef, setPreview, setEditor);
               setSelectedEntries([]);
@@ -946,13 +958,6 @@ export function App() {
           {inspectorPane}
         </aside>
       ) : null}
-
-      <footer className="status-bar">
-        <span>{searchQuery ? `搜索 “${searchQuery}”` : `当前位置 ${currentPath}`}</span>
-        <span>目录 {directoryCount} · 文件 {fileCount}</span>
-        <span>选中 {selectedEntries.length}</span>
-        <span>任务 {tasks.length}</span>
-      </footer>
 
       {dialog ? (
         <OperationDialogView

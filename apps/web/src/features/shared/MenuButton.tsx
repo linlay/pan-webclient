@@ -32,7 +32,13 @@ export function MenuButton(props: {
   }, [open]);
 
   return (
-    <div className="menu-root" ref={rootRef}>
+    <div
+      className="menu-root"
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+      ref={rootRef}
+    >
       <button
         aria-expanded={open}
         aria-label={props.buttonLabel}

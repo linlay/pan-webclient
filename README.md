@@ -42,6 +42,8 @@ make api-test
 - 后端内置默认配置位于 `apps/api/internal/config/application.yml`，优先级低于环境变量。
 - `PAN_DATA_DIR` 用于声明运行时数据目录，默认值为 `./data`。
 - `PAN_MOUNTS` 用于声明可挂载根目录，格式为 `id|名称|绝对路径,id2|名称2|绝对路径2`。
+- 当前前端采用“单工作区优先”展示：当 `PAN_MOUNTS` 只配置 1 个目录时，界面会弱化挂载名，只突出当前目录；配置多个挂载时，左侧目录树会显示多个根目录供切换。
+- 应用内显示的“当前工作目录”是只读信息，来源于后端启动时加载的 `PAN_MOUNTS`；修改 `.env` 后需要重启后端才能生效。
 - Web 鉴权使用 Cookie，会话签名依赖 `WEB_SESSION_SECRET`。
 - App 鉴权使用 access token / refresh token，签名依赖 `APP_TOKEN_SIGNING_KEY`。
 
