@@ -2,6 +2,10 @@
 .env
 bin/
 dist/
+configs/*.pem
+!configs/*.example.pem
+configs/mounts/*.json
+!configs/mounts/*.example.json
 node_modules/
 apps/web/dist/
 data/

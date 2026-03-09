@@ -1,21 +1,21 @@
 FROM node:22-alpine AS web-build
-WORKDIR /workspace/apps/web
-COPY apps/web/package.json apps/web/package-lock.json* ./
+WORKDIR /workspace/frontend
+COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm install
-COPY apps/web ./
+COPY frontend ./
 COPY packages /workspace/packages
 RUN npm run build
 
 FROM golang:1.26-alpine AS api-build
-WORKDIR /workspace/apps/api
-COPY apps/api/go.mod ./
-COPY apps/api ./
+WORKDIR /workspace/backend
+COPY backend/go.mod ./
+COPY backend ./
 RUN go build -o /out/pan-api ./cmd/server
 
 FROM alpine:3.21
 WORKDIR /app
 COPY --from=api-build /out/pan-api /app/pan-api
-COPY --from=web-build /workspace/apps/web/dist /app/web
+COPY --from=web-build /workspace/frontend/dist /app/web
 ENV PAN_STATIC_DIR=/app/web
 EXPOSE 8080
 CMD ["/app/pan-api"]

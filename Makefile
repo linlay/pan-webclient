@@ -1,30 +1,47 @@
 APP_NAME := pan-api
-GO_CACHE := /Users/linlay-macmini/Project/pan-webclient/.cache/go-build
+GO_CACHE := $(CURDIR)/.cache/go-build
+ENV_APP_PORT := $(shell sed -n 's/^APP_PORT=//p' .env 2>/dev/null | tail -n 1)
+ENV_WEB_PORT := $(shell sed -n 's/^WEB_PORT=//p' .env 2>/dev/null | tail -n 1)
+APP_PORT_VALUE := $(or $(APP_PORT),$(ENV_APP_PORT),8080)
+WEB_PORT_VALUE := $(or $(WEB_PORT),$(ENV_WEB_PORT),5173)
 
-.PHONY: api-build api-run api-test web-install web-dev web-build clean
+.PHONY: backend-build backend-run backend-test frontend-install frontend-dev frontend-build api-build api-run api-test web-install web-dev web-build clean
 
-api-build:
+backend-build:
 	mkdir -p bin
 	mkdir -p $(GO_CACHE)
-	cd apps/api && GOCACHE=$(GO_CACHE) go build -o ../../bin/$(APP_NAME) ./cmd/server
+	cd backend && GOCACHE=$(GO_CACHE) go build -o ../bin/$(APP_NAME) ./cmd/server
 
-api-run:
+backend-run:
+	mkdir -p bin
 	mkdir -p $(GO_CACHE)
-	cd apps/api && GOCACHE=$(GO_CACHE) go build -o ../../bin/$(APP_NAME) ./cmd/server
-	set -a; [ ! -f ./.env ] || . ./.env; set +a; ./bin/$(APP_NAME)
+	cd backend && GOCACHE=$(GO_CACHE) go build -o ../bin/$(APP_NAME) ./cmd/server
+	./bin/$(APP_NAME)
 
-api-test:
+backend-test:
 	mkdir -p $(GO_CACHE)
-	cd apps/api && GOCACHE=$(GO_CACHE) go test ./...
+	cd backend && GOCACHE=$(GO_CACHE) go test ./...
 
-web-install:
-	cd apps/web && npm install
+frontend-install:
+	cd frontend && npm install
 
-web-dev:
-	cd apps/web && npm run dev
+frontend-dev:
+	cd frontend && WEB_PORT=$(WEB_PORT_VALUE) VITE_DEV_API_TARGET=http://127.0.0.1:$(APP_PORT_VALUE) npm run dev
 
-web-build:
-	cd apps/web && npm run build
+frontend-build:
+	cd frontend && npm run build
+
+api-build: backend-build
+
+api-run: backend-run
+
+api-test: backend-test
+
+web-install: frontend-install
+
+web-dev: frontend-dev
+
+web-build: frontend-build
 
 clean:
-	rm -rf bin apps/web/dist data
+	rm -rf bin frontend/dist data

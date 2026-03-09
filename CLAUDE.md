@@ -7,28 +7,28 @@
 - Backend: Go 1.26, `net/http`, embedded JSON-style `application.yml`
 - Frontend: React 19, TypeScript, Vite 7
 - Storage: 宿主机文件系统 + `./data` 运行时目录
-- Auth: Web Cookie session + App access/refresh token
+- Auth: Web Cookie session + externally issued App Bearer token
 - Build: Makefile, Docker multi-stage build
 
 ## 3. 架构设计
-- `apps/api` 提供鉴权、文件系统访问、搜索、预览、编辑、任务和垃圾桶 API。
-- `apps/web` 提供桌面和手机 H5 共用的文件管理界面，通过 HTTP API 调用后端。
+- `backend` 提供鉴权、文件系统访问、搜索、预览、编辑、任务和垃圾桶 API。
+- `frontend` 提供桌面和手机 H5 共用的文件管理界面，通过 HTTP API 调用后端。
 - `packages/contracts` 放前后端共享 DTO 与错误码约定。
 - 文件系统是真实数据源；搜索直接遍历当前挂载目录，不做二次索引缓存。
 - 任务与垃圾桶元数据以 JSON 文件形式保存在 `./data/tasks` 与 `./data/trash`。
 
 ## 4. 目录结构
-- `apps/api/cmd/server`: Go 服务入口
-- `apps/api/internal/config`: 默认配置与加载器
-- `apps/api/internal/auth`: Web session 与 App token
-- `apps/api/internal/mounts`: 挂载根目录模型
-- `apps/api/internal/fsops`: 路径解析、安全校验与文件操作
-- `apps/api/internal/indexer`: 磁盘搜索、任务与垃圾桶元数据存储
-- `apps/api/internal/preview`: 预览类型判定
-- `apps/api/internal/editor`: 文本与 Markdown 编辑
-- `apps/api/internal/transfer`: 上传、批量下载任务
-- `apps/api/internal/httpapi`: HTTP 路由与中间件
-- `apps/web/src`: React 应用
+- `backend/cmd/server`: Go 服务入口
+- `backend/internal/config`: 默认配置与加载器
+- `backend/internal/auth`: Web session 与 App JWT 验签
+- `backend/internal/mounts`: 挂载根目录模型
+- `backend/internal/fsops`: 路径解析、安全校验与文件操作
+- `backend/internal/indexer`: 磁盘搜索、任务与垃圾桶元数据存储
+- `backend/internal/preview`: 预览类型判定
+- `backend/internal/editor`: 文本与 Markdown 编辑
+- `backend/internal/transfer`: 上传、批量下载任务
+- `backend/internal/httpapi`: HTTP 路由与中间件
+- `frontend/src`: React 应用
 - `packages/contracts`: 共享接口协议
 
 ## 5. 数据结构
@@ -43,7 +43,7 @@
 - `ApiError`: API 错误响应
 
 ## 6. API 定义
-- 鉴权：`POST /api/web/session/login`、`POST /api/web/session/logout`、`GET /api/web/session/me`、`POST /api/app/auth/login`、`POST /api/app/auth/refresh`
+- 鉴权：`POST /api/web/session/login`、`POST /api/web/session/logout`、`GET /api/web/session/me`
 - 浏览：`GET /api/mounts`、`GET /api/tree`、`GET /api/files`、`GET /api/search`
 - 文件操作：`POST /api/files/folder`、`POST /api/files/copy`、`POST /api/files/move`、`POST /api/files/rename`、`POST /api/files/delete`
 - 预览与编辑：`GET /api/preview`、`GET /api/files/content`、`PUT /api/files/content`、`GET /api/files/raw`
@@ -56,15 +56,19 @@
 - 编辑器只允许文本类文件，并对大小做阈值限制。
 - 删除采用软删除移动到回收目录，不直接执行不可恢复删除。
 - 前端请求默认带 `credentials: include`，以支持 Web Cookie 鉴权。
+- App 场景不在本项目内登录；宿主 WebView 负责注入 Bearer token，本项目只做 `RS256 JWT` 验签。
 
 ## 8. 开发流程
 - 根目录复制 `.env.example` 到 `.env`
-- `make api-run` 启动后端
-- `make web-install && make web-dev` 启动前端开发服务器
-- `make api-test` 运行后端测试
-- `make web-build` 生成静态前端资源，生产环境可由后端直接托管
+- 复制 `configs/local-public-key.example.pem` 到 `configs/local-public-key.pem`，并替换成真实 RSA 公钥
+- 在 `configs/mounts/` 下创建一个或多个运行时 `.json` 挂载文件
+- `make backend-run` 启动后端
+- `make frontend-install && make frontend-dev` 启动前端开发服务器
+- `make backend-test` 运行后端测试
+- `make frontend-build` 生成静态前端资源，生产环境可由后端直接托管
 
 ## 9. 已知约束与注意事项
 - 搜索为实时遍历磁盘，超大挂载目录下响应速度受文件数量影响。
 - 服务重启后未完成任务会标记为失败，不做断点续跑。
 - 分享链接、版本历史和多用户权限不在当前范围内。
+- 后端必须持有 `WEB_SESSION_SECRET` 与管理员 bcrypt hash；App 私钥不在本项目内保存。
