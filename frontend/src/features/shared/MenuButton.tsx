@@ -1,72 +1,86 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
-
-export interface MenuAction {
-  label: string;
-  icon?: ReactNode;
-  disabled?: boolean;
-  danger?: boolean;
-  onSelect: () => void;
-}
+import { useEffect, useRef, useState } from "react";
 
 export function MenuButton(props: {
-  actions: MenuAction[];
-  buttonLabel: string;
-  buttonClassName?: string;
-  buttonContent: ReactNode;
-  align?: "left" | "right";
+	actions: Array<{
+		label: string;
+		icon?: React.ReactNode;
+		onSelect: () => void;
+		danger?: boolean;
+		disabled?: boolean;
+	}>;
+	buttonContent: React.ReactNode;
+	buttonLabel?: string;
+	buttonClassName?: string;
+	align?: "left" | "right";
 }) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement | null>(null);
+	const [open, setOpen] = useState(false);
+	const rootRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const close = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    window.addEventListener("mousedown", close);
-    return () => window.removeEventListener("mousedown", close);
-  }, [open]);
+	useEffect(() => {
+		if (!open) return;
+		const close = (e: MouseEvent) => {
+			if (
+				rootRef.current &&
+				!rootRef.current.contains(e.target as Node)
+			) {
+				setOpen(false);
+			}
+		};
+		document.addEventListener("mousedown", close);
+		return () => document.removeEventListener("mousedown", close);
+	}, [open]);
 
-  return (
-    <div
-      className="menu-root"
-      onClick={(event) => event.stopPropagation()}
-      onKeyDown={(event) => event.stopPropagation()}
-      onMouseDown={(event) => event.stopPropagation()}
-      ref={rootRef}
-    >
-      <button
-        aria-expanded={open}
-        aria-label={props.buttonLabel}
-        className={props.buttonClassName ?? "icon-button"}
-        onClick={() => setOpen((value) => !value)}
-        type="button"
-      >
-        {props.buttonContent}
-      </button>
-      {open ? (
-        <div className={`menu-popover ${props.align === "left" ? "is-left" : "is-right"}`}>
-          {props.actions.map((action) => (
-            <button
-              className={`menu-item ${action.danger ? "is-danger" : ""}`}
-              disabled={action.disabled}
-              key={action.label}
-              onClick={() => {
-                setOpen(false);
-                action.onSelect();
-              }}
-              type="button"
-            >
-              <span className="menu-item-icon">{action.icon}</span>
-              <span>{action.label}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
+	return (
+		<div className="relative" ref={rootRef}>
+			<button
+				aria-label={props.buttonLabel}
+				className={
+					props.buttonClassName ??
+					"p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+				}
+				onClick={(e) => {
+					e.stopPropagation();
+					setOpen(!open);
+				}}
+				type="button"
+			>
+				{props.buttonContent}
+			</button>
+
+			{open ? (
+				<div
+					className={`absolute top-full mt-2 z-30 w-48 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl animate-fade-in ${
+						props.align === "right" ? "right-0" : "left-0"
+					}`}
+				>
+					{props.actions.map((action, index) => (
+						<button
+							key={index}
+							className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm transition-colors text-left ${
+								action.danger
+									? "text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
+									: "text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+							} ${action.disabled ? "opacity-40 cursor-not-allowed" : ""}`}
+							disabled={action.disabled}
+							onClick={(e) => {
+								e.stopPropagation();
+								if (!action.disabled) {
+									action.onSelect();
+									setOpen(false);
+								}
+							}}
+							type="button"
+						>
+							{action.icon ? (
+								<span className="w-4 flex justify-center">
+									{action.icon}
+								</span>
+							) : null}
+							<span>{action.label}</span>
+						</button>
+					))}
+				</div>
+			) : null}
+		</div>
+	);
 }

@@ -1,61 +1,102 @@
-import type { TrashItem } from "../../../../packages/contracts/index";
-import { IconArrowLeft, IconRefresh, IconTrash } from "../shared/Icons";
+import type { TrashItem } from "../../types/contracts/index";
+import { MaterialIcon } from "../shared/Icons";
 
 export function TrashPanel(props: {
-  items: TrashItem[];
-  onBack?: () => void;
-  onRefresh: () => void;
-  onRestore: (id: string) => void;
-  onDelete: (id: string) => void;
+	items: TrashItem[];
+	onRestore: (id: string) => void;
+	onDelete: (id: string) => void;
+	onRefresh: () => void;
+	onBack: () => void;
 }) {
-  return (
-    <section className="panel-card task-card">
-      <div className="panel-heading">
-        <div>
-          <span>垃圾桶</span>
-          <strong>{props.items.length === 0 ? "空" : `${props.items.length} 项`}</strong>
-        </div>
-        <div className="toolbar">
-          {props.onBack ? (
-            <button className="icon-button" onClick={props.onBack} type="button">
-              <IconArrowLeft />
-            </button>
-          ) : null}
-          <button className="icon-button" onClick={props.onRefresh} type="button">
-            <IconRefresh />
-          </button>
-        </div>
-      </div>
+	return (
+		<div className="p-6 flex flex-col gap-4">
+			<div className="flex items-center justify-between">
+				<div>
+					<p className="text-xs uppercase tracking-wider text-slate-400">
+						Trash
+					</p>
+					<h3 className="text-lg font-bold">垃圾桶</h3>
+				</div>
+				<div className="flex items-center gap-2">
+					<button
+						className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-400"
+						onClick={props.onRefresh}
+						type="button"
+					>
+						<MaterialIcon name="refresh" />
+					</button>
+					<button
+						className="px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+						onClick={props.onBack}
+						type="button"
+					>
+						返回
+					</button>
+				</div>
+			</div>
 
-      {props.items.length === 0 ? (
-        <div className="empty-state compact">
-          <strong>垃圾桶是空的</strong>
-          <p>删除的文件会先进入这里，之后可以恢复或彻底删除。</p>
-        </div>
-      ) : (
-        <div className="task-list">
-          {props.items.map((item) => (
-            <div className="trash-item" key={item.id}>
-              <div className="trash-item-copy">
-                <div className="trash-item-title">
-                  <IconTrash size={16} />
-                  <strong>{item.name}</strong>
-                </div>
-                <p>{item.originalPath}</p>
-                <small>{new Date(item.deletedAt * 1000).toLocaleString()}</small>
-              </div>
-              <div className="toolbar">
-                <button className="ghost-button compact-button" onClick={() => props.onRestore(item.id)} type="button">
-                  恢复
-                </button>
-                <button className="ghost-button compact-button danger-text" onClick={() => props.onDelete(item.id)} type="button">
-                  删除
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  );
+			<div className="space-y-2">
+				{props.items.length === 0 ? (
+					<div className="text-center py-8">
+						<MaterialIcon
+							name="delete_sweep"
+							className="text-slate-300 dark:text-slate-600 !text-5xl mb-2"
+						/>
+						<p className="text-sm text-slate-400">垃圾桶为空</p>
+					</div>
+				) : (
+					props.items.map((item) => (
+						<div
+							className="flex items-center justify-between gap-3 p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50"
+							key={item.id}
+						>
+							<div className="flex items-center gap-3 min-w-0">
+								<MaterialIcon
+									name={item.isDir ? "folder" : "description"}
+									className={`text-lg ${item.isDir ? "text-blue-500 filled-icon" : "text-slate-400"}`}
+								/>
+								<div className="min-w-0">
+									<p className="text-sm font-medium truncate">
+										{item.name}
+									</p>
+									<p className="text-xs text-slate-400 truncate">
+										{item.originalPath} ·{" "}
+										{formatTime(item.deletedAt)}
+									</p>
+								</div>
+							</div>
+							<div className="flex items-center gap-1 flex-shrink-0">
+								<button
+									className="p-1.5 text-green-500 hover:bg-green-50 dark:hover:bg-green-500/10 rounded-lg transition-colors"
+									onClick={() => props.onRestore(item.id)}
+									title="恢复"
+									type="button"
+								>
+									<MaterialIcon
+										name="restore"
+										className="text-sm"
+									/>
+								</button>
+								<button
+									className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+									onClick={() => props.onDelete(item.id)}
+									title="彻底删除"
+									type="button"
+								>
+									<MaterialIcon
+										name="delete_forever"
+										className="text-sm"
+									/>
+								</button>
+							</div>
+						</div>
+					))
+				)}
+			</div>
+		</div>
+	);
+}
+
+function formatTime(value: number) {
+	return new Date(value * 1000).toLocaleString();
 }

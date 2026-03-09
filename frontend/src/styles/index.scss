@@ -1,0 +1,185 @@
+@use "variables" as *;
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+// ─── Base Reset ───
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+	min-height: 100%;
+	margin: 0;
+}
+
+body {
+	font-family: "Inter", sans-serif;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+// ─── Material Symbols ───
+.material-symbols-outlined {
+	font-variation-settings:
+		"FILL" 0,
+		"wght" 400,
+		"GRAD" 0,
+		"opsz" 24;
+	user-select: none;
+}
+
+.filled-icon {
+	font-variation-settings: "FILL" 1;
+}
+
+// ─── Scrollbar ───
+::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+	background: rgba(0, 0, 0, 0.15);
+	border-radius: 3px;
+
+	&:hover {
+		background: rgba(0, 0, 0, 0.25);
+	}
+}
+
+.dark {
+	::-webkit-scrollbar-thumb {
+		background: rgba(255, 255, 255, 0.15);
+
+		&:hover {
+			background: rgba(255, 255, 255, 0.25);
+		}
+	}
+}
+
+// ─── Dark mode body ───
+.dark body,
+body.dark {
+	color-scheme: dark;
+}
+
+// ─── Utility: Truncate ───
+.truncate-text {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+// ─── Markdown preview ───
+.markdown-preview {
+	@apply rounded-2xl border border-slate-200 bg-slate-50 p-4 leading-relaxed;
+
+	.dark & {
+		@apply border-slate-700 bg-slate-800/50;
+	}
+
+	h1,
+	h2,
+	h3,
+	h4 {
+		@apply font-bold mt-4 mb-2;
+	}
+
+	h1 {
+		@apply text-xl;
+	}
+	h2 {
+		@apply text-lg;
+	}
+	h3 {
+		@apply text-base;
+	}
+
+	p {
+		@apply mb-3;
+	}
+
+	code {
+		@apply bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-sm font-mono;
+	}
+
+	pre {
+		@apply bg-slate-200 dark:bg-slate-700 p-3 rounded-lg overflow-x-auto mb-3;
+		code {
+			@apply bg-transparent p-0;
+		}
+	}
+
+	ul,
+	ol {
+		@apply pl-5 mb-3;
+	}
+
+	li {
+		@apply mb-1;
+	}
+
+	a {
+		@apply text-primary hover:underline;
+	}
+
+	blockquote {
+		@apply border-l-4 border-primary/30 pl-4 italic text-slate-500 dark:text-slate-400;
+	}
+}
+
+// ─── Modal backdrop ───
+.modal-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: $z-modal;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(0, 0, 0, 0.4);
+	backdrop-filter: blur(4px);
+	padding: 16px;
+}
+
+// ─── Editor textarea ───
+.editor-textarea {
+	min-height: min(68vh, 760px);
+	resize: vertical;
+	font-family: "IBM Plex Mono", "SFMono-Regular", "Menlo", monospace;
+	@apply w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-700 dark:bg-slate-800/50;
+}
+
+// ─── Animations ───
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes pulse-dot {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.5;
+	}
+}
+
+.animate-fade-in {
+	animation: fadeIn 200ms ease-out;
+}

@@ -26,7 +26,7 @@ frontend-install:
 	cd frontend && npm install
 
 frontend-dev:
-	cd frontend && WEB_PORT=$(WEB_PORT_VALUE) VITE_DEV_API_TARGET=http://127.0.0.1:$(APP_PORT_VALUE) npm run dev
+	cd frontend && WEB_PORT=$(WEB_PORT_VALUE) DEV_API_TARGET=http://127.0.0.1:$(APP_PORT_VALUE) npm start
 
 frontend-build:
 	cd frontend && npm run build

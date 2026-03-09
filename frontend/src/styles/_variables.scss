@@ -1,0 +1,29 @@
+// ─── SCSS Variables ───
+// Design tokens extracted from prototype designs
+
+// Colors
+$primary: #741ce9;
+$primary-hover: #6218c5;
+$primary-soft: rgba($primary, 0.1);
+$primary-border: rgba($primary, 0.2);
+
+$bg-light: #f7f6f8;
+$bg-dark: #181121;
+
+// Shadows
+$shadow-card: 0 18px 36px rgba(0, 0, 0, 0.06);
+$shadow-elevated: 0 24px 56px rgba(0, 0, 0, 0.12);
+$shadow-primary: 0 8px 24px rgba($primary, 0.2);
+
+// Transitions
+$transition-base: 140ms ease;
+$transition-color:
+	color $transition-base,
+	background $transition-base,
+	border-color $transition-base;
+
+// Z-index layers
+$z-header: 10;
+$z-sidebar: 15;
+$z-modal: 50;
+$z-float: 20;

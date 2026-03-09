@@ -8,9 +8,9 @@ import type {
   SessionUser,
   TrashItem,
   TransferTask,
-} from "../../../packages/contracts/index";
+} from "../types/contracts/index";
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
+const API_BASE = (process.env.REACT_APP_API_BASE_URL ?? "").replace(/\/$/, "");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {

@@ -1,87 +1,204 @@
 import { type FormEvent, useState } from "react";
-import { IconDesktop, IconMoon, IconMore, IconSun } from "../shared/Icons";
-import { MenuButton } from "../shared/MenuButton";
 
 type ThemeMode = "system" | "light" | "dark";
 
 export function LoginForm(props: {
-  notice: { tone: "info" | "error"; text: string } | null;
-  themeMode: ThemeMode;
-  resolvedTheme: "light" | "dark";
-  onLogin: (username: string, password: string) => Promise<void>;
-  onThemeModeChange: (mode: ThemeMode) => void;
+	notice: { tone: "info" | "error"; text: string } | null;
+	themeMode: ThemeMode;
+	resolvedTheme: "light" | "dark";
+	onLogin: (username: string, password: string) => Promise<void>;
+	onThemeModeChange: (mode: ThemeMode) => void;
 }) {
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+	const [username, setUsername] = useState("admin");
+	const [password, setPassword] = useState("");
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState("");
+	const [showPassword, setShowPassword] = useState(false);
 
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    setLoading(true);
-    setError("");
-    try {
-      await props.onLogin(username, password);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "登录失败");
-    } finally {
-      setLoading(false);
-    }
-  }
+	async function submit(event: FormEvent) {
+		event.preventDefault();
+		setLoading(true);
+		setError("");
+		try {
+			await props.onLogin(username, password);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "登录失败");
+		} finally {
+			setLoading(false);
+		}
+	}
 
-  return (
-    <div className="login-page">
-      <section className="login-card">
-        <div className="login-header">
-          <div>
-            <p className="eyebrow">Pan Workspace</p>
-            <h1>登录到你的网盘工作区</h1>
-            <p className="muted">文件直接读磁盘，手机端优先的轻量文件工作区。</p>
-          </div>
+	return (
+		<div className="bg-bg-light dark:bg-bg-dark min-h-screen flex items-center justify-center relative overflow-hidden font-display">
+			{/* Background Decoration */}
+			<div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+				<div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-primary/10 rounded-full blur-3xl" />
+				<div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl" />
+			</div>
 
-          <div className="login-theme-panel">
-            <span className="theme-indicator">{props.resolvedTheme === "dark" ? "Night" : "Day"}</span>
-            <MenuButton
-              actions={[
-                { label: "跟随系统", icon: <IconDesktop size={14} />, onSelect: () => props.onThemeModeChange("system") },
-                { label: "浅色", icon: <IconSun size={14} />, onSelect: () => props.onThemeModeChange("light") },
-                { label: "深色", icon: <IconMoon size={14} />, onSelect: () => props.onThemeModeChange("dark") },
-              ]}
-              align="right"
-              buttonClassName="ghost-button compact-button"
-              buttonContent={
-                <>
-                  <IconMore size={14} />
-                  主题
-                </>
-              }
-              buttonLabel="主题菜单"
-            />
-          </div>
-        </div>
+			{/* Decorative Icons */}
+			<div className="hidden lg:block absolute bottom-10 right-10 opacity-20 pointer-events-none">
+				<span className="material-symbols-outlined !text-[200px] text-primary">
+					cloud_done
+				</span>
+			</div>
+			<div className="hidden lg:block absolute top-10 left-10 opacity-10 pointer-events-none rotate-12">
+				<span className="material-symbols-outlined !text-[150px] text-primary">
+					backup
+				</span>
+			</div>
 
-        <form className="login-form" onSubmit={submit}>
-          <label className="field">
-            <span>用户名</span>
-            <input onChange={(event) => setUsername(event.target.value)} value={username} />
-          </label>
+			<div className="flex flex-col items-center justify-center p-4 z-10 w-full">
+				<div className="flex flex-col max-w-[480px] w-full bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-fade-in">
+					{/* Header */}
+					<div className="p-8 pb-4 text-center">
+						<div className="flex flex-col items-center gap-4">
+							<div className="w-12 h-12 bg-primary flex items-center justify-center rounded-xl text-white shadow-lg shadow-primary/30">
+								<span className="material-symbols-outlined !text-3xl">
+									cloud
+								</span>
+							</div>
+							<div className="flex flex-col gap-1">
+								<h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+									Welcome back
+								</h1>
+								<p className="text-slate-500 dark:text-slate-400 text-sm">
+									Enter your credentials to access Cloud Drive
+								</p>
+							</div>
+						</div>
+					</div>
 
-          <label className="field">
-            <span>密码</span>
-            <input onChange={(event) => setPassword(event.target.value)} type="password" value={password} />
-          </label>
+					{/* Form */}
+					<div className="px-8 py-6">
+						<form className="flex flex-col gap-5" onSubmit={submit}>
+							<div className="flex flex-col gap-2">
+								<label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+									Email or Username
+								</label>
+								<div className="relative">
+									<span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">
+										mail
+									</span>
+									<input
+										className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none text-slate-900 dark:text-white placeholder:text-slate-400"
+										placeholder="name@company.com"
+										type="text"
+										value={username}
+										onChange={(e) =>
+											setUsername(e.target.value)
+										}
+									/>
+								</div>
+							</div>
 
-          {error ? <div className="notice notice-error">{error}</div> : null}
-          {!error && props.notice ? <div className={`notice notice-${props.notice.tone}`}>{props.notice.text}</div> : null}
+							<div className="flex flex-col gap-2">
+								<div className="flex justify-between items-center">
+									<label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+										Password
+									</label>
+								</div>
+								<div className="relative">
+									<span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">
+										lock
+									</span>
+									<input
+										className="w-full pl-11 pr-12 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none text-slate-900 dark:text-white placeholder:text-slate-400"
+										placeholder="••••••••"
+										type={
+											showPassword ? "text" : "password"
+										}
+										value={password}
+										onChange={(e) =>
+											setPassword(e.target.value)
+										}
+									/>
+									<button
+										className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+										type="button"
+										onClick={() =>
+											setShowPassword(!showPassword)
+										}
+									>
+										<span className="material-symbols-outlined text-xl">
+											{showPassword
+												? "visibility_off"
+												: "visibility"}
+										</span>
+									</button>
+								</div>
+							</div>
 
-          <div className="login-actions">
-            <button className="primary-button login-submit" disabled={loading} type="submit">
-              {loading ? "登录中..." : "进入工作区"}
-            </button>
-            <p className="muted">Web 端继续使用 Cookie 会话，不改变现有鉴权流程。</p>
-          </div>
-        </form>
-      </section>
-    </div>
-  );
+							{error ? (
+								<div className="text-sm text-red-500 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg px-4 py-3">
+									{error}
+								</div>
+							) : null}
+
+							{!error && props.notice ? (
+								<div
+									className={`text-sm rounded-lg px-4 py-3 ${
+										props.notice.tone === "error"
+											? "text-red-500 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20"
+											: "text-green-600 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20"
+									}`}
+								>
+									{props.notice.text}
+								</div>
+							) : null}
+
+							<button
+								className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-lg shadow-primary/20 flex items-center justify-center gap-2 mt-2 disabled:opacity-50"
+								disabled={loading}
+								type="submit"
+							>
+								<span>{loading ? "登录中..." : "Sign In"}</span>
+								{!loading && (
+									<span className="material-symbols-outlined text-lg">
+										login
+									</span>
+								)}
+							</button>
+						</form>
+					</div>
+
+					{/* Footer */}
+					<div className="px-8 pb-6">
+						<div className="flex items-center justify-center gap-4 text-xs text-slate-400">
+							<button
+								className={`px-3 py-1.5 rounded-lg transition-colors ${props.themeMode === "system" ? "bg-primary/10 text-primary" : "hover:bg-slate-100 dark:hover:bg-slate-800"}`}
+								onClick={() =>
+									props.onThemeModeChange("system")
+								}
+								type="button"
+							>
+								System
+							</button>
+							<button
+								className={`px-3 py-1.5 rounded-lg transition-colors ${props.themeMode === "light" ? "bg-primary/10 text-primary" : "hover:bg-slate-100 dark:hover:bg-slate-800"}`}
+								onClick={() => props.onThemeModeChange("light")}
+								type="button"
+							>
+								Light
+							</button>
+							<button
+								className={`px-3 py-1.5 rounded-lg transition-colors ${props.themeMode === "dark" ? "bg-primary/10 text-primary" : "hover:bg-slate-100 dark:hover:bg-slate-800"}`}
+								onClick={() => props.onThemeModeChange("dark")}
+								type="button"
+							>
+								Dark
+							</button>
+						</div>
+					</div>
+				</div>
+
+				{/* App Footer Info */}
+				<div className="mt-8 flex flex-col items-center gap-4 text-slate-500 dark:text-slate-400">
+					<p className="text-xs">
+						© 2026 Cloud Drive Inc. All rights reserved.
+					</p>
+				</div>
+			</div>
+		</div>
+	);
 }
