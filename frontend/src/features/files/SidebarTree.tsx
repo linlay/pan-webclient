@@ -1,3 +1,4 @@
+import { MaterialIcon } from "../shared/Icons";
 import type { FileTreeNode, MountRoot } from "../../types/contracts/index";
 
 export function SidebarTree(props: {
@@ -34,9 +35,7 @@ export function SidebarTree(props: {
 								onClick={() => props.onSelect(mount.id, "/")}
 								type="button"
 							>
-								<span className="material-symbols-outlined text-[20px] filled-icon">
-									hard_drive
-								</span>
+								<MaterialIcon className="text-[20px]" name="hard_drive" />
 								<div className="min-w-0">
 									<span className="block text-sm font-medium">
 										{mount.name}
@@ -127,14 +126,13 @@ function TreeBranch(props: {
 						}}
 						type="button"
 					>
-						<span className="material-symbols-outlined text-sm">
-							{expanded ? "expand_more" : "chevron_right"}
-						</span>
+						<MaterialIcon
+							className="text-sm"
+							name={expanded ? "expand_more" : "chevron_right"}
+						/>
 					</button>
 				) : (
-					<span className="material-symbols-outlined text-sm text-slate-300">
-						chevron_right
-					</span>
+					<MaterialIcon className="text-sm text-slate-300" name="chevron_right" />
 				)}
 				<span className={`text-sm ${active ? "font-medium" : ""}`}>
 					{props.node.name}

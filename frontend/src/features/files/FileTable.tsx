@@ -109,11 +109,7 @@ function GridView(props: {
 									: ""
 							}`}
 						>
-							<span
-								className={`material-symbols-outlined text-5xl ${entry.isDir ? "filled-icon" : ""}`}
-							>
-								{icon}
-							</span>
+							<MaterialIcon className="text-5xl" name={icon} />
 						</div>
 						<span className="text-xs font-medium text-center truncate w-full px-1">
 							{entry.name}
@@ -207,11 +203,7 @@ function ListView(props: ListViewProps) {
 								</td>
 								<td className="px-4 py-3">
 									<div className="flex items-center gap-3 font-medium text-slate-900 dark:text-slate-100">
-										<span
-											className={`material-symbols-outlined ${textColor} ${entry.isDir ? "filled-icon" : ""} text-xl`}
-										>
-											{icon}
-										</span>
+										<MaterialIcon className={`${textColor} text-xl`} name={icon} />
 										<div className="min-w-0 flex-1">
 											<span className="block truncate">
 												{entry.name}
@@ -421,11 +413,7 @@ function MobileListView(props: ListViewProps) {
 								</div>
 							) : null}
 							<div className="flex min-w-0 flex-1 items-center gap-3">
-								<span
-									className={`material-symbols-outlined text-xl ${textColor} ${entry.isDir ? "filled-icon" : ""}`}
-								>
-									{icon}
-								</span>
+								<MaterialIcon className={`text-xl ${textColor}`} name={icon} />
 								<div className="min-w-0 flex-1">
 									<div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
 										{entry.name}

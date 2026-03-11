@@ -17,7 +17,7 @@ module.exports = (_env, argv) => {
     output: {
       path: path.resolve(__dirname, "dist"),
       filename: isProd ? "js/[name].[contenthash:8].js" : "js/[name].js",
-      publicPath: "",
+      publicPath: isProd ? "" : "/",
       clean: true,
     },
     resolve: {
@@ -102,7 +102,7 @@ module.exports = (_env, argv) => {
         if (!devServer) {
           return middlewares;
         }
-        devServer.app.get(["/pan", "/apppan"], (req, res) => {
+        devServer.app.get(/^\/(?:pan|apppan)$/i, (req, res) => {
           const query = req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
           res.redirect(302, `${req.path}/${query}`);
         });

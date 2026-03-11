@@ -10,7 +10,7 @@ module.exports = {
         "bg-dark": "#161614", // Deep Charcoal
       },
       fontFamily: {
-        display: ["Inter", "sans-serif"],
+        display: ["PingFang SC", "SF Pro Display", "Segoe UI", "system-ui", "sans-serif"],
       },
       borderRadius: {
         DEFAULT: "0.25rem",

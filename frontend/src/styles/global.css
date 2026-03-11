@@ -1,5 +1,5 @@
 :root {
-  font-family: "Inter", "PingFang SC", "SF Pro Display", system-ui, sans-serif;
+  font-family: "PingFang SC", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
   --bg: #F9F7F2;
   /* Claude Paper White */
   --bg-2: #F1EFE8;
@@ -347,18 +347,6 @@ textarea:focus {
   gap: 6px;
   min-height: 34px;
   padding: 6px 12px;
-}
-
-.material-symbols-outlined {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  vertical-align: middle;
-  line-height: 1;
-  user-select: none;
-  width: 1em;
-  height: 1em;
-  overflow: hidden;
 }
 
 .danger-button {

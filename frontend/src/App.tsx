@@ -954,7 +954,7 @@ export function App() {
 			<div className="min-h-screen flex items-center justify-center bg-bg-light dark:bg-bg-dark">
 				<div className="flex flex-col items-center gap-4">
 					<div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center text-white animate-pulse">
-						<span className="material-symbols-outlined">cloud</span>
+						<MaterialIcon name="cloud" />
 					</div>
 					<p className="text-slate-500 text-sm">
 						正在连接你的工作区...

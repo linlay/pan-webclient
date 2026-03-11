@@ -57,9 +57,7 @@ export function AppSidebar(props: AppSidebarProps) {
 		>
 			<div className="p-6 flex items-center gap-3">
 				<div className="flex bg-primary p-1.5 rounded-lg text-white">
-					<span className="material-symbols-outlined">
-						cloud_done
-					</span>
+					<MaterialIcon name="cloud_done" />
 				</div>
 				<h2 className="text-lg font-bold tracking-tight">
 					Cloud Drive
@@ -87,9 +85,7 @@ export function AppSidebar(props: AppSidebarProps) {
 							onClick={props.onNavigateHome}
 							type="button"
 						>
-							<span className="material-symbols-outlined text-[20px] filled-icon">
-								star
-							</span>
+							<MaterialIcon className="text-[20px]" name="star" />
 							<span>Quick Access</span>
 						</button>
 						<button
@@ -97,9 +93,7 @@ export function AppSidebar(props: AppSidebarProps) {
 							onClick={props.onOpenTasks}
 							type="button"
 						>
-							<span className="material-symbols-outlined text-[20px]">
-								schedule
-							</span>
+							<MaterialIcon className="text-[20px]" name="schedule" />
 							<span>Tasks</span>
 							{props.tasksLength > 0 ? (
 								<span className="ml-auto text-xs text-slate-400">
@@ -112,9 +106,7 @@ export function AppSidebar(props: AppSidebarProps) {
 							onClick={props.onOpenTrash}
 							type="button"
 						>
-							<span className="material-symbols-outlined text-[20px]">
-								delete
-							</span>
+							<MaterialIcon className="text-[20px]" name="delete" />
 							<span>Trash</span>
 							{props.trashItemsLength > 0 ? (
 								<span className="ml-auto text-xs text-slate-400">

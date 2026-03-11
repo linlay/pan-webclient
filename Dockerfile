@@ -14,6 +14,7 @@ RUN go build -o /out/pan-api ./cmd/server
 
 FROM alpine:3.21
 WORKDIR /app
+RUN mkdir -p /app/configs
 COPY --from=api-build /out/pan-api /app/pan-api
 COPY --from=web-build /workspace/frontend/dist /app/web
 ENV PAN_STATIC_DIR=/app/web

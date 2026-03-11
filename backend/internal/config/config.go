@@ -2,8 +2,12 @@ package config
 
 import (
 	"bufio"
+	"crypto/rsa"
+	"crypto/x509"
 	"embed"
 	"encoding/json"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -22,19 +26,19 @@ type Mount struct {
 }
 
 type Config struct {
-	AppPort           string  `json:"app_port"`
-	WebPort           string  `json:"web_port"`
-	WebOrigin         string  `json:"web_origin"`
-	AppPublicKeyFile  string  `json:"auth_app_public_key_file"`
-	StaticDir         string  `json:"pan_static_dir"`
-	DataDir           string  `json:"pan_data_dir"`
-	SessionCookieName string  `json:"session_cookie_name"`
-	SessionSecret     string  `json:"-"`
-	AdminUsername     string  `json:"-"`
-	AdminPasswordHash string  `json:"-"`
-	MaxUploadBytes    int64   `json:"max_upload_bytes"`
-	MaxEditFileBytes  int64   `json:"max_edit_file_bytes"`
-	Mounts            []Mount `json:"mounts"`
+	AppPort                   string  `json:"app_port"`
+	WebPort                   string  `json:"web_port"`
+	WebOrigin                 string  `json:"web_origin"`
+	AppAuthLocalPublicKeyFile string  `json:"app_auth_local_public_key_file"`
+	StaticDir                 string  `json:"pan_static_dir"`
+	DataDir                   string  `json:"pan_data_dir"`
+	SessionCookieName         string  `json:"session_cookie_name"`
+	SessionSecret             string  `json:"-"`
+	AdminUsername             string  `json:"-"`
+	AdminPasswordHash         string  `json:"-"`
+	MaxUploadBytes            int64   `json:"max_upload_bytes"`
+	MaxEditFileBytes          int64   `json:"max_edit_file_bytes"`
+	Mounts                    []Mount `json:"mounts"`
 }
 
 func Load() (Config, error) {
@@ -47,7 +51,7 @@ func Load() (Config, error) {
 		return cfg, fmt.Errorf("parse default config: %w", err)
 	}
 
-	dotEnv, err := loadDotEnv(".env")
+	dotEnv, envBaseDir, err := loadDotEnv()
 	if err != nil {
 		return cfg, err
 	}
@@ -55,7 +59,10 @@ func Load() (Config, error) {
 	applyString(&cfg.AppPort, lookupEnv(dotEnv, "APP_PORT"))
 	applyString(&cfg.WebPort, lookupEnv(dotEnv, "WEB_PORT"))
 	applyString(&cfg.WebOrigin, lookupEnv(dotEnv, "WEB_ORIGIN"))
-	applyString(&cfg.AppPublicKeyFile, lookupEnv(dotEnv, "AUTH_APP_PUBLIC_KEY_FILE"))
+	applyString(
+		&cfg.AppAuthLocalPublicKeyFile,
+		lookupEnv(dotEnv, "APP_AUTH_LOCAL_PUBLIC_KEY_FILE"),
+	)
 	applyString(&cfg.StaticDir, lookupEnv(dotEnv, "PAN_STATIC_DIR"))
 	applyString(&cfg.DataDir, lookupEnv(dotEnv, "PAN_DATA_DIR"))
 	applyString(&cfg.SessionCookieName, lookupEnv(dotEnv, "SESSION_COOKIE_NAME"))
@@ -97,8 +104,8 @@ func Load() (Config, error) {
 	if cfg.DataDir == "" {
 		cfg.DataDir = "./data"
 	}
-	if cfg.AppPublicKeyFile == "" {
-		cfg.AppPublicKeyFile = "./configs/local-public-key.pem"
+	if cfg.AppAuthLocalPublicKeyFile == "" {
+		cfg.AppAuthLocalPublicKeyFile = "./configs/local-public-key.pem"
 	}
 
 	mounts, err := loadMountFiles(filepath.Join("configs", "mounts"))
@@ -144,19 +151,14 @@ func Load() (Config, error) {
 		return cfg, fmt.Errorf("resolve data dir: %w", err)
 	}
 	cfg.DataDir = absDataDir
-	absPublicKeyFile, err := filepath.Abs(cfg.AppPublicKeyFile)
+	resolvedPublicKeyFile, err := resolveLocalPublicKeyFile(
+		cfg.AppAuthLocalPublicKeyFile,
+		envBaseDir,
+	)
 	if err != nil {
-		return cfg, fmt.Errorf("resolve app public key file: %w", err)
+		return cfg, err
 	}
-	if stat, err := os.Stat(absPublicKeyFile); err != nil {
-		if os.IsNotExist(err) {
-			return cfg, fmt.Errorf("app public key file does not exist: %s", absPublicKeyFile)
-		}
-		return cfg, fmt.Errorf("stat app public key file: %w", err)
-	} else if stat.IsDir() {
-		return cfg, fmt.Errorf("app public key file is a directory: %s", absPublicKeyFile)
-	}
-	cfg.AppPublicKeyFile = absPublicKeyFile
+	cfg.AppAuthLocalPublicKeyFile = resolvedPublicKeyFile
 	return cfg, nil
 }
 
@@ -172,21 +174,46 @@ func localOrigin(port string) string {
 
 func lookupEnv(dotEnv map[string]string, key string) string {
 	if value, ok := os.LookupEnv(key); ok {
-		return value
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
 	}
 	return dotEnv[key]
 }
 
-func loadDotEnv(path string) (map[string]string, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return map[string]string{}, nil
+func loadDotEnv() (map[string]string, string, error) {
+	values := map[string]string{}
+	envBaseDir := ""
+	for _, path := range envCandidates() {
+		file, err := os.Open(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, "", fmt.Errorf("open %s: %w", path, err)
 		}
-		return nil, fmt.Errorf("open %s: %w", path, err)
+		parsed, err := parseDotEnvFile(file)
+		_ = file.Close()
+		if err != nil {
+			return nil, "", fmt.Errorf("scan %s: %w", path, err)
+		}
+		for key, value := range parsed {
+			values[key] = value
+		}
+		envBaseDir = filepath.Dir(path)
 	}
-	defer file.Close()
+	return values, envBaseDir, nil
+}
 
+func envCandidates() []string {
+	cwd, _ := os.Getwd()
+	return dedupePaths([]string{
+		filepath.Join(cwd, "..", ".env"),
+		filepath.Join(cwd, ".env"),
+	})
+}
+
+func parseDotEnvFile(file *os.File) (map[string]string, error) {
 	values := map[string]string{}
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -207,7 +234,7 @@ func loadDotEnv(path string) (map[string]string, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("scan %s: %w", path, err)
+		return nil, err
 	}
 	return values, nil
 }
@@ -222,6 +249,64 @@ func trimQuotes(value string) string {
 		}
 	}
 	return value
+}
+
+func resolveLocalPublicKeyFile(rawPath, envBaseDir string) (string, error) {
+	trimmed := strings.TrimSpace(rawPath)
+	if trimmed == "" {
+		return "", nil
+	}
+	resolved := trimmed
+	if !filepath.IsAbs(resolved) {
+		baseDir := strings.TrimSpace(envBaseDir)
+		if baseDir == "" {
+			cwd, _ := os.Getwd()
+			baseDir = cwd
+		}
+		resolved = filepath.Join(baseDir, resolved)
+	}
+	resolved = filepath.Clean(resolved)
+	payload, err := os.ReadFile(resolved)
+	if err != nil {
+		return "", fmt.Errorf("read app auth local public key file %s: %w", resolved, err)
+	}
+	if _, err := parseRSAPublicKeyPEM(payload); err != nil {
+		return "", fmt.Errorf("parse app auth local public key file %s: %w", resolved, err)
+	}
+	return resolved, nil
+}
+
+func parseRSAPublicKeyPEM(payload []byte) (*rsa.PublicKey, error) {
+	block, _ := pem.Decode(payload)
+	if block == nil {
+		return nil, errors.New("pem decode failed")
+	}
+	key, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("rsa parse failed: %w", err)
+	}
+	rsaKey, ok := key.(*rsa.PublicKey)
+	if !ok {
+		return nil, errors.New("rsa parse failed")
+	}
+	return rsaKey, nil
+}
+
+func dedupePaths(paths []string) []string {
+	seen := map[string]struct{}{}
+	result := make([]string, 0, len(paths))
+	for _, path := range paths {
+		if path == "" {
+			continue
+		}
+		cleaned := filepath.Clean(path)
+		if _, ok := seen[cleaned]; ok {
+			continue
+		}
+		seen[cleaned] = struct{}{}
+		result = append(result, cleaned)
+	}
+	return result
 }
 
 func parseMounts(raw string) ([]Mount, error) {

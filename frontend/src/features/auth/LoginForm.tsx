@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from "react";
+import { MaterialIcon } from "@/features/shared/Icons";
 
 type ThemeMode = "system" | "light" | "dark";
 
@@ -39,14 +40,10 @@ export function LoginForm(props: {
 
 			{/* Decorative Icons */}
 			<div className="hidden lg:block absolute bottom-10 right-10 opacity-20 pointer-events-none">
-				<span className="material-symbols-outlined !text-[200px] text-primary">
-					cloud_done
-				</span>
+				<MaterialIcon className="!text-[200px] text-primary" name="cloud_done" />
 			</div>
 			<div className="hidden lg:block absolute top-10 left-10 opacity-10 pointer-events-none rotate-12">
-				<span className="material-symbols-outlined !text-[150px] text-primary">
-					backup
-				</span>
+				<MaterialIcon className="!text-[150px] text-primary" name="backup" />
 			</div>
 
 			<div className="flex flex-col items-center justify-center p-4 z-10 w-full">
@@ -55,9 +52,7 @@ export function LoginForm(props: {
 					<div className="p-8 pb-4 text-center">
 						<div className="flex flex-col items-center gap-4">
 							<div className="w-12 h-12 bg-primary flex items-center justify-center rounded-xl text-white shadow-lg shadow-primary/30">
-								<span className="material-symbols-outlined !text-3xl">
-									cloud
-								</span>
+								<MaterialIcon className="!text-3xl" name="cloud" />
 							</div>
 							<div className="flex flex-col gap-1">
 								<h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
@@ -97,9 +92,10 @@ export function LoginForm(props: {
 									Email or Username
 								</label>
 								<div className="relative">
-									<span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">
-										mail
-									</span>
+									<MaterialIcon
+										className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl"
+										name="mail"
+									/>
 									<input
 										className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none text-slate-900 dark:text-white placeholder:text-slate-400"
 										placeholder="name@company.com"
@@ -119,9 +115,10 @@ export function LoginForm(props: {
 									</label>
 								</div>
 								<div className="relative">
-									<span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">
-										lock
-									</span>
+									<MaterialIcon
+										className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl"
+										name="lock"
+									/>
 									<input
 										className="w-full pl-11 pr-12 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none text-slate-900 dark:text-white placeholder:text-slate-400"
 										placeholder="••••••••"
@@ -140,11 +137,10 @@ export function LoginForm(props: {
 											setShowPassword(!showPassword)
 										}
 									>
-										<span className="material-symbols-outlined text-xl">
-											{showPassword
-												? "visibility_off"
-												: "visibility"}
-										</span>
+										<MaterialIcon
+											className="text-xl"
+											name={showPassword ? "visibility_off" : "visibility"}
+										/>
 									</button>
 								</div>
 							</div>
@@ -174,9 +170,7 @@ export function LoginForm(props: {
 							>
 								<span>{loading ? "登录中..." : "Sign In"}</span>
 								{!loading && (
-									<span className="material-symbols-outlined text-lg">
-										login
-									</span>
+									<MaterialIcon className="text-lg" name="login" />
 								)}
 							</button>
 							</form>

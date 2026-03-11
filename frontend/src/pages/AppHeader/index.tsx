@@ -90,9 +90,7 @@ export function AppHeader(props: AppHeaderProps) {
 								className="flex items-center"
 							>
 								{index > 0 ? (
-									<span className="material-symbols-outlined text-xs mx-1">
-										chevron_right
-									</span>
+									<MaterialIcon className="text-xs mx-1" name="chevron_right" />
 								) : null}
 								{index === props.breadcrumbs.length - 1 ? (
 									<span className="text-slate-900 dark:text-white font-bold">
@@ -120,9 +118,10 @@ export function AppHeader(props: AppHeaderProps) {
 			<div className="flex items-center gap-4 flex-1 justify-end min-w-0">
 				{/* Search Desktop */}
 				<div className="relative max-w-md w-full hidden sm:block">
-					<span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">
-						search
-					</span>
+					<MaterialIcon
+						className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg"
+						name="search"
+					/>
 					<input
 						className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-primary/20 text-sm placeholder:text-slate-400 outline-none transition-all"
 						placeholder="Search files, folders..."

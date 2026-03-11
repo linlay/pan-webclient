@@ -154,15 +154,10 @@ export function MobilePreviewSheet(props: MobilePreviewSheetProps) {
 									}
 								/>
 							) : (
-								<span
-									className={`material-symbols-outlined text-3xl ${iconInfo.textColor} ${
-										preview.kind === "directory"
-											? "filled-icon"
-											: ""
-									}`}
-								>
-									{iconInfo.icon}
-								</span>
+								<MaterialIcon
+									className={`text-3xl ${iconInfo.textColor}`}
+									name={iconInfo.icon}
+								/>
 							)}
 						</div>
 						<div className="flex-1 min-w-0">

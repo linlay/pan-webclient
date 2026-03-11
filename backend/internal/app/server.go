@@ -30,7 +30,7 @@ func New(cfg config.Config) (*Server, error) {
 		return nil, err
 	}
 
-	appPublicKey, err := auth.LoadRSAPublicKey(cfg.AppPublicKeyFile)
+	appPublicKey, err := auth.LoadRSAPublicKey(cfg.AppAuthLocalPublicKeyFile)
 	if err != nil {
 		return nil, fmt.Errorf("load app public key: %w", err)
 	}

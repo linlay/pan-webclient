@@ -4,20 +4,120 @@ type IconProps = SVGProps<SVGSVGElement> & {
 	size?: number;
 };
 
-// ─── Material Symbol helper ───
-export function MaterialIcon(props: {
+type MaterialIconProps = {
 	name: string;
 	className?: string;
 	filled?: boolean;
 	size?: string;
-}) {
-	return (
-		<span
-			className={`material-symbols-outlined ${props.filled ? "filled-icon" : ""} ${props.size ?? ""} ${props.className ?? ""}`}
-		>
-			{props.name}
-		</span>
-	);
+};
+
+export function MaterialIcon(props: MaterialIconProps) {
+	const className = `inline-block align-middle shrink-0 ${props.size ?? ""} ${props.className ?? ""}`.trim();
+	const common = { className, "aria-hidden": true } as const;
+
+	switch (props.name) {
+		case "add":
+			return <IconPlus {...common} />;
+		case "arrow_back":
+		case "chevron_left":
+			return <IconArrowLeft {...common} />;
+		case "article":
+		case "description":
+		case "draft":
+		case "folder_open":
+		case "picture_as_pdf":
+			return <IconFile {...common} />;
+		case "backup":
+			return <IconCloudUpload {...common} />;
+		case "check_circle":
+			return <IconCheckCircle {...common} />;
+		case "chevron_right":
+			return <IconChevronRight {...common} />;
+		case "close":
+			return <IconClose {...common} />;
+		case "cloud":
+			return <IconCloud {...common} />;
+		case "cloud_done":
+			return <IconCloudDone {...common} />;
+		case "computer":
+			return <IconDesktop {...common} />;
+		case "content_copy":
+			return <IconCopy {...common} />;
+		case "create_new_folder":
+			return <IconFolderPlus {...common} />;
+		case "dark_mode":
+			return <IconMoon {...common} />;
+		case "delete":
+		case "delete_forever":
+		case "delete_sweep":
+			return <IconTrash {...common} />;
+		case "download":
+			return <IconDownload {...common} />;
+		case "drive_file_move":
+			return <IconMove {...common} />;
+		case "edit":
+			return <IconEdit {...common} />;
+		case "error":
+			return <IconAlertCircle {...common} />;
+		case "expand_more":
+			return <IconChevronDown {...common} />;
+		case "folder":
+			return <IconFolder {...common} />;
+		case "grid_view":
+			return <IconGrid {...common} />;
+		case "hard_drive":
+			return <IconDrive {...common} />;
+		case "image":
+			return <IconImage {...common} />;
+		case "light_mode":
+			return <IconSun {...common} />;
+		case "lock":
+			return <IconLock {...common} />;
+		case "login":
+			return <IconLogin {...common} />;
+		case "logout":
+			return <IconLogout {...common} />;
+		case "mail":
+			return <IconMail {...common} />;
+		case "menu":
+			return <IconMenu {...common} />;
+		case "more_vert":
+			return <IconMore {...common} />;
+		case "movie":
+			return <IconVideo {...common} />;
+		case "music_note":
+			return <IconAudio {...common} />;
+		case "open_in_new":
+			return <IconOpenInNew {...common} />;
+		case "person":
+			return <IconUser {...common} />;
+		case "refresh":
+			return <IconRefresh {...common} />;
+		case "restore":
+			return <IconRestore {...common} />;
+		case "schedule":
+			return <IconClock {...common} />;
+		case "search":
+			return <IconSearch {...common} />;
+		case "star":
+			return <IconStar {...common} />;
+		case "sync":
+			return <IconSync {...common} />;
+		case "touch_app":
+			return <IconTap {...common} />;
+		case "upload":
+			return <IconUpload {...common} />;
+		case "view_list":
+			return <IconList {...common} />;
+		case "visibility":
+			return <IconEye {...common} />;
+		case "visibility_off":
+			return <IconEyeOff {...common} />;
+		case "zoom_in":
+			return <IconSearchPlus {...common} />;
+		default:
+			return <IconFile {...common} />;
+	}
 }
 
 // ─── SVG Icon Components (kept for offline / fallback use) ───
@@ -234,18 +334,271 @@ export function IconCheck(props: IconProps) {
 	);
 }
 
+export function IconChevronRight(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<path d="m8 5.5 4 4.5-4 4.5" />
+		</IconBase>
+	);
+}
+
+export function IconChevronDown(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<path d="m5.5 8 4.5 4 4.5-4" />
+		</IconBase>
+	);
+}
+
+export function IconClose(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<path d="m6 6 8 8" />
+			<path d="m14 6-8 8" />
+		</IconBase>
+	);
+}
+
+export function IconMenu(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<path d="M4.5 6.5h11" />
+			<path d="M4.5 10h11" />
+			<path d="M4.5 13.5h11" />
+		</IconBase>
+	);
+}
+
+export function IconGrid(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<rect x="4.5" y="4.5" width="4.25" height="4.25" rx="0.75" />
+			<rect x="11.25" y="4.5" width="4.25" height="4.25" rx="0.75" />
+			<rect x="4.5" y="11.25" width="4.25" height="4.25" rx="0.75" />
+			<rect x="11.25" y="11.25" width="4.25" height="4.25" rx="0.75" />
+		</IconBase>
+	);
+}
+
+export function IconList(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<path d="M7.25 6.5h8" />
+			<path d="M7.25 10h8" />
+			<path d="M7.25 13.5h8" />
+			<circle cx="4.75" cy="6.5" r="0.75" fill="currentColor" stroke="none" />
+			<circle cx="4.75" cy="10" r="0.75" fill="currentColor" stroke="none" />
+			<circle cx="4.75" cy="13.5" r="0.75" fill="currentColor" stroke="none" />
+		</IconBase>
+	);
+}
+
+export function IconClock(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<circle cx="10" cy="10" r="5.5" />
+			<path d="M10 7v3.5l2.25 1.5" />
+		</IconBase>
+	);
+}
+
+export function IconSync(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<path d="M14.5 8A4.5 4.5 0 0 0 7 5.75" />
+			<path d="M14.5 5.5V8H12" />
+			<path d="M5.5 12A4.5 4.5 0 0 0 13 14.25" />
+			<path d="M5.5 14.5V12H8" />
+		</IconBase>
+	);
+}
+
+export function IconCloud(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<path d="M6.25 15h7.1a2.65 2.65 0 0 0 .45-5.26A4.5 4.5 0 0 0 5.2 8.8 2.9 2.9 0 0 0 6.25 15Z" />
+		</IconBase>
+	);
+}
+
+export function IconCloudDone(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<path d="M6.25 15h7.1a2.65 2.65 0 0 0 .45-5.26A4.5 4.5 0 0 0 5.2 8.8 2.9 2.9 0 0 0 6.25 15Z" />
+			<path d="m8.2 10.2 1.2 1.2 2.4-2.6" />
+		</IconBase>
+	);
+}
+
+export function IconCloudUpload(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<path d="M6.25 15h7.1a2.65 2.65 0 0 0 .45-5.26A4.5 4.5 0 0 0 5.2 8.8 2.9 2.9 0 0 0 6.25 15Z" />
+			<path d="M10 12.25V8.5" />
+			<path d="m8.4 10.1 1.6-1.6 1.6 1.6" />
+		</IconBase>
+	);
+}
+
+export function IconMail(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<rect x="4" y="5.5" width="12" height="9" rx="1.5" />
+			<path d="m5 7 5 4 5-4" />
+		</IconBase>
+	);
+}
+
+export function IconLock(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<rect x="5.5" y="9" width="9" height="6.5" rx="1.5" />
+			<path d="M7.5 9V7.5A2.5 2.5 0 0 1 10 5a2.5 2.5 0 0 1 2.5 2.5V9" />
+		</IconBase>
+	);
+}
+
+export function IconEye(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<path d="M3.75 10s2.25-4 6.25-4 6.25 4 6.25 4-2.25 4-6.25 4-6.25-4-6.25-4Z" />
+			<circle cx="10" cy="10" r="1.75" />
+		</IconBase>
+	);
+}
+
+export function IconEyeOff(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<path d="M3.75 10s2.25-4 6.25-4c1.1 0 2.08.2 2.94.54" />
+			<path d="M16.25 10s-2.25 4-6.25 4c-1.1 0-2.08-.2-2.94-.54" />
+			<path d="m5 5 10 10" />
+		</IconBase>
+	);
+}
+
+export function IconLogin(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<path d="M12.5 5H14a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 14 15h-1.5" />
+			<path d="M8.75 7.25 6 10l2.75 2.75" />
+			<path d="M6 10h8" />
+		</IconBase>
+	);
+}
+
+export function IconDrive(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<rect x="4.5" y="5" width="11" height="4" rx="1" />
+			<rect x="4.5" y="11" width="11" height="4" rx="1" />
+			<circle cx="13.25" cy="7" r="0.6" fill="currentColor" stroke="none" />
+			<circle cx="13.25" cy="13" r="0.6" fill="currentColor" stroke="none" />
+		</IconBase>
+	);
+}
+
+export function IconFolderPlus(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<path d="M3 6.75A1.75 1.75 0 0 1 4.75 5h3.07c.46 0 .9.18 1.23.5l.95.93c.19.19.45.3.72.3h4.53A1.75 1.75 0 0 1 17 8.48v5.77A1.75 1.75 0 0 1 15.25 16H4.75A1.75 1.75 0 0 1 3 14.25z" />
+			<path d="M10 9v4" />
+			<path d="M8 11h4" />
+		</IconBase>
+	);
+}
+
+export function IconSearchPlus(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<circle cx="8.25" cy="8.25" r="3.75" />
+			<path d="m11.25 11.25 3.25 3.25" />
+			<path d="M8.25 6.8v2.9" />
+			<path d="M6.8 8.25h2.9" />
+		</IconBase>
+	);
+}
+
+export function IconOpenInNew(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<path d="M11 5.5h3.5V9" />
+			<path d="m10 10 4.5-4.5" />
+			<path d="M8.5 6H6A1.5 1.5 0 0 0 4.5 7.5V14A1.5 1.5 0 0 0 6 15.5h6.5A1.5 1.5 0 0 0 14 14v-2.5" />
+		</IconBase>
+	);
+}
+
+export function IconCheckCircle(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<circle cx="10" cy="10" r="5.75" />
+			<path d="m7.25 10 1.9 1.9 3.6-3.8" />
+		</IconBase>
+	);
+}
+
+export function IconAlertCircle(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<circle cx="10" cy="10" r="5.75" />
+			<path d="M10 7.25v3.5" />
+			<circle cx="10" cy="13.2" r="0.7" fill="currentColor" stroke="none" />
+		</IconBase>
+	);
+}
+
+export function IconRestore(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<path d="M6 8H3.75V5.75" />
+			<path d="M4 8a6 6 0 1 1 .95 5.1" />
+			<path d="M10 7v3l2 1.5" />
+		</IconBase>
+	);
+}
+
+export function IconUser(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<circle cx="10" cy="7.25" r="2.25" />
+			<path d="M5.5 14.75a4.5 4.5 0 0 1 9 0" />
+		</IconBase>
+	);
+}
+
+export function IconStar(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<path d="m10 4.5 1.75 3.55 3.92.57-2.83 2.76.67 3.9L10 13.45 6.5 15.28l.67-3.9-2.84-2.76 3.93-.57Z" />
+		</IconBase>
+	);
+}
+
+export function IconTap(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<path d="M10 4.5v2.25" />
+			<path d="M7.75 6.2 9 7.45" />
+			<path d="M12.25 6.2 11 7.45" />
+			<path d="M8.5 10.25V9.1a1 1 0 1 1 2 0v3.9" />
+			<path d="M10.5 10.6V9.4a1 1 0 1 1 2 0v4.35a1.75 1.75 0 0 1-1.75 1.75H9.4a2.4 2.4 0 0 1-1.86-.88l-1.04-1.28a.95.95 0 1 1 1.47-1.21l.53.65V10.25a1 1 0 1 1 2 0" />
+		</IconBase>
+	);
+}
+
 function IconBase({ size = 18, children, ...props }: IconProps) {
 	return (
 		<svg
 			aria-hidden="true"
 			fill="none"
-			height={size}
+			height={typeof size === "number" ? size : "1em"}
 			stroke="currentColor"
 			strokeLinecap="round"
 			strokeLinejoin="round"
 			strokeWidth="1.6"
 			viewBox="0 0 20 20"
-			width={size}
+			width={typeof size === "number" ? size : "1em"}
 			{...props}
 		>
 			{children}

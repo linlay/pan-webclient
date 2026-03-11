@@ -1,8 +1,14 @@
 package config
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/pem"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -94,9 +100,133 @@ func TestLoadRequiresSecretsAndPublicKeyFile(t *testing.T) {
 
 	t.Setenv("AUTH_PASSWORD_HASH_BCRYPT", testBcryptHash)
 	missingKey := filepath.Join(dir, "configs", "missing-public-key.pem")
-	t.Setenv("AUTH_APP_PUBLIC_KEY_FILE", missingKey)
-	if _, err := Load(); err == nil || err.Error() != "app public key file does not exist: "+missingKey {
+	t.Setenv("APP_AUTH_LOCAL_PUBLIC_KEY_FILE", missingKey)
+	if _, err := Load(); err == nil || err.Error() != "read app auth local public key file "+missingKey+": open "+missingKey+": no such file or directory" {
 		t.Fatalf("expected missing public key error, got %v", err)
+	}
+}
+
+func TestLoadResolvesPublicKeyRelativeToDotEnvDir(t *testing.T) {
+	clearConfigEnv(t)
+	dir := prepareConfigWorkspace(t)
+	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte(strings.Join([]string{
+		"WEB_SESSION_SECRET=session-secret",
+		"AUTH_PASSWORD_HASH_BCRYPT=" + testBcryptHash,
+		"APP_AUTH_LOCAL_PUBLIC_KEY_FILE=./configs/local-public-key.pem",
+	}, "\n")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if !samePath(t, cfg.AppAuthLocalPublicKeyFile, filepath.Join(dir, "configs", "local-public-key.pem")) {
+		t.Fatalf("AppAuthLocalPublicKeyFile = %q, want %q", cfg.AppAuthLocalPublicKeyFile, filepath.Join(dir, "configs", "local-public-key.pem"))
+	}
+}
+
+func TestLoadFindsParentDotEnvAndResolvesPublicKeyFromEnvDir(t *testing.T) {
+	clearConfigEnv(t)
+	runtimeRoot := t.TempDir()
+	previousWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	backendDir := filepath.Join(runtimeRoot, "backend")
+	if err := os.MkdirAll(filepath.Join(runtimeRoot, "configs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(backendDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(runtimeRoot, "configs", "local-public-key.pem"), []byte(testPublicKeyPEM), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(runtimeRoot, ".env"), []byte(strings.Join([]string{
+		"WEB_SESSION_SECRET=session-secret",
+		"AUTH_PASSWORD_HASH_BCRYPT=" + testBcryptHash,
+		"APP_AUTH_LOCAL_PUBLIC_KEY_FILE=./configs/local-public-key.pem",
+	}, "\n")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(backendDir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(previousWD); err != nil {
+			t.Fatalf("restore working directory: %v", err)
+		}
+	})
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if !samePath(t, cfg.AppAuthLocalPublicKeyFile, filepath.Join(runtimeRoot, "configs", "local-public-key.pem")) {
+		t.Fatalf("AppAuthLocalPublicKeyFile = %q, want %q", cfg.AppAuthLocalPublicKeyFile, filepath.Join(runtimeRoot, "configs", "local-public-key.pem"))
+	}
+}
+
+func TestLoadRejectsInvalidPublicKeyPEM(t *testing.T) {
+	clearConfigEnv(t)
+	dir := prepareConfigWorkspace(t)
+	t.Setenv("WEB_SESSION_SECRET", "session-secret")
+	t.Setenv("AUTH_PASSWORD_HASH_BCRYPT", testBcryptHash)
+	invalidPath := filepath.Join(dir, "configs", "invalid-public-key.pem")
+	if err := os.WriteFile(invalidPath, []byte("not-a-pem"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("APP_AUTH_LOCAL_PUBLIC_KEY_FILE", invalidPath)
+
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "parse app auth local public key file "+invalidPath+": pem decode failed") {
+		t.Fatalf("expected invalid pem error, got %v", err)
+	}
+}
+
+func TestLoadRejectsNonRSAPublicKey(t *testing.T) {
+	clearConfigEnv(t)
+	dir := prepareConfigWorkspace(t)
+	t.Setenv("WEB_SESSION_SECRET", "session-secret")
+	t.Setenv("AUTH_PASSWORD_HASH_BCRYPT", testBcryptHash)
+
+	ecdsaKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publicKeyBytes, err := x509.MarshalPKIXPublicKey(&ecdsaKey.PublicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	invalidPath := filepath.Join(dir, "configs", "ecdsa-public-key.pem")
+	if err := os.WriteFile(invalidPath, pem.EncodeToMemory(&pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: publicKeyBytes,
+	}), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("APP_AUTH_LOCAL_PUBLIC_KEY_FILE", invalidPath)
+
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "parse app auth local public key file "+invalidPath+": rsa parse failed") {
+		t.Fatalf("expected non-rsa error, got %v", err)
+	}
+}
+
+func TestLoadIgnoresLegacyPublicKeyEnvVar(t *testing.T) {
+	clearConfigEnv(t)
+	dir := prepareConfigWorkspace(t)
+	t.Setenv("WEB_SESSION_SECRET", "session-secret")
+	t.Setenv("AUTH_PASSWORD_HASH_BCRYPT", testBcryptHash)
+	t.Setenv("AUTH_APP_PUBLIC_KEY_FILE", filepath.Join(dir, "configs", "legacy-only.pem"))
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if !samePath(t, cfg.AppAuthLocalPublicKeyFile, filepath.Join(dir, "configs", "local-public-key.pem")) {
+		t.Fatalf("AppAuthLocalPublicKeyFile = %q, want default public key path", cfg.AppAuthLocalPublicKeyFile)
 	}
 }
 
@@ -164,6 +294,7 @@ func clearConfigEnv(t *testing.T) {
 		"APP_PORT",
 		"WEB_PORT",
 		"WEB_ORIGIN",
+		"APP_AUTH_LOCAL_PUBLIC_KEY_FILE",
 		"AUTH_APP_PUBLIC_KEY_FILE",
 		"PAN_STATIC_DIR",
 		"PAN_DATA_DIR",
