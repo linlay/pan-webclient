@@ -1,0 +1,33 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: dev
+    working_dir: /workspace/backend
+    command: /bin/sh -lc "PATH=/usr/local/go/bin:$$PATH GOCACHE=/tmp/go-build go run ./cmd/server"
+    volumes:
+      - ./configs:/app/configs:ro
+      - ./data:/app/data
+      - .:/workspace
+
+  frontend-dev:
+    image: node:22-alpine
+    working_dir: /workspace/frontend
+    command: /bin/sh -lc "npm install && npm start"
+    environment:
+      FRONTEND_DEV_PORT: 80
+    volumes:
+      - .:/workspace
+    expose:
+      - "80"
+
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on:
+      - api
+      - frontend-dev
+    ports:
+      - "${NGINX_PORT:-11946}:80"
+    volumes:
+      - ./deploy/nginx/dev.conf:/etc/nginx/conf.d/default.conf:ro

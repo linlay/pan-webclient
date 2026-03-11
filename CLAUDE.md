@@ -15,6 +15,7 @@
 - 生产态拓扑：`browser -> frontend-nginx -> api`
 - Go 后端只处理 `/api/*`，不托管前端静态资源，不负责 `/pan/*`、`/apppan/*` 路由。
 - 外部兼容路径 `/pan/api/*` 和 `/apppan/api/*` 由 Nginx 重写到内部 `/api/*`。
+- 对外前端资源只允许走 `/pan/*`、`/apppan/*`；开发态 HMR 只允许 `/hmr/ws`。
 
 ## 3. 目录结构
 - `backend/cmd/server`: Go 服务入口
@@ -28,7 +29,8 @@
 - `backend/internal/transfer`: 上传、批量下载任务
 - `frontend/src`: React 应用
 - `deploy/nginx`: 开发态 / 生产态 Nginx 配置
-- `docker-compose.yml`: 本地开发与生产模拟编排
+- `docker-compose.yml`: 本地生产编排
+- `docker-compose.dev.yml`: 本地开发态 override
 
 ## 4. 配置原则
 - `.env.example` 是环境变量契约。
@@ -41,13 +43,16 @@
 - `make dev-up`: 启动开发态 Nginx、Go API、webpack dev server
 - `make dev-logs`: 查看开发态日志
 - `make dev-down`: 停止开发态服务
-- `make prod-sim-up`: 启动前端生产镜像 + Go API 做链路验证
+- `make prod-up`: 启动本地生产形态容器编排
+- `make prod-logs`: 查看本地生产形态日志
+- `make prod-down`: 停止本地生产形态服务
 - `make backend-test`: 运行后端测试
 - `make frontend-test`: 运行前端路由测试
 
 ## 6. 关键约束
 - 不要把前端静态托管重新加回 Go。
 - 浏览器端只通过 Nginx 暴露的 `/pan/`、`/apppan/` 访问系统。
+- 除 `/` 重定向到 `/pan/` 和 API 入口外，不要兼容根路径静态资源或根路径 HMR `/ws`。
 - 后端返回的资源链接使用 canonical `/api/*`；前端负责按当前 UI 基路径转换成外部可访问地址。
 - App 私钥不保存在本仓库；仓库内只允许放公钥示例文件。
 - 运行时若需要访问仓库外目录，必须在容器编排里显式增加 bind mount。

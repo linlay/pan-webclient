@@ -5,6 +5,7 @@
 
 - 浏览器只访问 Nginx
 - Nginx 对外暴露 `/pan/`、`/apppan/`、`/pan/api/*`、`/apppan/api/*`
+- 开发态额外暴露 `/hmr/ws` 供 webpack HMR 使用；除此之外，任何无二级路径的前端资源请求都不对外兼容
 - Go 后端只处理内部 canonical API：`/api/*`
 - 前端开发态仍使用 webpack dev server 做 HMR，但它只作为 Nginx 后面的内部服务
 
@@ -40,6 +41,13 @@ http://127.0.0.1:${NGINX_PORT}/pan/
 
 开发态 `frontend-dev` 容器内部监听标准 HTTP `80` 端口，只给 Nginx 反向代理使用，不对宿主机直接开放；浏览器不要直连该容器端口。
 
+对外路径契约：
+
+- UI 只允许 `/pan/*`、`/apppan/*`
+- API 只允许 `/pan/api/*`、`/apppan/api/*`
+- 开发态 HMR 只允许 `/hmr/ws`
+- 除 `/` 会重定向到 `/pan/` 外，根路径下的 `/js/*`、`/css/*`、`/favicon*`、`/ws` 等前端资源请求一律不兼容
+
 常用命令：
 
 ```bash
@@ -47,17 +55,26 @@ make dev-logs
 make dev-down
 ```
 
-### 本地生产链路模拟
+### 本地生产启动
 ```bash
-make prod-sim-up
+make prod-up
 ```
 
-这会使用前端生产镜像（Nginx + 静态资源）联调 Go API，用于验证静态部署链路。
+这会启动本地生产形态的完整容器编排：
 
-关闭：
+- `frontend` 使用生产镜像（Nginx + 静态资源）
+- `api` 使用后端运行时镜像，而不是源码挂载 + `go run`
+- 浏览器仍然只访问 Nginx 暴露的入口
+
+它用于验证“本机 Docker Compose 下的真实生产容器形态”，不等于远程服务器部署脚本。
+
+本地生产形态和开发形态遵守同一条对外路径规则：前端资源必须走 `/pan/*` 或 `/apppan/*`，不会保留根路径静态资源兼容入口。
+
+常用命令：
 
 ```bash
-make prod-sim-down
+make prod-logs
+make prod-down
 ```
 
 ## 3. 构建与测试
@@ -79,7 +96,7 @@ make frontend-test
 - `make frontend-build` 输出 `./frontend/dist`
 
 ### `/apppan/` smoke test
-先启动开发环境或生产模拟环境，再准备一个能被 `APP_AUTH_LOCAL_PUBLIC_KEY_FILE` 对应公钥验签的 `RS256 JWT`：
+先启动开发环境或本地生产环境，再准备一个能被 `APP_AUTH_LOCAL_PUBLIC_KEY_FILE` 对应公钥验签的 `RS256 JWT`：
 
 ```bash
 APPPAN_BEARER_TOKEN='你的-jwt-token' make apppan-smoke
@@ -89,6 +106,61 @@ APPPAN_BEARER_TOKEN='你的-jwt-token' make apppan-smoke
 
 ```text
 http://127.0.0.1:${NGINX_PORT}/apppan/api
+```
+
+### 基础 `curl` 测试
+启动 `make dev-up` 或 `make prod-up` 后，可以先做最小链路验证。对外入口建议始终打到 Nginx，而不是直接打 Go 服务。
+
+先验证无鉴权健康检查：
+
+```bash
+curl -i http://127.0.0.1:${NGINX_PORT:-11946}/pan/api/health
+curl -i http://127.0.0.1:${NGINX_PORT:-11946}/apppan/api/health
+```
+
+期望返回 `200 OK`，响应体类似：
+
+```json
+{"status":"ok"}
+```
+
+若重点验证 App 链路，先准备 Bearer Token，再用 `/apppan/api` 做最小检查：
+
+```bash
+export APPPAN_BASE_URL="http://127.0.0.1:${NGINX_PORT:-11946}/apppan/api"
+export APPPAN_BEARER_TOKEN='你的-jwt-token'
+
+curl -sS \
+  -H "Authorization: Bearer ${APPPAN_BEARER_TOKEN}" \
+  "${APPPAN_BASE_URL}/web/session/me"
+
+curl -sS \
+  -H "Authorization: Bearer ${APPPAN_BEARER_TOKEN}" \
+  "${APPPAN_BASE_URL}/mounts"
+```
+
+如果本机装了 `jq`，可以继续验证首个挂载点的目录树和文件列表：
+
+```bash
+MOUNT_ID="$(
+  curl -sS \
+    -H "Authorization: Bearer ${APPPAN_BEARER_TOKEN}" \
+    "${APPPAN_BASE_URL}/mounts" | jq -r '.[0].id'
+)"
+
+curl -sS \
+  -H "Authorization: Bearer ${APPPAN_BEARER_TOKEN}" \
+  "${APPPAN_BASE_URL}/tree?mountId=${MOUNT_ID}&path=%2F"
+
+curl -sS \
+  -H "Authorization: Bearer ${APPPAN_BEARER_TOKEN}" \
+  "${APPPAN_BASE_URL}/files?mountId=${MOUNT_ID}&path=%2F"
+```
+
+想一次性跑完上述 App 冒烟检查，直接使用仓库脚本：
+
+```bash
+APPPAN_BEARER_TOKEN='你的-jwt-token' make apppan-smoke
 ```
 
 ## 4. 配置契约
@@ -181,5 +253,5 @@ docker build -f frontend/Dockerfile -t pan-frontend-nginx:latest .
 - 浏览器入口始终是 Nginx，不要直接访问 Go 端口
 - 若 `/pan/api/*` 返回 502，先检查 `api` 容器是否启动、`API_PORT` 是否一致
 - 若页面能打开但静态资源 404，先检查前端是否从 Nginx 提供，而不是误连到 Go
-- 若挂载为空或访问失败，先确认你是通过 `make dev-up` / `make prod-sim-up` 启动，并检查 `.cache/docker-compose.mounts.yml` 是否包含预期的 `source -> path` bind mount
+- 若挂载为空或访问失败，先确认你是通过 `make dev-up` / `make prod-up` 启动，并检查 `.cache/docker-compose.mounts.yml` 是否包含预期的 `source -> path` bind mount
 - 若 App Bearer Token 无法访问，检查 JWT 是否由匹配私钥签发、是否过期，以及 `APP_AUTH_LOCAL_PUBLIC_KEY_FILE` 是否正确

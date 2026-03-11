@@ -14,7 +14,7 @@ module.exports = (_env, argv) => {
     output: {
       path: path.resolve(__dirname, "dist"),
       filename: isProd ? "js/[name].[contenthash:8].js" : "js/[name].js",
-      publicPath: isProd ? "" : "/",
+      publicPath: "",
       clean: true,
     },
     resolve: {
@@ -87,24 +87,14 @@ module.exports = (_env, argv) => {
       host: "0.0.0.0",
       allowedHosts: "all",
       hot: true,
-      historyApiFallback: {
-        rewrites: [
-          { from: /^\/pan(?:\/.*)?$/i, to: "/index.html" },
-          { from: /^\/apppan(?:\/.*)?$/i, to: "/index.html" },
-        ],
-      },
+      historyApiFallback: true,
       client: {
-        webSocketURL: "auto://0.0.0.0:0/ws",
-      },
-      setupMiddlewares: (middlewares, devServer) => {
-        if (!devServer) {
-          return middlewares;
-        }
-        devServer.app.get(/^\/(?:pan|apppan)$/i, (req, res) => {
-          const query = req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
-          res.redirect(302, `${req.path}/${query}`);
-        });
-        return middlewares;
+        webSocketURL: {
+          protocol: "auto:",
+          hostname: "0.0.0.0",
+          port: 0,
+          pathname: "/hmr/ws",
+        },
       },
     },
     devtool: isProd ? "source-map" : "eval-cheap-module-source-map",
