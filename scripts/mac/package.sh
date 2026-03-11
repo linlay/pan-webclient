@@ -60,6 +60,7 @@ mkdir -p "$GO_CACHE"
 echo "[package] building frontend dist"
 (
   cd "$FRONTEND_DIR"
+  npm ci
   npm run build
 )
 
