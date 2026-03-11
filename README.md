@@ -30,11 +30,29 @@ make frontend-install
 make frontend-dev
 ```
 
-### 构建
+### 编译 / 构建
 ```bash
 make backend-build
 make frontend-build
 ```
+
+这些命令只生成本地产物，不会组装可分发目录：
+- `make backend-build` 输出 `./bin/pan-api`
+- `make frontend-build` 输出 `./frontend/dist`
+
+### macOS 发布打包
+```bash
+make package-mac
+cp release/.env.example release/.env
+./release/start.sh
+```
+
+默认会产出 `./release` 目录，包含：
+- `release/backend/pan-api`
+- `release/web/`
+- `release/configs/`
+- `release/start.sh`
+- `release/stop.sh`
 
 ### 测试
 ```bash
@@ -107,6 +125,16 @@ PAN_DATA_DIR=./data PAN_STATIC_DIR=frontend/dist ./bin/pan-api
 ```
 
 生产静态托管时，`frontend/dist/index.html` 里的 JS、CSS 与 favicon 都使用相对路径，可同时挂到 `/pan/` 与 `/apppan/`，不会回退到站点根路径。
+
+### macOS 发布目录
+```bash
+make package-mac
+cp release/.env.example release/.env
+./release/start.sh
+./release/stop.sh
+```
+
+`build` 仍然只表示编译产物；`package-mac` 才会组装 `release/` 发布目录。
 
 ### 容器构建
 ```bash

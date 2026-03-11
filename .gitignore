@@ -1,5 +1,6 @@
 bin/
 dist/
+release/
 configs/*.pem
 !configs/*.example.pem
 configs/mounts/*.json
