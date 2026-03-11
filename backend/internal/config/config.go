@@ -26,8 +26,8 @@ type Mount struct {
 }
 
 type Config struct {
-	AppPort                   string  `json:"app_port"`
-	WebPort                   string  `json:"web_port"`
+	PublicPort                string  `json:"public_port"`
+	DevWebPort                string  `json:"dev_web_port"`
 	WebOrigin                 string  `json:"web_origin"`
 	AppAuthLocalPublicKeyFile string  `json:"app_auth_local_public_key_file"`
 	StaticDir                 string  `json:"pan_static_dir"`
@@ -56,8 +56,8 @@ func Load() (Config, error) {
 		return cfg, err
 	}
 
-	applyString(&cfg.AppPort, lookupEnv(dotEnv, "APP_PORT"))
-	applyString(&cfg.WebPort, lookupEnv(dotEnv, "WEB_PORT"))
+	applyString(&cfg.PublicPort, lookupEnv(dotEnv, "PUBLIC_PORT"))
+	applyString(&cfg.DevWebPort, lookupEnv(dotEnv, "DEV_WEB_PORT"))
 	applyString(&cfg.WebOrigin, lookupEnv(dotEnv, "WEB_ORIGIN"))
 	applyString(
 		&cfg.AppAuthLocalPublicKeyFile,
@@ -80,14 +80,11 @@ func Load() (Config, error) {
 			cfg.MaxEditFileBytes = parsed
 		}
 	}
-	if cfg.AppPort == "" {
-		cfg.AppPort = "8080"
-	}
-	if cfg.WebPort == "" {
-		cfg.WebPort = "5173"
+	if cfg.PublicPort == "" {
+		cfg.PublicPort = "8080"
 	}
 	if cfg.WebOrigin == "" {
-		cfg.WebOrigin = localOrigin(cfg.WebPort)
+		cfg.WebOrigin = localOrigin(cfg.PublicPort)
 	}
 	if cfg.SessionCookieName == "" {
 		cfg.SessionCookieName = "pan_session"

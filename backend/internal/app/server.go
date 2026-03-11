@@ -45,7 +45,7 @@ func New(cfg config.Config) (*Server, error) {
 	})
 
 	server := &http.Server{
-		Addr:              ":" + cfg.AppPort,
+		Addr:              ":" + cfg.PublicPort,
 		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 	}

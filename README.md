@@ -30,6 +30,9 @@ make frontend-install
 make frontend-dev
 ```
 
+开发态下，浏览器统一访问 `http://127.0.0.1:${PUBLIC_PORT}/pan/`。
+`DEV_WEB_PORT` 只给内部 webpack dev server 使用，不作为用户访问入口。
+
 ### 编译 / 构建
 ```bash
 make backend-build
@@ -64,7 +67,7 @@ make backend-test
 
 ```bash
 curl -H "Authorization: Bearer 你的-jwt-token" \
-  http://127.0.0.1:11936/apppan/api/web/session/me
+  http://127.0.0.1:11946/apppan/api/web/session/me
 ```
 
 返回里应看到：
@@ -75,7 +78,7 @@ curl -H "Authorization: Bearer 你的-jwt-token" \
 
 ```bash
 curl -H "Authorization: Bearer 你的-jwt-token" \
-  http://127.0.0.1:11936/apppan/api/mounts
+  http://127.0.0.1:11946/apppan/api/mounts
 ```
 
 如果想一次把 `/apppan/api` 主链路全跑完，再执行：
@@ -85,7 +88,7 @@ APPPAN_BEARER_TOKEN='你的-jwt-token' make apppan-smoke
 ```
 
 可选参数：
-- `APPPAN_BASE_URL`：默认 `http://127.0.0.1:11936/apppan/api`
+- `APPPAN_BASE_URL`：默认 `http://127.0.0.1:11946/apppan/api`
 - `APPPAN_MOUNT_ID`：未安装 `jq` 或需要指定挂载时显式传入
 - `APPPAN_SHOW_HIDDEN=1`：连同隐藏文件一起验证
 
@@ -100,10 +103,10 @@ APPPAN_BEARER_TOKEN='你的-jwt-token' make apppan-smoke
 ## 3. 配置说明
 - 所有环境变量契约以 `.env.example` 为准，`.env` 不提交。
 - 后端内置默认配置位于 `backend/internal/config/application.yml`，优先级低于环境变量。
-- `APP_PORT` 控制后端监听端口，`WEB_PORT` 控制前端 webpack 开发端口。
-- `WEB_ORIGIN` 显式配置时用于后端 CORS；未配置时后端会按 `http://127.0.0.1:${WEB_PORT}` 自动推导。
-- `WEB_ORIGIN` 在后端静态托管前端、同源部署时通常不需要手动设置。
-- 开发态 `webpack-dev-server` 不保证把 HMR WebSocket、调试资源或默认 favicon 请求都收口到 `/pan/`、`/apppan/`；严格子路径只保证 `make frontend-build` 后的静态产物。
+- `PUBLIC_PORT` 是开发态和生产态统一的浏览器访问入口端口，也是 Go 服务监听端口。
+- `DEV_WEB_PORT` 只在开发态使用，供内部 webpack dev server 监听；浏览器不直接访问它。
+- `WEB_ORIGIN` 显式配置时用于后端 CORS；未配置时后端会按 `http://127.0.0.1:${PUBLIC_PORT}` 自动推导。
+- 开发态下 Go 会把非 API 的前端页面、静态资源和 HMR 请求代理到 `DEV_WEB_PORT`；生产态则直接托管 `PAN_STATIC_DIR` 下的静态资源。
 - `APP_AUTH_LOCAL_PUBLIC_KEY_FILE` 用于声明 App JWT 本地验签公钥文件，默认值为 `./configs/local-public-key.pem`。
 - `APP_AUTH_LOCAL_PUBLIC_KEY_FILE` 为相对路径时，按 `.env` 所在目录解析；开发态和部署态都推荐统一写 `./configs/local-public-key.pem`。
 - `PAN_DATA_DIR` 用于声明运行时数据目录，默认值为 `./data`。
@@ -121,7 +124,7 @@ APPPAN_BEARER_TOKEN='你的-jwt-token' make apppan-smoke
 ```bash
 make backend-build
 make frontend-build
-PAN_DATA_DIR=./data PAN_STATIC_DIR=frontend/dist ./bin/pan-api
+PUBLIC_PORT=11946 PAN_DATA_DIR=./data PAN_STATIC_DIR=frontend/dist ./bin/pan-api
 ```
 
 生产静态托管时，`frontend/dist/index.html` 里的 JS、CSS 与 favicon 都使用相对路径，可同时挂到 `/pan/` 与 `/apppan/`，不会回退到站点根路径。
@@ -150,7 +153,9 @@ docker build -t pan-webclient:latest .
 ## 5. 运维
 ### 常见检查
 - 确认 `configs/mounts/*.json` 指向真实可访问路径
-- 确认 `WEB_PORT` 与前端开发地址一致；若手动设置了 `WEB_ORIGIN`，其值也必须与前端地址一致
+- 确认 `PUBLIC_PORT` 是你希望浏览器访问的唯一入口端口
+- 开发态下确认 `DEV_WEB_PORT` 未被其他进程占用，且浏览器不直接访问它
+- 若手动设置了 `WEB_ORIGIN`，其值必须与 `PUBLIC_PORT` 对应的浏览器入口一致
 - 确认 `APP_AUTH_LOCAL_PUBLIC_KEY_FILE` 指向有效的 RSA 公钥 PEM 文件
 - 确认 `PAN_DATA_DIR` 可写，且其中的 `trash`、`tasks` 子目录可创建
 

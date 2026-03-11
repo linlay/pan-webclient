@@ -15,13 +15,9 @@ command -v npm >/dev/null 2>&1 || { echo "[package] npm not found"; exit 1; }
 write_release_env() {
   cat >"$1" <<'EOF'
 # Release package defaults
-APP_PORT=11936
-# Keep WEB_PORT aligned with APP_PORT for same-origin static hosting unless you
-# explicitly set WEB_ORIGIN.
-WEB_PORT=11936
+PUBLIC_PORT=11946
 WEB_ORIGIN=
 NODE_ENV=production
-SERVER_ORIGIN=
 PAN_STATIC_DIR=./web
 
 # Auth

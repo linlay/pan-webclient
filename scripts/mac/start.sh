@@ -70,14 +70,12 @@ set -a
 . "$ENV_FILE"
 set +a
 
-APP_PORT="${APP_PORT:-8080}"
-WEB_PORT="${WEB_PORT:-$APP_PORT}"
+PUBLIC_PORT="${PUBLIC_PORT:-11946}"
 PAN_STATIC_DIR="${PAN_STATIC_DIR:-./web}"
 PAN_DATA_DIR="${PAN_DATA_DIR:-./data}"
-export APP_PORT WEB_PORT PAN_STATIC_DIR PAN_DATA_DIR
+export PUBLIC_PORT PAN_STATIC_DIR PAN_DATA_DIR
 
-require_port "$APP_PORT" "APP_PORT"
-require_port "$WEB_PORT" "WEB_PORT"
+require_port "$PUBLIC_PORT" "PUBLIC_PORT"
 
 if [[ "$PAN_STATIC_DIR" = /* ]]; then
   RESOLVED_STATIC_DIR="$PAN_STATIC_DIR"
@@ -106,6 +104,6 @@ if ! is_running "$backend_pid"; then
   die "pan-api failed to start, see $LOG_FILE"
 fi
 
-echo "[start] pan-api pid=$backend_pid http://127.0.0.1:$APP_PORT"
+echo "[start] pan-api pid=$backend_pid http://127.0.0.1:$PUBLIC_PORT"
 echo "[start] release dir: $RELEASE_DIR"
 echo "[start] logs: $LOG_FILE"

@@ -2,14 +2,10 @@ const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const webpack = require("webpack");
-const { URL } = require("url");
 
-const apiTarget =
-  process.env.DEV_API_TARGET ||
-  process.env.SERVER_ORIGIN ||
-  "http://127.0.0.1:8080";
-const webPort = parseInt(process.env.WEB_PORT || "5173", 10);
-const normalizedApiTarget = new URL(apiTarget).origin;
+const publicPort = parseInt(process.env.PUBLIC_PORT || "8080", 10);
+const devWebPort = parseInt(process.env.DEV_WEB_PORT || "11936", 10);
+const normalizedProxyTarget = `http://127.0.0.1:${isNaN(publicPort) ? 8080 : publicPort}`;
 
 module.exports = (_env, argv) => {
   const isProd = argv.mode === "production";
@@ -89,7 +85,7 @@ module.exports = (_env, argv) => {
     ],
     devServer: {
       static: path.resolve(__dirname, "public"),
-      port: isNaN(webPort) ? 5173 : webPort,
+      port: isNaN(devWebPort) ? 11936 : devWebPort,
       host: "0.0.0.0",
       allowedHosts: "all",
       hot: true,
@@ -115,7 +111,7 @@ module.exports = (_env, argv) => {
       proxy: [
         {
           context: ["/pan/api", "/apppan/api"],
-          target: normalizedApiTarget,
+          target: normalizedProxyTarget,
           changeOrigin: true,
           pathRewrite: (requestPath) =>
             requestPath.replace(/^\/(?:pan|apppan)\/api(?=\/|$)/, "/api"),

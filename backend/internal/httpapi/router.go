@@ -8,6 +8,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -52,6 +53,7 @@ type api struct {
 	auth        *auth.Manager
 	taskManager *transfer.Manager
 	staticDir   string
+	devProxy    http.Handler
 }
 
 func New(deps Dependencies) http.Handler {
@@ -62,6 +64,9 @@ func New(deps Dependencies) http.Handler {
 		auth:        deps.Auth,
 		taskManager: deps.TaskManager,
 		staticDir:   deps.Config.StaticDir,
+	}
+	if deps.Config.DevWebPort != "" && deps.Config.StaticDir == "" {
+		a.devProxy = newDevProxy(deps.Config.DevWebPort)
 	}
 
 	mux := http.NewServeMux()
@@ -116,6 +121,10 @@ func (a *api) wrap(next http.Handler) http.Handler {
 					return
 				}
 			}
+		}
+		if a.devProxy != nil {
+			a.devProxy.ServeHTTP(w, r)
+			return
 		}
 		http.NotFound(w, r)
 	})
@@ -863,6 +872,23 @@ func querySuffix(r *http.Request) string {
 		return ""
 	}
 	return "?" + r.URL.RawQuery
+}
+
+func newDevProxy(devWebPort string) http.Handler {
+	target, err := url.Parse("http://127.0.0.1:" + strings.TrimSpace(devWebPort))
+	if err != nil {
+		panic("invalid dev web proxy target: " + err.Error())
+	}
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	defaultDirector := proxy.Director
+	proxy.Director = func(r *http.Request) {
+		defaultDirector(r)
+		r.Host = target.Host
+	}
+	proxy.ErrorHandler = func(w http.ResponseWriter, _ *http.Request, _ error) {
+		writeError(w, http.StatusBadGateway, "DEV_WEB_UNAVAILABLE", "development frontend is unavailable")
+	}
+	return proxy
 }
 
 func apiBaseFromRequest(r *http.Request) string {

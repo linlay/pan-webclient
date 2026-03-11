@@ -8,8 +8,10 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -199,6 +201,92 @@ func TestStaticRoutesRedirectAndServePrefixedSPA(t *testing.T) {
 		if body := strings.TrimSpace(rec.Body.String()); body != "<svg></svg>" {
 			t.Fatalf("%s body = %q, want favicon asset", requestPath, body)
 		}
+	}
+}
+
+func TestDevProxyServesPrefixedUIAndRootAssets(t *testing.T) {
+	root := t.TempDir()
+	devHits := map[string]int{}
+	devServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		devHits[r.URL.Path]++
+		switch r.URL.Path {
+		case "/pan/":
+			_, _ = w.Write([]byte("DEV PAN"))
+		case "/apppan/":
+			_, _ = w.Write([]byte("DEV APPPAN"))
+		case "/js/main.js":
+			_, _ = w.Write([]byte("console.log('dev')"))
+		case "/ws":
+			_, _ = w.Write([]byte("DEV WS"))
+		case "/favicon.ico":
+			_, _ = w.Write([]byte("ICO"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer devServer.Close()
+
+	devURL, err := url.Parse(devServer.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, devPort, err := net.SplitHostPort(devURL.Host)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handler := newHandlerWithConfig(root, indexer.NewStore(t.TempDir()), config.Config{
+		SessionCookieName: "pan_session",
+		SessionSecret:     "secret",
+		AdminUsername:     "admin",
+		AdminPasswordHash: routerTestPasswordHash,
+		MaxEditFileBytes:  1024 * 1024,
+		DevWebPort:        devPort,
+	})
+
+	rootRec := httptest.NewRecorder()
+	handler.ServeHTTP(rootRec, httptest.NewRequest(http.MethodGet, "/", nil))
+	if rootRec.Code != http.StatusFound || rootRec.Header().Get("Location") != "/pan/" {
+		t.Fatalf("root redirect = %d %q, want 302 /pan/", rootRec.Code, rootRec.Header().Get("Location"))
+	}
+
+	panRec := httptest.NewRecorder()
+	handler.ServeHTTP(panRec, httptest.NewRequest(http.MethodGet, "/pan/", nil))
+	if panRec.Code != http.StatusOK || strings.TrimSpace(panRec.Body.String()) != "DEV PAN" {
+		t.Fatalf("/pan/ = %d %q, want proxied dev body", panRec.Code, panRec.Body.String())
+	}
+
+	appPanRec := httptest.NewRecorder()
+	handler.ServeHTTP(appPanRec, httptest.NewRequest(http.MethodGet, "/apppan/", nil))
+	if appPanRec.Code != http.StatusOK || strings.TrimSpace(appPanRec.Body.String()) != "DEV APPPAN" {
+		t.Fatalf("/apppan/ = %d %q, want proxied app body", appPanRec.Code, appPanRec.Body.String())
+	}
+
+	jsRec := httptest.NewRecorder()
+	handler.ServeHTTP(jsRec, httptest.NewRequest(http.MethodGet, "/js/main.js", nil))
+	if jsRec.Code != http.StatusOK || !strings.Contains(jsRec.Body.String(), "console.log") {
+		t.Fatalf("/js/main.js = %d %q, want proxied asset", jsRec.Code, jsRec.Body.String())
+	}
+
+	wsRec := httptest.NewRecorder()
+	handler.ServeHTTP(wsRec, httptest.NewRequest(http.MethodGet, "/ws", nil))
+	if wsRec.Code != http.StatusOK || strings.TrimSpace(wsRec.Body.String()) != "DEV WS" {
+		t.Fatalf("/ws = %d %q, want proxied ws body", wsRec.Code, wsRec.Body.String())
+	}
+
+	faviconRec := httptest.NewRecorder()
+	handler.ServeHTTP(faviconRec, httptest.NewRequest(http.MethodGet, "/favicon.ico", nil))
+	if faviconRec.Code != http.StatusOK || strings.TrimSpace(faviconRec.Body.String()) != "ICO" {
+		t.Fatalf("/favicon.ico = %d %q, want proxied favicon", faviconRec.Code, faviconRec.Body.String())
+	}
+
+	apiRec := httptest.NewRecorder()
+	handler.ServeHTTP(apiRec, httptest.NewRequest(http.MethodGet, "/pan/api/health", nil))
+	if apiRec.Code != http.StatusOK {
+		t.Fatalf("/pan/api/health = %d, want 200", apiRec.Code)
+	}
+	if devHits["/pan/api/health"] != 0 {
+		t.Fatalf("expected API path to stay local, dev hits = %+v", devHits)
 	}
 }
 

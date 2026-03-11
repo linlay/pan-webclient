@@ -25,10 +25,10 @@ QwIDAQAB
 -----END PUBLIC KEY-----
 `
 
-func TestLoadDerivesWebOriginFromWebPort(t *testing.T) {
+func TestLoadDerivesWebOriginFromPublicPort(t *testing.T) {
 	clearConfigEnv(t)
 	prepareConfigWorkspace(t)
-	t.Setenv("WEB_PORT", "11946")
+	t.Setenv("PUBLIC_PORT", "11946")
 	t.Setenv("WEB_SESSION_SECRET", "session-secret")
 	t.Setenv("AUTH_PASSWORD_HASH_BCRYPT", testBcryptHash)
 
@@ -37,8 +37,8 @@ func TestLoadDerivesWebOriginFromWebPort(t *testing.T) {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if cfg.WebPort != "11946" {
-		t.Fatalf("WebPort = %q, want %q", cfg.WebPort, "11946")
+	if cfg.PublicPort != "11946" {
+		t.Fatalf("PublicPort = %q, want %q", cfg.PublicPort, "11946")
 	}
 	if cfg.WebOrigin != "http://127.0.0.1:11946" {
 		t.Fatalf("WebOrigin = %q, want %q", cfg.WebOrigin, "http://127.0.0.1:11946")
@@ -48,7 +48,7 @@ func TestLoadDerivesWebOriginFromWebPort(t *testing.T) {
 func TestLoadPreservesExplicitWebOrigin(t *testing.T) {
 	clearConfigEnv(t)
 	prepareConfigWorkspace(t)
-	t.Setenv("WEB_PORT", "11946")
+	t.Setenv("PUBLIC_PORT", "11946")
 	t.Setenv("WEB_ORIGIN", "http://127.0.0.1:13000")
 	t.Setenv("WEB_SESSION_SECRET", "session-secret")
 	t.Setenv("AUTH_PASSWORD_HASH_BCRYPT", testBcryptHash)
@@ -63,7 +63,7 @@ func TestLoadPreservesExplicitWebOrigin(t *testing.T) {
 	}
 }
 
-func TestLoadUsesDefaultPorts(t *testing.T) {
+func TestLoadUsesDefaultPublicPort(t *testing.T) {
 	clearConfigEnv(t)
 	prepareConfigWorkspace(t)
 	t.Setenv("WEB_SESSION_SECRET", "session-secret")
@@ -74,14 +74,35 @@ func TestLoadUsesDefaultPorts(t *testing.T) {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if cfg.AppPort != "8080" {
-		t.Fatalf("AppPort = %q, want %q", cfg.AppPort, "8080")
+	if cfg.PublicPort != "8080" {
+		t.Fatalf("PublicPort = %q, want %q", cfg.PublicPort, "8080")
 	}
-	if cfg.WebPort != "5173" {
-		t.Fatalf("WebPort = %q, want %q", cfg.WebPort, "5173")
+	if cfg.DevWebPort != "" {
+		t.Fatalf("DevWebPort = %q, want empty", cfg.DevWebPort)
 	}
-	if cfg.WebOrigin != "http://127.0.0.1:5173" {
-		t.Fatalf("WebOrigin = %q, want %q", cfg.WebOrigin, "http://127.0.0.1:5173")
+	if cfg.WebOrigin != "http://127.0.0.1:8080" {
+		t.Fatalf("WebOrigin = %q, want %q", cfg.WebOrigin, "http://127.0.0.1:8080")
+	}
+}
+
+func TestLoadIgnoresLegacyPortEnvVars(t *testing.T) {
+	clearConfigEnv(t)
+	prepareConfigWorkspace(t)
+	t.Setenv("APP_PORT", "11936")
+	t.Setenv("WEB_PORT", "11946")
+	t.Setenv("WEB_SESSION_SECRET", "session-secret")
+	t.Setenv("AUTH_PASSWORD_HASH_BCRYPT", testBcryptHash)
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.PublicPort != "8080" {
+		t.Fatalf("PublicPort = %q, want default 8080 when legacy vars are ignored", cfg.PublicPort)
+	}
+	if cfg.DevWebPort != "" {
+		t.Fatalf("DevWebPort = %q, want empty when legacy vars are ignored", cfg.DevWebPort)
 	}
 }
 
@@ -291,6 +312,8 @@ func TestLoadFallsBackToPanMountsEnv(t *testing.T) {
 func clearConfigEnv(t *testing.T) {
 	t.Helper()
 	for _, key := range []string{
+		"PUBLIC_PORT",
+		"DEV_WEB_PORT",
 		"APP_PORT",
 		"WEB_PORT",
 		"WEB_ORIGIN",
