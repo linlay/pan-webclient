@@ -3,6 +3,7 @@ import { type FormEvent, useState } from "react";
 type ThemeMode = "system" | "light" | "dark";
 
 export function LoginForm(props: {
+	appMode?: boolean;
 	notice: { tone: "info" | "error"; text: string } | null;
 	themeMode: ThemeMode;
 	resolvedTheme: "light" | "dark";
@@ -71,7 +72,26 @@ export function LoginForm(props: {
 
 					{/* Form */}
 					<div className="px-8 py-6">
-						<form className="flex flex-col gap-5" onSubmit={submit}>
+						{props.appMode ? (
+							<div className="flex flex-col gap-4">
+								<div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300">
+									/apppan 入口不使用密码登录。请由宿主 App 注入
+									Bearer Token 后再访问当前页面。
+								</div>
+								{props.notice ? (
+									<div
+										className={`text-sm rounded-lg px-4 py-3 ${
+											props.notice.tone === "error"
+												? "text-red-500 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20"
+												: "text-green-600 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20"
+										}`}
+									>
+										{props.notice.text}
+									</div>
+								) : null}
+							</div>
+						) : (
+							<form className="flex flex-col gap-5" onSubmit={submit}>
 							<div className="flex flex-col gap-2">
 								<label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
 									Email or Username
@@ -159,7 +179,8 @@ export function LoginForm(props: {
 									</span>
 								)}
 							</button>
-						</form>
+							</form>
+						)}
 					</div>
 
 					{/* Footer */}

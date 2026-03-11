@@ -104,6 +104,90 @@ func TestBearerTokenAuthUsesInjectedJWT(t *testing.T) {
 	}
 }
 
+func TestPrefixedAPIBaseWorksForWebAndAppModes(t *testing.T) {
+	root := t.TempDir()
+	handler, privateKey := newJWTTestHandler(t, root)
+	cookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	webRec := authedRequest(handler, cookie, http.MethodGet, "/pan/api/mounts", nil)
+	if webRec.Code != http.StatusOK {
+		t.Fatalf("expected web prefix 200, got %d: %s", webRec.Code, webRec.Body.String())
+	}
+
+	token := signRouterTestJWT(t, privateKey, map[string]any{
+		"sub": "mobile-user",
+		"exp": time.Now().Add(time.Hour).Unix(),
+	})
+	appReq := httptest.NewRequest(http.MethodGet, "/apppan/api/mounts", nil)
+	appReq.Header.Set("Authorization", "Bearer "+token)
+	appRec := httptest.NewRecorder()
+	handler.ServeHTTP(appRec, appReq)
+	if appRec.Code != http.StatusOK {
+		t.Fatalf("expected app prefix 200, got %d: %s", appRec.Code, appRec.Body.String())
+	}
+}
+
+func TestStaticRoutesRedirectAndServePrefixedSPA(t *testing.T) {
+	root := t.TempDir()
+	staticDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(staticDir, "index.html"), []byte("INDEX"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(staticDir, "js"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(staticDir, "js", "app.js"), []byte("console.log('ok')"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := newHandlerWithConfig(root, indexer.NewStore(t.TempDir()), config.Config{
+		SessionCookieName: "pan_session",
+		SessionSecret:     "secret",
+		AdminUsername:     "admin",
+		AdminPasswordHash: routerTestPasswordHash,
+		MaxEditFileBytes:  1024 * 1024,
+		StaticDir:         staticDir,
+	})
+
+	for _, path := range []struct {
+		requestPath string
+		location    string
+	}{
+		{requestPath: "/", location: "/pan/"},
+		{requestPath: "/pan", location: "/pan/"},
+		{requestPath: "/apppan", location: "/apppan/"},
+	} {
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path.requestPath, nil))
+		if rec.Code != http.StatusFound {
+			t.Fatalf("%s expected 302, got %d", path.requestPath, rec.Code)
+		}
+		if location := rec.Header().Get("Location"); location != path.location {
+			t.Fatalf("%s location = %q, want %q", path.requestPath, location, path.location)
+		}
+	}
+
+	for _, requestPath := range []string{"/pan/", "/pan/files/view", "/apppan/"} {
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, requestPath, nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s expected 200, got %d", requestPath, rec.Code)
+		}
+		if body := strings.TrimSpace(rec.Body.String()); body != "INDEX" {
+			t.Fatalf("%s body = %q, want index content", requestPath, body)
+		}
+	}
+
+	assetRec := httptest.NewRecorder()
+	handler.ServeHTTP(assetRec, httptest.NewRequest(http.MethodGet, "/pan/js/app.js", nil))
+	if assetRec.Code != http.StatusOK {
+		t.Fatalf("asset expected 200, got %d", assetRec.Code)
+	}
+	if !strings.Contains(assetRec.Body.String(), "console.log") {
+		t.Fatalf("asset body = %q, want js asset", assetRec.Body.String())
+	}
+}
+
 func TestAppAuthEndpointsAreNotRegistered(t *testing.T) {
 	root := t.TempDir()
 	handler := newTestHandler(t, root)
@@ -326,6 +410,74 @@ func TestTaskDownloadUsesArchiveFilename(t *testing.T) {
 	}
 }
 
+func TestPrefixedPreviewAndTaskURLsUseCurrentAPIBase(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "note.txt"), []byte("hello"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	store := indexer.NewStore(t.TempDir())
+	if err := store.Init(); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.PutTask(indexer.TaskRecord{
+		ID:          "task-1",
+		Kind:        "download",
+		Status:      "success",
+		Detail:      "Archive ready",
+		DownloadURL: "/api/tasks/task-1/download",
+		CreatedAt:   1,
+		UpdatedAt:   2,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := newHandlerWithConfig(root, store, config.Config{
+		SessionCookieName: "pan_session",
+		SessionSecret:     "secret",
+		AdminUsername:     "admin",
+		AdminPasswordHash: routerTestPasswordHash,
+		MaxEditFileBytes:  1,
+	})
+	cookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	previewRec := authedRequest(handler, cookie, http.MethodGet, "/pan/api/preview?mountId=root&path=/note.txt", nil)
+	if previewRec.Code != http.StatusOK {
+		t.Fatalf("expected preview 200, got %d: %s", previewRec.Code, previewRec.Body.String())
+	}
+	var meta struct {
+		StreamURL string `json:"streamUrl"`
+	}
+	if err := json.Unmarshal(previewRec.Body.Bytes(), &meta); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(meta.StreamURL, "/pan/api/files/raw?") {
+		t.Fatalf("preview streamUrl = %q, want /pan/api/files/raw", meta.StreamURL)
+	}
+
+	taskListRec := authedRequest(handler, cookie, http.MethodGet, "/pan/api/tasks", nil)
+	if taskListRec.Code != http.StatusOK {
+		t.Fatalf("expected task list 200, got %d: %s", taskListRec.Code, taskListRec.Body.String())
+	}
+	var tasks []indexer.TaskRecord
+	if err := json.Unmarshal(taskListRec.Body.Bytes(), &tasks); err != nil {
+		t.Fatal(err)
+	}
+	if len(tasks) != 1 || tasks[0].DownloadURL != "/pan/api/tasks/task-1/download" {
+		t.Fatalf("task download url = %+v, want /pan/api/tasks/task-1/download", tasks)
+	}
+
+	appTaskListRec := authedRequest(handler, cookie, http.MethodGet, "/apppan/api/tasks", nil)
+	if appTaskListRec.Code != http.StatusOK {
+		t.Fatalf("expected app task list 200, got %d: %s", appTaskListRec.Code, appTaskListRec.Body.String())
+	}
+	if err := json.Unmarshal(appTaskListRec.Body.Bytes(), &tasks); err != nil {
+		t.Fatal(err)
+	}
+	if len(tasks) != 1 || tasks[0].DownloadURL != "/apppan/api/tasks/task-1/download" {
+		t.Fatalf("app task download url = %+v, want /apppan/api/tasks/task-1/download", tasks)
+	}
+}
+
 func TestTaskDeleteRemovesCompletedTaskAndArtifact(t *testing.T) {
 	root := t.TempDir()
 	store := indexer.NewStore(t.TempDir())
@@ -400,15 +552,19 @@ func newTestHandler(t *testing.T, root string) http.Handler {
 }
 
 func newHandlerWithStore(root string, store *indexer.Store) http.Handler {
-	manager := auth.NewManager("secret", nil, "admin", routerTestPasswordHash)
+	return newHandlerWithConfig(root, store, config.Config{
+		SessionCookieName: "pan_session",
+		SessionSecret:     "secret",
+		AdminUsername:     "admin",
+		AdminPasswordHash: routerTestPasswordHash,
+		MaxEditFileBytes:  1024 * 1024,
+	})
+}
+
+func newHandlerWithConfig(root string, store *indexer.Store, cfg config.Config) http.Handler {
+	manager := auth.NewManager(cfg.SessionSecret, nil, cfg.AdminUsername, cfg.AdminPasswordHash)
 	return New(Dependencies{
-		Config: config.Config{
-			SessionCookieName: "pan_session",
-			SessionSecret:     "secret",
-			AdminUsername:     "admin",
-			AdminPasswordHash: routerTestPasswordHash,
-			MaxEditFileBytes:  1024 * 1024,
-		},
+		Config:      cfg,
 		Resolver:    fsops.NewMountResolver([]mounts.Mount{{ID: "root", Name: "Root", Path: root}}),
 		Store:       store,
 		Auth:        manager,

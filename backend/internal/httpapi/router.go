@@ -25,6 +25,18 @@ import (
 	"pan-webclient/backend/internal/trash"
 )
 
+const (
+	canonicalAPIBase = "/api"
+	webUIBase        = "/pan"
+	appUIBase        = "/apppan"
+	webAPIBase       = "/pan/api"
+	appAPIBase       = "/apppan/api"
+)
+
+type requestContextKey string
+
+const apiBaseContextKey requestContextKey = "api-base"
+
 type Dependencies struct {
 	Config      config.Config
 	Resolver    *fsops.MountResolver
@@ -39,7 +51,7 @@ type api struct {
 	store       *indexer.Store
 	auth        *auth.Manager
 	taskManager *transfer.Manager
-	static      http.Handler
+	staticDir   string
 }
 
 func New(deps Dependencies) http.Handler {
@@ -49,9 +61,7 @@ func New(deps Dependencies) http.Handler {
 		store:       deps.Store,
 		auth:        deps.Auth,
 		taskManager: deps.TaskManager,
-	}
-	if deps.Config.StaticDir != "" {
-		a.static = spaHandler(deps.Config.StaticDir)
+		staticDir:   deps.Config.StaticDir,
 	}
 
 	mux := http.NewServeMux()
@@ -87,13 +97,25 @@ func (a *api) wrap(next http.Handler) http.Handler {
 		if err := a.applyCORS(w, r); err {
 			return
 		}
-		if strings.HasPrefix(r.URL.Path, "/api/") {
-			next.ServeHTTP(w, r)
+		if target := redirectUIBase(r.URL.Path); target != "" {
+			http.Redirect(w, r, target+querySuffix(r), http.StatusFound)
 			return
 		}
-		if a.static != nil {
-			a.static.ServeHTTP(w, r)
+		if r.URL.Path == "/" {
+			http.Redirect(w, r, webUIBase+"/"+querySuffix(r), http.StatusFound)
 			return
+		}
+		if apiBase, ok := matchedAPIBase(r.URL.Path); ok {
+			next.ServeHTTP(w, withCanonicalAPIRequest(r, apiBase))
+			return
+		}
+		if a.staticDir != "" {
+			for _, uiBase := range []string{webUIBase, appUIBase} {
+				if matchesUIBase(r.URL.Path, uiBase) {
+					spaHandler(a.staticDir, uiBase).ServeHTTP(w, r)
+					return
+				}
+			}
 		}
 		http.NotFound(w, r)
 	})
@@ -368,7 +390,10 @@ func (a *api) preview(w http.ResponseWriter, r *http.Request) {
 	if mountID == "" {
 		return
 	}
-	rawURL := "/api/files/raw?mountId=" + url.QueryEscape(mountID) + "&path=" + url.QueryEscape(path)
+	rawURL := apiURL(
+		r,
+		"/files/raw?mountId="+url.QueryEscape(mountID)+"&path="+url.QueryEscape(path),
+	)
 	meta, err := preview.Build(a.resolver, mountID, path, rawURL, a.cfg.MaxEditFileBytes)
 	if err != nil {
 		writeServerError(w, err)
@@ -505,6 +530,9 @@ func (a *api) tasks(w http.ResponseWriter, r *http.Request) {
 		writeServerError(w, err)
 		return
 	}
+	for i := range items {
+		items[i] = rewriteTaskURLs(items[i], r)
+	}
 	writeJSON(w, http.StatusOK, items)
 }
 
@@ -526,7 +554,7 @@ func (a *api) batchDownload(w http.ResponseWriter, r *http.Request) {
 		writeServerError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusAccepted, task)
+	writeJSON(w, http.StatusAccepted, rewriteTaskURLs(task, r))
 }
 
 func (a *api) taskRoute(w http.ResponseWriter, r *http.Request) {
@@ -563,7 +591,7 @@ func (a *api) taskRoute(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, artifact)
 		return
 	}
-	writeJSON(w, http.StatusOK, task)
+	writeJSON(w, http.StatusOK, rewriteTaskURLs(task, r))
 }
 
 func taskAttachmentDisposition(taskID, artifact string) string {
@@ -766,21 +794,112 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 	})
 }
 
-func spaHandler(dir string) http.Handler {
+func spaHandler(dir string, uiBase string) http.Handler {
 	fileServer := http.FileServer(http.Dir(dir))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestPath := filepath.Clean(r.URL.Path)
-		if requestPath == "/" {
+		relativePath := strings.TrimPrefix(filepath.Clean(r.URL.Path), uiBase)
+		if relativePath == "" || relativePath == "/" {
 			http.ServeFile(w, r, filepath.Join(dir, "index.html"))
 			return
 		}
-		abs := filepath.Join(dir, strings.TrimPrefix(requestPath, "/"))
+		abs := filepath.Join(dir, strings.TrimPrefix(relativePath, "/"))
 		if info, err := os.Stat(abs); err == nil && !info.IsDir() {
-			fileServer.ServeHTTP(w, r)
+			stripped := r.Clone(r.Context())
+			stripped.URL.Path = relativePath
+			stripped.URL.RawPath = relativePath
+			fileServer.ServeHTTP(w, stripped)
 			return
 		}
 		http.ServeFile(w, r, filepath.Join(dir, "index.html"))
 	})
+}
+
+func withCanonicalAPIRequest(r *http.Request, apiBase string) *http.Request {
+	cloned := r.Clone(context.WithValue(r.Context(), apiBaseContextKey, apiBase))
+	cloned.URL.Path = canonicalizeAPIPath(r.URL.Path, apiBase)
+	cloned.URL.RawPath = cloned.URL.Path
+	if cloned.RequestURI != "" {
+		cloned.RequestURI = cloned.URL.RequestURI()
+	}
+	return cloned
+}
+
+func canonicalizeAPIPath(requestPath string, apiBase string) string {
+	if apiBase == canonicalAPIBase {
+		return requestPath
+	}
+	if requestPath == apiBase {
+		return canonicalAPIBase
+	}
+	return canonicalAPIBase + strings.TrimPrefix(requestPath, apiBase)
+}
+
+func matchedAPIBase(requestPath string) (string, bool) {
+	for _, prefix := range []string{webAPIBase, appAPIBase, canonicalAPIBase} {
+		if requestPath == prefix || strings.HasPrefix(requestPath, prefix+"/") {
+			return prefix, true
+		}
+	}
+	return "", false
+}
+
+func matchesUIBase(requestPath, uiBase string) bool {
+	return requestPath == uiBase+"/" || strings.HasPrefix(requestPath, uiBase+"/")
+}
+
+func redirectUIBase(requestPath string) string {
+	switch requestPath {
+	case webUIBase:
+		return webUIBase + "/"
+	case appUIBase:
+		return appUIBase + "/"
+	default:
+		return ""
+	}
+}
+
+func querySuffix(r *http.Request) string {
+	if r.URL.RawQuery == "" {
+		return ""
+	}
+	return "?" + r.URL.RawQuery
+}
+
+func apiBaseFromRequest(r *http.Request) string {
+	if value, ok := r.Context().Value(apiBaseContextKey).(string); ok && value != "" {
+		return value
+	}
+	return canonicalAPIBase
+}
+
+func apiURL(r *http.Request, path string) string {
+	return apiBaseFromRequest(r) + normalizeAPIPath(path)
+}
+
+func normalizeAPIPath(path string) string {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return ""
+	}
+	if trimmed == canonicalAPIBase || strings.HasPrefix(trimmed, canonicalAPIBase+"/") {
+		return strings.TrimPrefix(trimmed, canonicalAPIBase)
+	}
+	for _, prefix := range []string{webAPIBase, appAPIBase} {
+		if trimmed == prefix || strings.HasPrefix(trimmed, prefix+"/") {
+			return strings.TrimPrefix(trimmed, prefix)
+		}
+	}
+	if strings.HasPrefix(trimmed, "/") {
+		return trimmed
+	}
+	return "/" + trimmed
+}
+
+func rewriteTaskURLs(task transfer.Task, r *http.Request) transfer.Task {
+	if task.DownloadURL != "" {
+		task.DownloadURL = apiURL(r, task.DownloadURL)
+	}
+	return task
 }
 
 func userFromContext(ctx context.Context) string {

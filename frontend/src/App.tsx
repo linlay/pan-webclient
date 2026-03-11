@@ -23,6 +23,7 @@ import { ResizableSidebar } from "./features/shared/ResizableSidebar";
 import { MobilePreviewSheet } from "./features/preview/MobilePreviewSheet";
 import { TaskDeleteDialog } from "./features/tasks/TaskDeleteDialog";
 import { api, rawFileUrl } from "./api";
+import { isAppMode } from "./api/routing";
 import {
 	readStoredShowHidden,
 	readStoredThemeMode,
@@ -344,8 +345,17 @@ export function App() {
 			const me = await api.sessionMe();
 			setUser(me);
 			await Promise.all([loadMountBootstrap(), loadRuntimeData()]);
-		} catch {
+		} catch (error) {
 			setUser(null);
+			if (isAppMode()) {
+				setNotice({
+					tone: "error",
+					text:
+						error instanceof Error
+							? error.message
+							: "App 模式需要宿主注入访问令牌。",
+				});
+			}
 		} finally {
 			setLoadingSession(false);
 		}
@@ -957,6 +967,7 @@ export function App() {
 	if (!user) {
 		return (
 			<LoginForm
+				appMode={isAppMode()}
 				notice={notice}
 				onLogin={handleLogin}
 				onThemeModeChange={setThemeMode}

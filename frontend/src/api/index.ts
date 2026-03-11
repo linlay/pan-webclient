@@ -9,18 +9,46 @@ import type {
   TrashItem,
   TransferTask,
 } from "../types/contracts/index";
-
-const API_BASE = (process.env.REACT_APP_API_BASE_URL ?? "").replace(/\/$/, "");
+import { getAppAccessToken, refreshAppAccessToken } from "./appAuth";
+import { apiUrl, isAppMode } from "./routing";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    credentials: "include",
+  return requestWithReplay<T>(path, init, true);
+}
+
+async function requestWithReplay<T>(
+  path: string,
+  init: RequestInit | undefined,
+  allowReplay: boolean,
+): Promise<T> {
+  const appMode = isAppMode();
+  const headers = new Headers(init?.headers ?? undefined);
+  if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  if (appMode) {
+    let token = getAppAccessToken();
+    if (!token) {
+      token = await refreshAppAccessToken("missing");
+    }
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+  }
+
+  const response = await fetch(apiUrl(path), {
+    credentials: appMode ? "omit" : "include",
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
+    headers,
   });
+
+  if (response.status === 401 && appMode && allowReplay) {
+    const refreshedToken = await refreshAppAccessToken("unauthorized");
+    if (refreshedToken) {
+      return requestWithReplay<T>(path, init, false);
+    }
+  }
 
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as { message?: string } | null;
@@ -37,7 +65,7 @@ type UploadProgress = {
 
 export function rawFileUrl(mountId: string, path: string) {
   const params = new URLSearchParams({ mountId, path });
-  return `${API_BASE}/api/files/raw?${params.toString()}`;
+  return apiUrl(`/api/files/raw?${params.toString()}`);
 }
 
 function hiddenParams(showHidden: boolean) {
@@ -115,9 +143,15 @@ export const api = {
     rows.forEach((file) => form.append("files", file));
     return new Promise<TransferTask>((resolve, reject) => {
       const request = new XMLHttpRequest();
-      request.open("POST", `${API_BASE}/api/uploads`);
-      request.withCredentials = true;
+      request.open("POST", apiUrl("/api/uploads"));
+      request.withCredentials = !isAppMode();
       request.responseType = "json";
+      if (isAppMode()) {
+        const token = getAppAccessToken();
+        if (token) {
+          request.setRequestHeader("Authorization", `Bearer ${token}`);
+        }
+      }
       request.upload.onprogress = (event) => {
         onProgress?.({
           loaded: event.loaded,
@@ -156,7 +190,7 @@ export const api = {
     request<{ ok: boolean }>(`/api/tasks/${id}`, {
       method: "DELETE",
     }),
-  taskDownloadUrl: (id: string) => `${API_BASE}/api/tasks/${id}/download`,
+  taskDownloadUrl: (id: string) => apiUrl(`/api/tasks/${id}/download`),
   trash: () => request<TrashItem[]>("/api/trash"),
   restoreTrash: (ids: string[]) =>
     request<{ restored: number; conflicts: string[] }>("/api/trash/restore", {

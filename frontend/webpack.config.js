@@ -2,9 +2,11 @@ const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const webpack = require("webpack");
+const { URL } = require("url");
 
 const apiTarget = process.env.SERVER_ORIGIN || "http://127.0.0.1:8080";
 const webPort = parseInt(process.env.WEB_PORT || "5173", 10);
+const normalizedApiTarget = new URL(apiTarget).origin;
 
 module.exports = (_env, argv) => {
   const isProd = argv.mode === "production";
@@ -15,7 +17,7 @@ module.exports = (_env, argv) => {
     output: {
       path: path.resolve(__dirname, "dist"),
       filename: isProd ? "js/[name].[contenthash:8].js" : "js/[name].js",
-      publicPath: "/",
+      publicPath: "",
       clean: true,
     },
     resolve: {
@@ -87,15 +89,32 @@ module.exports = (_env, argv) => {
       host: "0.0.0.0",
       allowedHosts: "all",
       hot: true,
-      historyApiFallback: true,
+      historyApiFallback: {
+        rewrites: [
+          { from: /^\/pan(?:\/.*)?$/i, to: "/index.html" },
+          { from: /^\/apppan(?:\/.*)?$/i, to: "/index.html" },
+        ],
+      },
       client: {
         webSocketURL: "auto://0.0.0.0:0/ws",
       },
+      setupMiddlewares: (middlewares, devServer) => {
+        if (!devServer) {
+          return middlewares;
+        }
+        devServer.app.get(["/pan", "/apppan"], (req, res) => {
+          const query = req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
+          res.redirect(302, `${req.path}/${query}`);
+        });
+        return middlewares;
+      },
       proxy: [
         {
-          context: ["/api"],
-          target: apiTarget,
+          context: ["/pan/api", "/apppan/api"],
+          target: normalizedApiTarget,
           changeOrigin: true,
+          pathRewrite: (requestPath) =>
+            requestPath.replace(/^\/(?:pan|apppan)\/api(?=\/|$)/, "/api"),
         },
       ],
     },
