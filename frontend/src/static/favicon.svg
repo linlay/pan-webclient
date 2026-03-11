@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="panGradient" x1="12" x2="52" y1="10" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f6bdc" />
+      <stop offset="1" stop-color="#22c55e" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="#0f172a" />
+  <path
+    fill="url(#panGradient)"
+    d="M17 21.5A5.5 5.5 0 0 1 22.5 16H30l4 4h7.5A5.5 5.5 0 0 1 47 25.5v17A5.5 5.5 0 0 1 41.5 48h-19A5.5 5.5 0 0 1 17 42.5v-21Z"
+  />
+  <path
+    fill="#e2e8f0"
+    d="M23 28.5c0-1.38 1.12-2.5 2.5-2.5h13c1.38 0 2.5 1.12 2.5 2.5v11c0 1.38-1.12 2.5-2.5 2.5h-13A2.5 2.5 0 0 1 23 39.5v-11Zm3 1.5v8h12v-8H26Z"
+  />

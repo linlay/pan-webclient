@@ -82,9 +82,10 @@ APPPAN_BEARER_TOKEN='你的-jwt-token' make apppan-smoke
 ## 3. 配置说明
 - 所有环境变量契约以 `.env.example` 为准，`.env` 不提交。
 - 后端内置默认配置位于 `backend/internal/config/application.yml`，优先级低于环境变量。
-- `APP_PORT` 控制后端监听端口，`WEB_PORT` 控制前端 Vite 开发端口。
+- `APP_PORT` 控制后端监听端口，`WEB_PORT` 控制前端 webpack 开发端口。
 - `WEB_ORIGIN` 显式配置时用于后端 CORS；未配置时后端会按 `http://127.0.0.1:${WEB_PORT}` 自动推导。
 - `WEB_ORIGIN` 在后端静态托管前端、同源部署时通常不需要手动设置。
+- 开发态 `webpack-dev-server` 不保证把 HMR WebSocket、调试资源或默认 favicon 请求都收口到 `/pan/`、`/apppan/`；严格子路径只保证 `make frontend-build` 后的静态产物。
 - `APP_AUTH_LOCAL_PUBLIC_KEY_FILE` 用于声明 App JWT 本地验签公钥文件，默认值为 `./configs/local-public-key.pem`。
 - `APP_AUTH_LOCAL_PUBLIC_KEY_FILE` 为相对路径时，按 `.env` 所在目录解析；开发态和部署态都推荐统一写 `./configs/local-public-key.pem`。
 - `PAN_DATA_DIR` 用于声明运行时数据目录，默认值为 `./data`。
@@ -104,6 +105,8 @@ make backend-build
 make frontend-build
 PAN_DATA_DIR=./data PAN_STATIC_DIR=frontend/dist ./bin/pan-api
 ```
+
+生产静态托管时，`frontend/dist/index.html` 里的 JS、CSS 与 favicon 都使用相对路径，可同时挂到 `/pan/` 与 `/apppan/`，不会回退到站点根路径。
 
 ### 容器构建
 ```bash

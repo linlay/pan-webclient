@@ -139,6 +139,9 @@ func TestStaticRoutesRedirectAndServePrefixedSPA(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(staticDir, "js", "app.js"), []byte("console.log('ok')"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(staticDir, "favicon.svg"), []byte("<svg></svg>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	handler := newHandlerWithConfig(root, indexer.NewStore(t.TempDir()), config.Config{
 		SessionCookieName: "pan_session",
@@ -185,6 +188,17 @@ func TestStaticRoutesRedirectAndServePrefixedSPA(t *testing.T) {
 	}
 	if !strings.Contains(assetRec.Body.String(), "console.log") {
 		t.Fatalf("asset body = %q, want js asset", assetRec.Body.String())
+	}
+
+	for _, requestPath := range []string{"/pan/favicon.svg", "/apppan/favicon.svg"} {
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, requestPath, nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s expected 200, got %d", requestPath, rec.Code)
+		}
+		if body := strings.TrimSpace(rec.Body.String()); body != "<svg></svg>" {
+			t.Fatalf("%s body = %q, want favicon asset", requestPath, body)
+		}
 	}
 }
 

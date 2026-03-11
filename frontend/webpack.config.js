@@ -4,7 +4,10 @@ const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const webpack = require("webpack");
 const { URL } = require("url");
 
-const apiTarget = process.env.SERVER_ORIGIN || "http://127.0.0.1:8080";
+const apiTarget =
+  process.env.DEV_API_TARGET ||
+  process.env.SERVER_ORIGIN ||
+  "http://127.0.0.1:8080";
 const webPort = parseInt(process.env.WEB_PORT || "5173", 10);
 const normalizedApiTarget = new URL(apiTarget).origin;
 
@@ -69,6 +72,7 @@ module.exports = (_env, argv) => {
     plugins: [
       new HtmlWebpackPlugin({
         template: "./index.html",
+        favicon: "./src/static/favicon.svg",
       }),
       new webpack.DefinePlugin({
         "process.env.REACT_APP_API_BASE_URL": JSON.stringify(
