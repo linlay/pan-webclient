@@ -257,22 +257,7 @@ export function App() {
 
 	useEffect(() => {
 		if (!user || !currentMountId) return;
-		void loadFiles(
-			currentMountId,
-			currentPath,
-			searchQuery,
-			setEntries,
-			setSelectedEntries,
-			showHidden,
-		);
-		void loadTree(currentMountId, "/", showHidden, setTreeCache);
-		if (currentPath !== "/")
-			void loadTree(
-				currentMountId,
-				currentPath,
-				showHidden,
-				setTreeCache,
-			);
+		void loadCurrentLocation();
 	}, [currentMountId, currentPath, searchQuery, showHidden, user]);
 
 	useEffect(() => {
@@ -382,6 +367,40 @@ export function App() {
 		]);
 		setTasks(taskList);
 		setTrashItems(trashList);
+	}
+
+	async function loadCurrentLocation() {
+		if (!currentMountId) return;
+		try {
+			await loadFiles(
+				currentMountId,
+				currentPath,
+				searchQuery,
+				setEntries,
+				setSelectedEntries,
+				showHidden,
+			);
+			await loadTree(currentMountId, "/", showHidden, setTreeCache);
+			if (currentPath !== "/") {
+				await loadTree(
+					currentMountId,
+					currentPath,
+					showHidden,
+					setTreeCache,
+				);
+			}
+		} catch (e) {
+			clearInspector(inspectRequestRef, setPreview, setEditor);
+			setEntries([]);
+			setSelectedEntries([]);
+			setNotice({
+				tone: "error",
+				text:
+					e instanceof Error
+						? e.message
+						: "加载目录失败，请检查挂载目录是否存在。",
+			});
+		}
 	}
 
 	async function reloadTrash() {

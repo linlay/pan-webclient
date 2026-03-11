@@ -84,9 +84,13 @@ module.exports = (_env, argv) => {
     devServer: {
       static: path.resolve(__dirname, "public"),
       port: isNaN(webPort) ? 5173 : webPort,
-      host: "127.0.0.1",
+      host: "0.0.0.0",
+      allowedHosts: "all",
       hot: true,
       historyApiFallback: true,
+      client: {
+        webSocketURL: "auto://0.0.0.0:0/ws",
+      },
       proxy: [
         {
           context: ["/api"],
