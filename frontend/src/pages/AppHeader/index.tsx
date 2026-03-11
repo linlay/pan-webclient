@@ -24,6 +24,7 @@ export interface AppHeaderProps {
 
 export function AppHeader(props: AppHeaderProps) {
 	const [localSearch, setLocalSearch] = useState(props.searchText);
+	const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 	const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	// Sync external changes (if any)
@@ -43,15 +44,26 @@ export function AppHeader(props: AppHeaderProps) {
 
 	return (
 		<header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 bg-white/80 dark:bg-bg-dark/80 backdrop-blur-md z-10">
-			<div className="flex items-center gap-6">
+			<div className="flex items-center gap-4">
 				{props.isMobile ? (
-					<button
-						className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-						onClick={props.onOpenMobileNav}
-						type="button"
-					>
-						<MaterialIcon name="menu" />
-					</button>
+					<div className="flex items-center gap-2">
+						<button
+							className="flex p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+							onClick={props.onOpenMobileNav}
+							type="button"
+						>
+							<MaterialIcon name="menu" />
+						</button>
+						{props.breadcrumbs.length > 1 && (
+							<button
+								className="flex p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-slate-900 dark:hover:text-white"
+								onClick={props.onNavigateUp}
+								type="button"
+							>
+								<MaterialIcon name="chevron_left" />
+							</button>
+						)}
+					</div>
 				) : (
 					<div className="flex items-center gap-1">
 						<button
@@ -66,35 +78,47 @@ export function AppHeader(props: AppHeaderProps) {
 				)}
 				{/* Breadcrumb */}
 				<nav className="flex items-center text-sm font-medium text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis max-w-[40vw]">
-					{props.breadcrumbs.map((crumb, index) => (
-						<span key={crumb.path} className="flex items-center">
-							{index > 0 ? (
-								<span className="material-symbols-outlined text-xs mx-1">
-									chevron_right
-								</span>
-							) : null}
-							{index === props.breadcrumbs.length - 1 ? (
-								<span className="text-slate-900 dark:text-white font-bold">
-									{crumb.label}
-								</span>
-							) : (
-								<button
-									className="hover:text-primary transition-colors truncate max-w-[120px]"
-									onClick={() =>
-										props.onNavigateBreadcrumb(crumb.path)
-									}
-									type="button"
-								>
-									{crumb.label}
-								</button>
-							)}
+					{props.isMobile ? (
+						<span className="text-slate-900 dark:text-white font-bold truncate">
+							{props.breadcrumbs[props.breadcrumbs.length - 1]
+								?.label || "Cloud Drive"}
 						</span>
-					))}
+					) : (
+						props.breadcrumbs.map((crumb, index) => (
+							<span
+								key={crumb.path}
+								className="flex items-center"
+							>
+								{index > 0 ? (
+									<span className="material-symbols-outlined text-xs mx-1">
+										chevron_right
+									</span>
+								) : null}
+								{index === props.breadcrumbs.length - 1 ? (
+									<span className="text-slate-900 dark:text-white font-bold">
+										{crumb.label}
+									</span>
+								) : (
+									<button
+										className="hover:text-primary transition-colors truncate max-w-[120px]"
+										onClick={() =>
+											props.onNavigateBreadcrumb(
+												crumb.path,
+											)
+										}
+										type="button"
+									>
+										{crumb.label}
+									</button>
+								)}
+							</span>
+						))
+					)}
 				</nav>
 			</div>
 
 			<div className="flex items-center gap-4 flex-1 justify-end min-w-0">
-				{/* Search */}
+				{/* Search Desktop */}
 				<div className="relative max-w-md w-full hidden sm:block">
 					<span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">
 						search
@@ -108,38 +132,91 @@ export function AppHeader(props: AppHeaderProps) {
 					/>
 				</div>
 
-				{/* View toggle & Sidebar toggle */}
-				<div className="flex items-center gap-2 flex-shrink-0">
-					<div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-lg flex-shrink-0">
+				{/* Search Mobile Toggle */}
+				{props.isMobile && (
+					<button
+						className="flex p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+						onClick={() => setIsMobileSearchOpen(true)}
+						type="button"
+					>
+						<MaterialIcon name="search" />
+					</button>
+				)}
+
+				{/* Mobile Search Overlay */}
+				{props.isMobile && isMobileSearchOpen && (
+					<div className="absolute inset-0 bg-white/95 dark:bg-bg-dark/95 backdrop-blur-md z-50 flex items-center px-4 gap-2 animate-fade-in">
 						<button
-							className={`p-1.5 rounded-md transition-all ${props.viewMode === "grid" ? "bg-white dark:bg-slate-700 shadow-sm text-primary" : "text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}
-							onClick={() => props.onToggleViewMode("grid")}
+							className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors flex-shrink-0"
+							onClick={() => {
+								setIsMobileSearchOpen(false);
+								handleSearchChange("");
+							}}
 							type="button"
 						>
-							<MaterialIcon
-								name="grid_view"
-								className="text-lg"
-							/>
+							<MaterialIcon name="arrow_back" />
 						</button>
-						<button
-							className={`p-1.5 rounded-md transition-all ${props.viewMode === "list" ? "bg-white dark:bg-slate-700 shadow-sm text-primary" : "text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}
-							onClick={() => props.onToggleViewMode("list")}
-							type="button"
-						>
-							<MaterialIcon
-								name="view_list"
-								className="text-lg"
+						<div className="relative flex-1">
+							<input
+								autoFocus
+								className="w-full pl-3 pr-10 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-primary/20 text-sm placeholder:text-slate-400 outline-none transition-all"
+								placeholder="Search..."
+								type="text"
+								value={localSearch}
+								onChange={(e) =>
+									handleSearchChange(e.target.value)
+								}
 							/>
-						</button>
+							{localSearch && (
+								<button
+									className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+									onClick={() => handleSearchChange("")}
+									type="button"
+								>
+									<MaterialIcon
+										name="close"
+										className="text-sm"
+									/>
+								</button>
+							)}
+						</div>
 					</div>
-				</div>
+				)}
+
+				{/* View toggle & Sidebar toggle */}
+				{!props.isMobile && (
+					<div className="flex items-center gap-2 flex-shrink-0">
+						<div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-lg flex-shrink-0">
+							<button
+								className={`p-1.5 rounded-md transition-all ${props.viewMode === "grid" ? "bg-white dark:bg-slate-700 shadow-sm text-primary" : "text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}
+								onClick={() => props.onToggleViewMode("grid")}
+								type="button"
+							>
+								<MaterialIcon
+									name="grid_view"
+									className="text-lg"
+								/>
+							</button>
+							<button
+								className={`p-1.5 rounded-md transition-all ${props.viewMode === "list" ? "bg-white dark:bg-slate-700 shadow-sm text-primary" : "text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}
+								onClick={() => props.onToggleViewMode("list")}
+								type="button"
+							>
+								<MaterialIcon
+									name="view_list"
+									className="text-lg"
+								/>
+							</button>
+						</div>
+					</div>
+				)}
 
 				{/* User actions */}
 				<div className="flex items-center gap-2 border-l border-slate-200 dark:border-slate-800 pl-4 flex-shrink-0">
 					<MenuButton
 						actions={[
 							{
-								label: "刷新",
+								label: "Refresh",
 								icon: (
 									<MaterialIcon
 										name="refresh"
@@ -150,8 +227,8 @@ export function AppHeader(props: AppHeaderProps) {
 							},
 							{
 								label: props.showHidden
-									? "隐藏隐藏项"
-									: "显示隐藏项",
+									? "Hide Hidden Files"
+									: "Show Hidden Files",
 								icon: (
 									<MaterialIcon
 										name="visibility"
@@ -161,7 +238,7 @@ export function AppHeader(props: AppHeaderProps) {
 								onSelect: props.onToggleShowHidden,
 							},
 							{
-								label: "系统主题",
+								label: "System Theme",
 								icon: (
 									<MaterialIcon
 										name="computer"
@@ -171,7 +248,7 @@ export function AppHeader(props: AppHeaderProps) {
 								onSelect: () => props.onSetTheme("system"),
 							},
 							{
-								label: "浅色模式",
+								label: "Light Mode",
 								icon: (
 									<MaterialIcon
 										name="light_mode"
@@ -181,7 +258,7 @@ export function AppHeader(props: AppHeaderProps) {
 								onSelect: () => props.onSetTheme("light"),
 							},
 							{
-								label: "深色模式",
+								label: "Dark Mode",
 								icon: (
 									<MaterialIcon
 										name="dark_mode"
@@ -191,7 +268,7 @@ export function AppHeader(props: AppHeaderProps) {
 								onSelect: () => props.onSetTheme("dark"),
 							},
 							{
-								label: "退出登录",
+								label: "Log Out",
 								icon: (
 									<MaterialIcon
 										name="logout"

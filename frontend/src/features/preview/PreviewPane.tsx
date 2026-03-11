@@ -150,12 +150,6 @@ export function PreviewPane(props: {
 		<div className="flex flex-col p-6">
 			<div className="flex items-center justify-between mb-6">
 				<h3 className="text-lg font-bold">Properties</h3>
-				<button
-					className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400"
-					type="button"
-				>
-					<MaterialIcon name="close" className="text-sm" />
-				</button>
 			</div>
 
 			{/* Preview icon */}

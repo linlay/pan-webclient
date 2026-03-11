@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useLayoutEffect } from "react";
 
 export function MenuButton(props: {
 	actions: Array<{
@@ -14,11 +14,18 @@ export function MenuButton(props: {
 	align?: "left" | "right";
 }) {
 	const [open, setOpen] = useState(false);
+	const [dropUp, setDropUp] = useState(false);
 	const rootRef = useRef<HTMLDivElement>(null);
+	const menuRef = useRef<HTMLDivElement>(null);
 
+	// Click outside to close
 	useEffect(() => {
-		if (!open) return;
-		const close = (e: MouseEvent) => {
+		if (!open) {
+			// Reset direction for next calculation
+			setDropUp(false);
+			return;
+		}
+		const close = (e: MouseEvent | TouchEvent) => {
 			if (
 				rootRef.current &&
 				!rootRef.current.contains(e.target as Node)
@@ -27,7 +34,23 @@ export function MenuButton(props: {
 			}
 		};
 		document.addEventListener("mousedown", close);
-		return () => document.removeEventListener("mousedown", close);
+		document.addEventListener("touchstart", close);
+		return () => {
+			document.removeEventListener("mousedown", close);
+			document.removeEventListener("touchstart", close);
+		};
+	}, [open]);
+
+	// Collision detection
+	useLayoutEffect(() => {
+		if (open && menuRef.current) {
+			const rect = menuRef.current.getBoundingClientRect();
+			if (rect.bottom > window.innerHeight - 20) {
+				setDropUp(true);
+			} else {
+				setDropUp(false);
+			}
+		}
 	}, [open]);
 
 	return (
@@ -49,9 +72,10 @@ export function MenuButton(props: {
 
 			{open ? (
 				<div
-					className={`absolute top-full mt-2 z-30 w-48 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl animate-fade-in ${
-						props.align === "right" ? "right-0" : "left-0"
-					}`}
+					ref={menuRef}
+					className={`absolute z-[100] w-48 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl animate-fade-in ${
+						dropUp ? "bottom-full mb-2" : "top-full mt-2"
+					} ${props.align === "right" ? "right-0" : "left-0"}`}
 				>
 					{props.actions.map((action, index) => (
 						<button

@@ -292,27 +292,28 @@ func Copy(resolver *MountResolver, mountID, relPath, targetDir string) (Entry, e
 	return entryFromInfo(mountID, newRel, filepath.Base(srcAbs), newInfo, isHiddenRelPath(newRel)), nil
 }
 
-func SaveUploadedFile(resolver *MountResolver, mountID, relPath, filename string, src io.Reader) (Entry, error) {
+func SaveUploadedFile(resolver *MountResolver, mountID, relPath, filename string, src io.Reader) (Entry, int64, error) {
 	_, abs, clean, err := resolver.Resolve(mountID, relPath)
 	if err != nil {
-		return Entry{}, err
+		return Entry{}, 0, err
 	}
 	targetName := filepath.Base(filename)
 	target := filepath.Join(abs, targetName)
 	dst, err := os.Create(target)
 	if err != nil {
-		return Entry{}, err
+		return Entry{}, 0, err
 	}
 	defer dst.Close()
-	if _, err := io.Copy(dst, src); err != nil {
-		return Entry{}, err
+	written, err := io.Copy(dst, src)
+	if err != nil {
+		return Entry{}, written, err
 	}
 	info, err := os.Stat(target)
 	if err != nil {
-		return Entry{}, err
+		return Entry{}, written, err
 	}
 	targetRel := cleanRelPath(filepath.Join(clean, targetName))
-	return entryFromInfo(mountID, targetRel, targetName, info, isHiddenRelPath(targetRel)), nil
+	return entryFromInfo(mountID, targetRel, targetName, info, isHiddenRelPath(targetRel)), written, nil
 }
 
 func OpenFile(resolver *MountResolver, mountID, relPath string) (*os.File, os.FileInfo, error) {

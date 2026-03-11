@@ -1,3 +1,5 @@
+import { SidebarTree } from "@/features/files/SidebarTree";
+import type { FileTreeNode, MountRoot } from "@/types/contracts";
 import { OperationDialog } from "@/types/home";
 import {
 	dialogEyebrow,
@@ -9,6 +11,14 @@ import {
 
 export function OperationDialogView(props: {
 	dialog: NonNullable<OperationDialog>;
+	directoryTree?: {
+		mount: MountRoot | null;
+		treeCache: Record<string, FileTreeNode[]>;
+		treeCacheKeySuffix: string;
+		expandedPaths: string[];
+		onSelect: (path: string) => void;
+		onToggle: (path: string) => void | Promise<void>;
+	};
 	onClose: () => void;
 	onChange: (v: string) => void;
 	onSubmit: () => void;
@@ -66,6 +76,45 @@ export function OperationDialogView(props: {
 							onChange={(e) => props.onChange(e.target.value)}
 							value={value}
 						/>
+					</div>
+				) : null}
+
+				{(props.dialog.kind === "move" ||
+					props.dialog.kind === "copy") &&
+				props.directoryTree?.mount ? (
+					<div className="px-6 pb-4">
+						<div className="mb-2 flex items-center justify-between">
+							<label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+								目标层级
+							</label>
+							<span className="text-xs text-slate-400">
+								{props.directoryTree.mount.name}
+							</span>
+						</div>
+						<p className="mb-3 text-xs text-slate-500">
+							从当前工作区目录树中选择目标目录，也可以直接修改上方路径。
+						</p>
+						<div className="max-h-72 py-4 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-800/40">
+							<SidebarTree
+								currentMountId={props.directoryTree.mount.id}
+								currentPath={props.dialog.targetDir}
+								expandedPaths={
+									props.directoryTree.expandedPaths
+								}
+								mounts={[props.directoryTree.mount]}
+								onSelect={(_, path) =>
+									props.directoryTree?.onSelect(path)
+								}
+								onToggle={(_, path) =>
+									props.directoryTree?.onToggle(path)
+								}
+								singleMountMode={false}
+								treeCache={props.directoryTree.treeCache}
+								treeCacheKeySuffix={
+									props.directoryTree.treeCacheKeySuffix
+								}
+							/>
+						</div>
 					</div>
 				) : null}
 

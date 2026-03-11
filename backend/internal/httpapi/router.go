@@ -452,6 +452,16 @@ func (a *api) uploads(w http.ResponseWriter, r *http.Request) {
 	}
 	task := transfer.NewTask("upload", "Uploading files")
 	task.Status = "running"
+	task.Items = make([]transfer.TaskItem, 0, len(r.MultipartForm.File["files"]))
+	for _, header := range r.MultipartForm.File["files"] {
+		task.Items = append(task.Items, transfer.TaskItem{
+			Name:  header.Filename,
+			Path:  header.Filename,
+			Size:  header.Size,
+			IsDir: false,
+		})
+		task.TotalBytes += header.Size
+	}
 	task.UpdatedAt = time.Now().Unix()
 	_ = a.taskManager.Put(task, "")
 
@@ -464,15 +474,22 @@ func (a *api) uploads(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			continue
 		}
-		_, err = fsops.SaveUploadedFile(a.resolver, mountID, relPath, header.Filename, src)
+		_, written, err := fsops.SaveUploadedFile(a.resolver, mountID, relPath, header.Filename, src)
 		_ = src.Close()
 		if err == nil {
 			uploaded++
+			task.CompletedBytes += written
+			task.Detail = fmt.Sprintf("Uploaded %d/%d files", uploaded, len(files))
+			task.UpdatedAt = time.Now().Unix()
+			_ = a.taskManager.Put(task, "")
 		}
 	}
 
 	task.Status = "success"
 	task.Detail = fmt.Sprintf("Uploaded %d files", uploaded)
+	if uploaded == len(files) {
+		task.CompletedBytes = task.TotalBytes
+	}
 	task.UpdatedAt = time.Now().Unix()
 	_ = a.taskManager.Put(task, "")
 	writeJSON(w, http.StatusOK, task)
@@ -520,6 +537,18 @@ func (a *api) taskRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := parts[0]
+	if len(parts) == 1 && r.Method == http.MethodDelete {
+		if err := a.taskManager.Delete(id); err != nil {
+			if strings.Contains(err.Error(), "still active") {
+				writeError(w, http.StatusConflict, "TASK_ACTIVE", "active task cannot be deleted")
+				return
+			}
+			writeError(w, http.StatusNotFound, "TASK_NOT_FOUND", "task not found")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+		return
+	}
 	task, artifact, err := a.taskManager.Get(id)
 	if err != nil {
 		writeError(w, http.StatusNotFound, "TASK_NOT_FOUND", "task not found")
@@ -530,10 +559,36 @@ func (a *api) taskRoute(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusConflict, "TASK_NOT_READY", "download artifact not ready")
 			return
 		}
+		w.Header().Set("Content-Disposition", taskAttachmentDisposition(id, artifact))
 		http.ServeFile(w, r, artifact)
 		return
 	}
 	writeJSON(w, http.StatusOK, task)
+}
+
+func taskAttachmentDisposition(taskID, artifact string) string {
+	filename := filepath.Base(artifact)
+	prefix := taskID + "-"
+	if strings.HasPrefix(filename, prefix) {
+		filename = strings.TrimPrefix(filename, prefix)
+	}
+	if strings.TrimSpace(filename) == "" {
+		filename = "download.zip"
+	}
+	asciiFallback := strings.Map(func(r rune) rune {
+		if r < 0x20 || r > 0x7e || r == '"' || r == '\\' {
+			return '_'
+		}
+		return r
+	}, filename)
+	if strings.Trim(asciiFallback, "_") == "" {
+		asciiFallback = "download.zip"
+	}
+	return fmt.Sprintf(
+		`attachment; filename="%s"; filename*=UTF-8''%s`,
+		asciiFallback,
+		url.PathEscape(filename),
+	)
 }
 
 func (a *api) trash(w http.ResponseWriter, r *http.Request) {

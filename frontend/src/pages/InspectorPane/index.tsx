@@ -18,9 +18,11 @@ export interface InspectorPaneProps {
 	currentMount: MountRoot | null;
 	currentPath: string;
 	editor: EditorDocument | null;
+	handleDeleteTask: (id: string) => void;
 	handleDeleteTrash: (id: string) => void;
 	handleOpenTask: (taskId: string) => Promise<void>;
 	handleRestoreTrash: (id: string) => void;
+	isMobile: boolean;
 	inspectorMode: InspectorMode;
 	onBack: () => void;
 	onEnterEdit: () => void;
@@ -53,6 +55,8 @@ export function InspectorPane(props: InspectorPaneProps) {
 		return (
 			<TaskPanel
 				collapsed={props.taskPanelCollapsed}
+				onDeleteTask={props.handleDeleteTask}
+				isMobile={props.isMobile}
 				onBack={props.onBack}
 				onOpenTask={(id) => void props.handleOpenTask(id)}
 				onToggle={() => props.setTaskPanelCollapsed((p) => !p)}
@@ -63,6 +67,7 @@ export function InspectorPane(props: InspectorPaneProps) {
 		return (
 			<TrashPanel
 				items={props.trashItems}
+				isMobile={props.isMobile}
 				onBack={props.onBack}
 				onDelete={props.handleDeleteTrash}
 				onRefresh={props.onRefreshTrash}

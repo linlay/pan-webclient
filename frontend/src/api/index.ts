@@ -30,6 +30,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+type UploadProgress = {
+  loaded: number;
+  total: number;
+};
+
 export function rawFileUrl(mountId: string, path: string) {
   const params = new URLSearchParams({ mountId, path });
   return `${API_BASE}/api/files/raw?${params.toString()}`;
@@ -96,21 +101,49 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ mountId, path }),
     }),
-  upload: async (mountId: string, path: string, files: FileList | File[]) => {
+  upload: async (
+    mountId: string,
+    path: string,
+    files: FileList | File[],
+    onProgress?: (progress: UploadProgress) => void,
+  ) => {
     const form = new FormData();
+    const rows = Array.from(files);
+    const fallbackTotal = rows.reduce((sum, file) => sum + file.size, 0);
     form.set("mountId", mountId);
     form.set("path", path);
-    Array.from(files).forEach((file) => form.append("files", file));
-    const response = await fetch(`${API_BASE}/api/uploads`, {
-      method: "POST",
-      credentials: "include",
-      body: form,
+    rows.forEach((file) => form.append("files", file));
+    return new Promise<TransferTask>((resolve, reject) => {
+      const request = new XMLHttpRequest();
+      request.open("POST", `${API_BASE}/api/uploads`);
+      request.withCredentials = true;
+      request.responseType = "json";
+      request.upload.onprogress = (event) => {
+        onProgress?.({
+          loaded: event.loaded,
+          total: event.lengthComputable ? event.total : fallbackTotal,
+        });
+      };
+      request.onerror = () => reject(new Error("Upload failed"));
+      request.onload = () => {
+        const response =
+          request.response && typeof request.response === "object"
+            ? request.response
+            : JSON.parse(request.responseText || "null");
+        if (request.status >= 200 && request.status < 300) {
+          resolve(response as TransferTask);
+          return;
+        }
+        const payload = response as { message?: string } | null;
+        reject(
+          new Error(
+            payload?.message ??
+              `${request.status} ${request.statusText}`,
+          ),
+        );
+      };
+      request.send(form);
     });
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as { message?: string } | null;
-      throw new Error(payload?.message ?? `${response.status} ${response.statusText}`);
-    }
-    return (await response.json()) as TransferTask;
   },
   tasks: () => request<TransferTask[]>("/api/tasks"),
   batchDownload: (mountId: string, items: string[], archiveName: string) =>
@@ -119,6 +152,10 @@ export const api = {
       body: JSON.stringify({ mountId, items, archiveName }),
     }),
   task: (id: string) => request<TransferTask>(`/api/tasks/${id}`),
+  deleteTask: (id: string) =>
+    request<{ ok: boolean }>(`/api/tasks/${id}`, {
+      method: "DELETE",
+    }),
   taskDownloadUrl: (id: string) => `${API_BASE}/api/tasks/${id}/download`,
   trash: () => request<TrashItem[]>("/api/trash"),
   restoreTrash: (ids: string[]) =>

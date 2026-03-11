@@ -86,8 +86,12 @@ export function ResizableSidebar({
 
 	return (
 		<aside
-			className={`relative flex-shrink-0 flex flex-col ${className}`}
-			style={{ width: `${width}px`, ...style }}
+			className={`flex-shrink-0 flex flex-col ${className.includes("fixed") || className.includes("absolute") ? "" : "relative"} ${className}`}
+			style={
+				className.includes("fixed") || className.includes("absolute")
+					? { ...style } // Do not force explicit inline width if it's already an overlay
+					: { width: `${width}px`, ...style }
+			}
 		>
 			{children}
 

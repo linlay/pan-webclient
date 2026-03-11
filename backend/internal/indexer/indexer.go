@@ -25,14 +25,24 @@ type SearchHit struct {
 }
 
 type TaskRecord struct {
-	ID          string `json:"id"`
-	Kind        string `json:"kind"`
-	Status      string `json:"status"`
-	Detail      string `json:"detail"`
-	DownloadURL string `json:"downloadUrl"`
-	Artifact    string `json:"artifactPath"`
-	CreatedAt   int64  `json:"createdAt"`
-	UpdatedAt   int64  `json:"updatedAt"`
+	ID             string     `json:"id"`
+	Kind           string     `json:"kind"`
+	Status         string     `json:"status"`
+	Detail         string     `json:"detail"`
+	Items          []TaskItem `json:"items,omitempty"`
+	TotalBytes     int64      `json:"totalBytes,omitempty"`
+	CompletedBytes int64      `json:"completedBytes,omitempty"`
+	DownloadURL    string     `json:"downloadUrl"`
+	Artifact       string     `json:"artifactPath"`
+	CreatedAt      int64      `json:"createdAt"`
+	UpdatedAt      int64      `json:"updatedAt"`
+}
+
+type TaskItem struct {
+	Name  string `json:"name"`
+	Path  string `json:"path"`
+	Size  int64  `json:"size"`
+	IsDir bool   `json:"isDir"`
 }
 
 type TrashRecord struct {
@@ -107,6 +117,16 @@ func (s *Store) ListTasks(limit int) ([]TaskRecord, error) {
 		items = items[:limit]
 	}
 	return items, nil
+}
+
+func (s *Store) DeleteTask(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	err := os.Remove(filepath.Join(s.taskMetaDir, id+".json"))
+	if os.IsNotExist(err) {
+		return nil
+	}
+	return err
 }
 
 func (s *Store) ReconcileTasks() error {

@@ -20,6 +20,8 @@ import { LoginForm } from "./features/auth/LoginForm";
 import { FileTable } from "./features/files/FileTable";
 import { MaterialIcon } from "./features/shared/Icons";
 import { ResizableSidebar } from "./features/shared/ResizableSidebar";
+import { MobilePreviewSheet } from "./features/preview/MobilePreviewSheet";
+import { TaskDeleteDialog } from "./features/tasks/TaskDeleteDialog";
 import { api, rawFileUrl } from "./api";
 import {
 	readStoredShowHidden,
@@ -60,6 +62,13 @@ import { OperationDialogView } from "./pages/OperationDialogView";
 import { AppSidebar } from "./pages/AppSidebar";
 import { AppHeader } from "./pages/AppHeader";
 import { AppToolbar } from "./pages/AppToolbar";
+import { MobileFAB } from "./pages/MobileFAB";
+
+type TaskDeleteDialogState = {
+	task: TransferTask;
+	submitting: boolean;
+	error: string;
+};
 
 export function App() {
 	const [user, setUser] = useState<SessionUser | null>(null);
@@ -95,12 +104,19 @@ export function App() {
 	);
 	const [taskPanelCollapsed, setTaskPanelCollapsed] = useState(true);
 	const [dialog, setDialog] = useState<OperationDialog>(null);
+	const [taskDeleteDialog, setTaskDeleteDialog] =
+		useState<TaskDeleteDialogState | null>(null);
+	const [dialogExpandedPaths, setDialogExpandedPaths] = useState<string[]>([
+		"/",
+	]);
 	const [mobileNavOpen, setMobileNavOpen] = useState(false);
 	const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false);
+	const [mobileSelectionMode, setMobileSelectionMode] = useState(false);
 	const [inspectorOpen, setInspectorOpen] = useState(true);
 	const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
 	const inspectRequestRef = useRef(0);
+	const taskStatusRef = useRef<Record<string, TransferTask["status"]>>({});
 	const isMobile = useMediaQuery(MOBILE_MEDIA_QUERY);
 
 	const resolvedTheme =
@@ -187,6 +203,7 @@ export function App() {
 
 	useEffect(() => {
 		setSelectedEntries([]);
+		setMobileSelectionMode(false);
 		clearInspector(inspectRequestRef, setPreview, setEditor);
 		setInspectorMode("preview");
 	}, [searchQuery]);
@@ -206,6 +223,7 @@ export function App() {
 		if (showHidden || !hasHiddenPath(currentPath)) return;
 		setCurrentPath("/");
 		setSelectedEntries([]);
+		setMobileSelectionMode(false);
 		clearInspector(inspectRequestRef, setPreview, setEditor);
 		setInspectorMode("preview");
 		setMobileNavOpen(false);
@@ -217,6 +235,7 @@ export function App() {
 		if (!isMobile) {
 			setMobileNavOpen(false);
 			setMobileInspectorOpen(false);
+			setMobileSelectionMode(false);
 		}
 	}, [isMobile]);
 
@@ -227,12 +246,14 @@ export function App() {
 					setFullScreenImage(null);
 				} else if (dialog) {
 					setDialog(null);
+				} else if (taskDeleteDialog && !taskDeleteDialog.submitting) {
+					setTaskDeleteDialog(null);
 				}
 			}
 		};
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [fullScreenImage, dialog]);
+	}, [fullScreenImage, dialog, taskDeleteDialog]);
 
 	useEffect(() => {
 		if (!user || !currentMountId) return;
@@ -274,7 +295,9 @@ export function App() {
 	useEffect(() => {
 		if (!tasks.length) return;
 		const active = tasks.filter(
-			(t) => t.status === "pending" || t.status === "running",
+			(t) =>
+				!isLocalTaskId(t.id) &&
+				(t.status === "pending" || t.status === "running"),
 		);
 		if (!active.length) return;
 		const handle = window.setInterval(() => {
@@ -290,6 +313,25 @@ export function App() {
 	useEffect(() => {
 		if (hasActiveTask) setTaskPanelCollapsed(false);
 	}, [hasActiveTask]);
+
+	useEffect(() => {
+		const nextStatusMap: Record<string, TransferTask["status"]> = {};
+		for (const task of tasks) {
+			const prevStatus = taskStatusRef.current[task.id];
+			if (
+				prevStatus &&
+				prevStatus !== "success" &&
+				task.status === "success" &&
+				task.kind === "download" &&
+				task.downloadUrl
+			) {
+				triggerTaskDownload(task.id);
+			}
+			nextStatusMap[task.id] = task.status;
+		}
+		taskStatusRef.current = nextStatusMap;
+	}, [tasks]);
+
 	useEffect(() => {
 		if (inspectorMode === "editor" && !canEditActiveEntry)
 			setInspectorMode("preview");
@@ -414,9 +456,13 @@ export function App() {
 		}
 	}
 
-	function commitSelection(next: FileEntry[], revealOnMobile = false) {
+	function commitSelection(
+		next: FileEntry[],
+		options: { inspectSingle?: boolean; revealOnMobile?: boolean } = {},
+	) {
+		const { inspectSingle = true, revealOnMobile = false } = options;
 		setSelectedEntries(next);
-		if (next.length !== 1) {
+		if (!inspectSingle || next.length !== 1) {
 			clearInspector(inspectRequestRef, setPreview, setEditor);
 			setInspectorMode("preview");
 			return;
@@ -424,20 +470,28 @@ export function App() {
 		void inspectEntry(next[0], revealOnMobile);
 	}
 
+	function handleSetSelection(next: FileEntry[]) {
+		commitSelection(next, { inspectSingle: !isMobile });
+	}
+
 	function handleToggleSelection(entry: FileEntry) {
 		const exists = selectedEntries.some((i) => sameEntry(i, entry));
-		commitSelection(
+		handleSetSelection(
 			exists
 				? selectedEntries.filter((i) => !sameEntry(i, entry))
 				: [...selectedEntries, entry],
-			false,
 		);
 	}
 
 	function handleActivateEntry(entry: FileEntry) {
+		if (isMobile && mobileSelectionMode) {
+			handleToggleSelection(entry);
+			return;
+		}
 		if (entry.isDir) {
 			clearInspector(inspectRequestRef, setPreview, setEditor);
 			setSelectedEntries([]);
+			setMobileSelectionMode(false);
 			setInspectorMode("preview");
 			if (searchQuery) {
 				startTransition(() => setSearchText(""));
@@ -453,7 +507,10 @@ export function App() {
 			!sameEntry(activeEntry, entry) ||
 			inspectorMode !== "preview"
 		)
-			commitSelection([entry], true);
+			commitSelection([entry], {
+				inspectSingle: true,
+				revealOnMobile: true,
+			});
 		else if (isMobile) setMobileInspectorOpen(true);
 	}
 
@@ -516,17 +573,20 @@ export function App() {
 			});
 			return;
 		}
+		const targetDir = defaultTargetDir(
+			entriesArg,
+			currentMountId,
+			currentPath,
+		);
+		setDialogExpandedPaths(pathLineage(targetDir));
 		setDialog({
 			kind,
 			entries: entriesArg,
-			targetDir: defaultTargetDir(
-				entriesArg,
-				currentMountId,
-				currentPath,
-			),
+			targetDir,
 			error: "",
 			submitting: false,
 		});
+		void ensureDialogTreeLoaded(mountId, targetDir);
 	}
 	function openDeleteDialog(entriesArg = selectedEntries) {
 		if (!entriesArg.length) {
@@ -587,6 +647,28 @@ export function App() {
 		setInspectorMode("trash");
 		setInspectorOpen(true);
 		if (isMobile) setMobileInspectorOpen(true);
+	}
+
+	async function ensureDialogTreeLoaded(mountId: string, targetDir: string) {
+		for (const path of pathLineage(targetDir)) {
+			if (!treeCache[treeCacheKey(mountId, path, showHidden)]) {
+				await loadTree(mountId, path, showHidden, setTreeCache);
+			}
+		}
+	}
+
+	async function handleDialogTreeToggle(path: string) {
+		if (!dialog || (dialog.kind !== "move" && dialog.kind !== "copy")) {
+			return;
+		}
+		const mountId = getSingleMountId(dialog.entries);
+		const expanded = dialogExpandedPaths.includes(path);
+		setDialogExpandedPaths((prev) =>
+			expanded ? prev.filter((item) => item !== path) : [...prev, path],
+		);
+		if (!expanded && !treeCache[treeCacheKey(mountId, path, showHidden)]) {
+			await loadTree(mountId, path, showHidden, setTreeCache);
+		}
 	}
 
 	async function submitDialog() {
@@ -684,25 +766,113 @@ export function App() {
 
 	async function handleUpload(files: FileList | null) {
 		if (!files || !currentMountId) return;
-		const task = await api.upload(currentMountId, currentPath, files);
-		setTasks((prev) => mergeTasks(prev, [task]));
+		const uploadFiles = Array.from(files);
+		const localTask = buildLocalUploadTask(uploadFiles);
+		setTasks((prev) => mergeTasks(prev, [localTask]));
 		setTaskPanelCollapsed(false);
-		await refreshCurrentView();
-		setNotice({ tone: "info", text: task.detail });
 		openTasksPanel();
+		try {
+			const task = await api.upload(
+				currentMountId,
+				currentPath,
+				uploadFiles,
+				(progress) => {
+					const nextCompletedBytes =
+						progress.total > 0
+							? Math.round(
+									(progress.loaded / progress.total) *
+										(localTask.totalBytes ?? 0),
+								)
+							: progress.loaded;
+					setTasks((prev) =>
+						mergeTasks(prev, [
+							{
+								...localTask,
+								completedBytes: nextCompletedBytes,
+								totalBytes: localTask.totalBytes,
+								updatedAt: Math.floor(Date.now() / 1000),
+							},
+						]),
+					);
+				},
+			);
+			setTasks((prev) =>
+				mergeTasks(
+					prev.filter((item) => item.id !== localTask.id),
+					[task],
+				),
+			);
+			await refreshCurrentView();
+			setNotice({ tone: "info", text: task.detail });
+		} catch (e) {
+			setTasks((prev) =>
+				prev.filter((item) => item.id !== localTask.id),
+			);
+			setNotice({
+				tone: "error",
+				text: e instanceof Error ? e.message : "上传失败",
+			});
+		}
+	}
+
+	function triggerTaskDownload(taskId: string) {
+		const link = document.createElement("a");
+		link.href = api.taskDownloadUrl(taskId);
+		link.download = "";
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
 	}
 
 	async function handleOpenTask(taskId: string) {
+		if (isLocalTaskId(taskId)) {
+			return;
+		}
 		const task = await api.task(taskId);
 		setTasks((prev) => mergeTasks(prev, [task]));
 		setInspectorMode("tasks");
 		if (task.status === "success" && task.downloadUrl)
-			window.open(
-				api.taskDownloadUrl(task.id),
-				"_blank",
-				"noopener,noreferrer",
-			);
+			triggerTaskDownload(task.id);
 		if (isMobile) setMobileInspectorOpen(true);
+	}
+
+	function handleDeleteTask(taskId: string) {
+		const task = tasks.find((item) => item.id === taskId);
+		if (!task || task.status === "pending" || task.status === "running") {
+			return;
+		}
+		setTaskDeleteDialog({
+			task,
+			submitting: false,
+			error: "",
+		});
+	}
+
+	async function submitTaskDeleteDialog() {
+		if (!taskDeleteDialog) {
+			return;
+		}
+		setTaskDeleteDialog((current) =>
+			current ? { ...current, submitting: true, error: "" } : current,
+		);
+		try {
+			await api.deleteTask(taskDeleteDialog.task.id);
+			setTasks((prev) =>
+				prev.filter((item) => item.id !== taskDeleteDialog.task.id),
+			);
+			setTaskDeleteDialog(null);
+			setNotice({ tone: "info", text: "任务已删除" });
+		} catch (e) {
+			setTaskDeleteDialog((current) =>
+				current
+					? {
+							...current,
+							submitting: false,
+							error: e instanceof Error ? e.message : "删除失败",
+						}
+					: current,
+			);
+		}
 	}
 
 	async function handleSaveEditor(nextContent: string) {
@@ -785,9 +955,11 @@ export function App() {
 				currentMount,
 				currentPath,
 				editor,
+				handleDeleteTask,
 				handleOpenTask,
 				handleRestoreTrash,
 				handleDeleteTrash,
+				isMobile,
 				inspectorMode,
 				onBack: () => setInspectorMode("preview"),
 				onEnterEdit: () => setInspectorMode("editor"),
@@ -893,12 +1065,17 @@ export function App() {
 				/>
 
 				{/* Content */}
-				<div className="flex-1 overflow-y-auto p-8 relative">
+				<div className="flex-1 overflow-y-auto p-4 sm:p-8 relative">
 					{/* Toolbar */}
 					<AppToolbar
 						foldersCount={visibleRows.filter((e) => e.isDir).length}
 						filesCount={visibleRows.filter((e) => !e.isDir).length}
-						hasSelection={selectedEntries.length > 0}
+						hasSelection={
+							isMobile
+								? mobileSelectionMode &&
+								  selectedEntries.length > 0
+								: selectedEntries.length > 0
+						}
 						isSingleSelection={selectedEntries.length === 1}
 						onBatchDownload={() => openBatchDownloadDialog()}
 						onCreateFolder={openCreateFolderDialog}
@@ -906,6 +1083,7 @@ export function App() {
 						onMoveCopy={(kind) => openMoveCopyDialog(kind)}
 						onRename={() => openRenameDialog()}
 						onUploadClick={() => fileInputRef.current?.click()}
+						isMobile={isMobile}
 					/>
 
 					{/* Search results banner */}
@@ -925,7 +1103,9 @@ export function App() {
 
 					{/* File table / grid */}
 					<FileTable
+						isMobile={isMobile}
 						entries={visibleRows}
+						selectionMode={mobileSelectionMode}
 						viewMode={viewMode}
 						onActivate={handleActivateEntry}
 						onCopy={(e) => openMoveCopyDialog("copy", [e])}
@@ -933,6 +1113,8 @@ export function App() {
 						onDownload={(e) => openBatchDownloadDialog([e])}
 						onMove={(e) => openMoveCopyDialog("move", [e])}
 						onRename={(e) => openRenameDialog(e)}
+						onSelectionModeChange={setMobileSelectionMode}
+						onSetSelection={handleSetSelection}
 						onToggleSelection={handleToggleSelection}
 						onToggleAllSelection={(selectAll) => {
 							if (selectAll) {
@@ -1006,33 +1188,87 @@ export function App() {
 				</button>
 			)}
 
-			{/* Mobile Inspector */}
-			{isMobile && mobileInspectorOpen ? (
-				<>
-					<div
-						className="fixed inset-0 bg-black/30 z-20"
-						onClick={() => setMobileInspectorOpen(false)}
-					/>
-					<aside className="fixed inset-y-0 right-0 w-80 z-30 bg-white dark:bg-bg-dark border-l border-slate-200 dark:border-slate-800 flex flex-col overflow-y-auto">
-						<div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
-							<span className="text-sm font-bold">
-								{inspectorMode === "trash"
-									? "垃圾桶"
-									: inspectorMode === "tasks"
-										? "任务"
-										: "工作区"}
-							</span>
-							<button
-								className="p-1 text-slate-400"
-								onClick={() => setMobileInspectorOpen(false)}
-								type="button"
-							>
-								<MaterialIcon name="close" />
-							</button>
-						</div>
-						{InspectorPane_}
-					</aside>
-				</>
+			{/* Mobile Inspector (Tasks / Trash) */}
+			{isMobile && mobileInspectorOpen && inspectorMode !== "preview" ? (
+				<aside className="fixed inset-0 z-30 flex flex-col overflow-hidden bg-white dark:bg-bg-dark animate-fade-in">
+					<div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-bg-dark">
+						<span className="text-sm font-bold">
+							{inspectorMode === "trash" ? "垃圾桶" : "任务"}
+						</span>
+						<button
+							className="rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+							onClick={() => setMobileInspectorOpen(false)}
+							type="button"
+						>
+							<MaterialIcon name="close" />
+						</button>
+					</div>
+					<div className="flex-1 overflow-y-auto">{InspectorPane_}</div>
+				</aside>
+			) : null}
+
+			{/* Mobile Bottom Sheet Preview */}
+			{isMobile &&
+			inspectorMode === "preview" &&
+			preview &&
+			mobileInspectorOpen ? (
+				<MobilePreviewSheet
+					preview={preview}
+					isOpen={true}
+					onClose={() => setMobileInspectorOpen(false)}
+					onImagePreview={setFullScreenImage}
+					onDownload={() => {
+						openBatchDownloadDialog([
+							{
+								...preview,
+								isDir: preview.kind === "directory",
+								extension: "",
+							} as FileEntry,
+						]);
+					}}
+					onRename={() => {
+						openRenameDialog({
+							...preview,
+							isDir: preview.kind === "directory",
+							extension: "",
+						} as FileEntry);
+					}}
+					onMove={() => {
+						openMoveCopyDialog("move", [
+							{
+								...preview,
+								isDir: preview.kind === "directory",
+								extension: "",
+							} as FileEntry,
+						]);
+					}}
+					onCopy={() => {
+						openMoveCopyDialog("copy", [
+							{
+								...preview,
+								isDir: preview.kind === "directory",
+								extension: "",
+							} as FileEntry,
+						]);
+					}}
+					onDelete={() => {
+						openDeleteDialog([
+							{
+								...preview,
+								isDir: preview.kind === "directory",
+								extension: "",
+							} as FileEntry,
+						]);
+					}}
+				/>
+			) : null}
+
+			{/* Mobile FAB */}
+			{isMobile ? (
+				<MobileFAB
+					onCreateFolder={openCreateFolderDialog}
+					onUploadClick={() => fileInputRef.current?.click()}
+				/>
 			) : null}
 
 			{/* Fullscreen Image Preview */}
@@ -1058,9 +1294,43 @@ export function App() {
 			) : null}
 
 			{/* ─── Dialog ─── */}
-			{dialog ? (
-				<OperationDialogView
+				{dialog ? (
+					<OperationDialogView
 					dialog={dialog}
+					directoryTree={
+						dialog.kind === "move" || dialog.kind === "copy"
+							? {
+									mount:
+										mounts.find(
+											(item) =>
+												item.id ===
+												getSingleMountId(dialog.entries),
+										) ?? null,
+									treeCache,
+									treeCacheKeySuffix: showHidden ? "1" : "0",
+									expandedPaths: dialogExpandedPaths,
+									onSelect: (path) => {
+										setDialogExpandedPaths(pathLineage(path));
+										setDialog((c) => {
+											if (
+												!c ||
+												(c.kind !== "move" &&
+													c.kind !== "copy")
+											) {
+												return c;
+											}
+											return {
+												...c,
+												targetDir: path,
+												error: "",
+											};
+										});
+									},
+									onToggle: (path) =>
+										void handleDialogTreeToggle(path),
+								}
+							: undefined
+					}
 					onChange={(value) => {
 						setDialog((c) => {
 							if (!c) return c;
@@ -1075,12 +1345,77 @@ export function App() {
 							return c;
 						});
 					}}
-					onClose={() => {
-						if (!dialog.submitting) setDialog(null);
-					}}
-					onSubmit={() => void submitDialog()}
-				/>
-			) : null}
-		</div>
-	);
+						onClose={() => {
+							if (!dialog.submitting) setDialog(null);
+						}}
+						onSubmit={() => void submitDialog()}
+					/>
+				) : null}
+				{taskDeleteDialog ? (
+					<TaskDeleteDialog
+						error={taskDeleteDialog.error}
+						onClose={() => {
+							if (!taskDeleteDialog.submitting)
+								setTaskDeleteDialog(null);
+						}}
+						onSubmit={() => void submitTaskDeleteDialog()}
+						submitting={taskDeleteDialog.submitting}
+						task={taskDeleteDialog.task}
+					/>
+				) : null}
+			</div>
+		);
+}
+
+function pathLineage(path: string) {
+	const normalized = normalizeDirectory(path) || "/";
+	if (normalized === "/") {
+		return ["/"];
+	}
+	const lineage = ["/"];
+	let cursor = "";
+	for (const part of normalized.split("/").filter(Boolean)) {
+		cursor += `/${part}`;
+		lineage.push(cursor);
+	}
+	return lineage;
+}
+
+function isLocalTaskId(taskId: string) {
+	return taskId.startsWith("local-");
+}
+
+function buildLocalUploadTask(files: File[]): TransferTask {
+	const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
+	const now = Math.floor(Date.now() / 1000);
+	return {
+		id: `local-upload-${Date.now()}`,
+		kind: "upload",
+		status: "running",
+		detail:
+			files.length === 1
+				? `Uploading ${files[0]?.name ?? "file"}`
+				: `Uploading ${files.length} files`,
+		items: files.map((file) => ({
+			name: file.name,
+			path: file.name,
+			size: file.size,
+			isDir: false,
+		})),
+		totalBytes,
+		completedBytes: 0,
+		createdAt: now,
+		updatedAt: now,
+	};
+}
+
+function taskPrimaryLabel(task: TransferTask) {
+	const items = task.items ?? [];
+	if (items.length === 0) {
+		return task.kind === "upload" ? "Upload Task" : "Download Task";
+	}
+	if (items.length === 1) {
+		return items[0].name;
+	}
+	return `${items[0].name} +${items.length - 1}`;
 }

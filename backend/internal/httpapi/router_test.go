@@ -287,6 +287,109 @@ func TestTrashLifecycleAndTaskList(t *testing.T) {
 	}
 }
 
+func TestTaskDownloadUsesArchiveFilename(t *testing.T) {
+	root := t.TempDir()
+	store := indexer.NewStore(t.TempDir())
+	if err := store.Init(); err != nil {
+		t.Fatal(err)
+	}
+	artifact := filepath.Join(store.TasksDir(), "task-1-custom archive.zip")
+	if err := os.MkdirAll(filepath.Dir(artifact), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(artifact, []byte("zip"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.PutTask(indexer.TaskRecord{
+		ID:          "task-1",
+		Kind:        "download",
+		Status:      "success",
+		Detail:      "Archive ready",
+		DownloadURL: "/api/tasks/task-1/download",
+		Artifact:    artifact,
+		CreatedAt:   1,
+		UpdatedAt:   2,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := newHandlerWithStore(root, store)
+	cookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	rec := authedRequest(handler, cookie, http.MethodGet, "/api/tasks/task-1/download", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	contentDisposition := rec.Header().Get("Content-Disposition")
+	if !strings.Contains(contentDisposition, `filename="custom archive.zip"`) {
+		t.Fatalf("expected download filename in Content-Disposition, got %q", contentDisposition)
+	}
+}
+
+func TestTaskDeleteRemovesCompletedTaskAndArtifact(t *testing.T) {
+	root := t.TempDir()
+	store := indexer.NewStore(t.TempDir())
+	if err := store.Init(); err != nil {
+		t.Fatal(err)
+	}
+	artifact := filepath.Join(store.TasksDir(), "task-2-finished.zip")
+	if err := os.WriteFile(artifact, []byte("zip"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.PutTask(indexer.TaskRecord{
+		ID:          "task-2",
+		Kind:        "download",
+		Status:      "success",
+		Detail:      "Archive ready",
+		DownloadURL: "/api/tasks/task-2/download",
+		Artifact:    artifact,
+		CreatedAt:   1,
+		UpdatedAt:   2,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := newHandlerWithStore(root, store)
+	cookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	rec := authedRequest(handler, cookie, http.MethodDelete, "/api/tasks/task-2", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if _, err := store.GetTask("task-2"); !os.IsNotExist(err) {
+		t.Fatalf("expected task metadata removed, got %v", err)
+	}
+	if _, err := os.Stat(artifact); !os.IsNotExist(err) {
+		t.Fatalf("expected artifact removed, got %v", err)
+	}
+}
+
+func TestTaskDeleteRejectsActiveTask(t *testing.T) {
+	root := t.TempDir()
+	store := indexer.NewStore(t.TempDir())
+	if err := store.Init(); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.PutTask(indexer.TaskRecord{
+		ID:        "task-active",
+		Kind:      "upload",
+		Status:    "running",
+		Detail:    "Uploading",
+		CreatedAt: 1,
+		UpdatedAt: 2,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := newHandlerWithStore(root, store)
+	cookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	rec := authedRequest(handler, cookie, http.MethodDelete, "/api/tasks/task-active", nil)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
 func newTestHandler(t *testing.T, root string) http.Handler {
 	t.Helper()
 	store := indexer.NewStore(t.TempDir())

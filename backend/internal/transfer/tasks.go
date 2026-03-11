@@ -13,14 +13,19 @@ import (
 	"pan-webclient/backend/internal/indexer"
 )
 
+type TaskItem = indexer.TaskItem
+
 type Task struct {
-	ID          string `json:"id"`
-	Kind        string `json:"kind"`
-	Status      string `json:"status"`
-	Detail      string `json:"detail"`
-	DownloadURL string `json:"downloadUrl,omitempty"`
-	CreatedAt   int64  `json:"createdAt"`
-	UpdatedAt   int64  `json:"updatedAt"`
+	ID             string     `json:"id"`
+	Kind           string     `json:"kind"`
+	Status         string     `json:"status"`
+	Detail         string     `json:"detail"`
+	Items          []TaskItem `json:"items,omitempty"`
+	TotalBytes     int64      `json:"totalBytes,omitempty"`
+	CompletedBytes int64      `json:"completedBytes,omitempty"`
+	DownloadURL    string     `json:"downloadUrl,omitempty"`
+	CreatedAt      int64      `json:"createdAt"`
+	UpdatedAt      int64      `json:"updatedAt"`
 }
 
 type Manager struct {
@@ -33,14 +38,17 @@ func NewManager(store *indexer.Store) *Manager {
 
 func (m *Manager) Put(task Task, artifactPath string) error {
 	return m.store.PutTask(indexer.TaskRecord{
-		ID:          task.ID,
-		Kind:        task.Kind,
-		Status:      task.Status,
-		Detail:      task.Detail,
-		DownloadURL: task.DownloadURL,
-		Artifact:    artifactPath,
-		CreatedAt:   task.CreatedAt,
-		UpdatedAt:   task.UpdatedAt,
+		ID:             task.ID,
+		Kind:           task.Kind,
+		Status:         task.Status,
+		Detail:         task.Detail,
+		Items:          task.Items,
+		TotalBytes:     task.TotalBytes,
+		CompletedBytes: task.CompletedBytes,
+		DownloadURL:    task.DownloadURL,
+		Artifact:       artifactPath,
+		CreatedAt:      task.CreatedAt,
+		UpdatedAt:      task.UpdatedAt,
 	})
 }
 
@@ -50,13 +58,16 @@ func (m *Manager) Get(id string) (Task, string, error) {
 		return Task{}, "", err
 	}
 	task := Task{
-		ID:          record.ID,
-		Kind:        record.Kind,
-		Status:      record.Status,
-		Detail:      record.Detail,
-		DownloadURL: record.DownloadURL,
-		CreatedAt:   record.CreatedAt,
-		UpdatedAt:   record.UpdatedAt,
+		ID:             record.ID,
+		Kind:           record.Kind,
+		Status:         record.Status,
+		Detail:         record.Detail,
+		Items:          record.Items,
+		TotalBytes:     record.TotalBytes,
+		CompletedBytes: record.CompletedBytes,
+		DownloadURL:    record.DownloadURL,
+		CreatedAt:      record.CreatedAt,
+		UpdatedAt:      record.UpdatedAt,
 	}
 	return task, record.Artifact, nil
 }
@@ -69,16 +80,35 @@ func (m *Manager) List(limit int) ([]Task, error) {
 	items := make([]Task, 0, len(records))
 	for _, record := range records {
 		items = append(items, Task{
-			ID:          record.ID,
-			Kind:        record.Kind,
-			Status:      record.Status,
-			Detail:      record.Detail,
-			DownloadURL: record.DownloadURL,
-			CreatedAt:   record.CreatedAt,
-			UpdatedAt:   record.UpdatedAt,
+			ID:             record.ID,
+			Kind:           record.Kind,
+			Status:         record.Status,
+			Detail:         record.Detail,
+			Items:          record.Items,
+			TotalBytes:     record.TotalBytes,
+			CompletedBytes: record.CompletedBytes,
+			DownloadURL:    record.DownloadURL,
+			CreatedAt:      record.CreatedAt,
+			UpdatedAt:      record.UpdatedAt,
 		})
 	}
 	return items, nil
+}
+
+func (m *Manager) Delete(id string) error {
+	task, artifact, err := m.Get(id)
+	if err != nil {
+		return err
+	}
+	if task.Status == "pending" || task.Status == "running" {
+		return fmt.Errorf("task is still active")
+	}
+	if artifact != "" {
+		if err := os.Remove(artifact); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	return m.store.DeleteTask(id)
 }
 
 func NewTask(kind, detail string) Task {
@@ -94,7 +124,13 @@ func NewTask(kind, detail string) Task {
 }
 
 func (m *Manager) StartZipTask(resolver *fsops.MountResolver, mountID string, items []string, archiveName string) (Task, error) {
+	taskItems, totalBytes, err := collectZipTaskItems(resolver, mountID, items)
+	if err != nil {
+		return Task{}, err
+	}
 	task := NewTask("download", "Preparing archive")
+	task.Items = taskItems
+	task.TotalBytes = totalBytes
 	if err := m.Put(task, ""); err != nil {
 		return Task{}, err
 	}
@@ -108,7 +144,19 @@ func (m *Manager) StartZipTask(resolver *fsops.MountResolver, mountID string, it
 		_ = os.MkdirAll(tasksDir, 0o755)
 		filename := sanitizeArchiveName(archiveName)
 		artifactPath := filepath.Join(tasksDir, task.ID+"-"+filename)
-		if err := buildZip(resolver, mountID, items, artifactPath); err != nil {
+		lastPersist := time.Now()
+		persistProgress := func(force bool) {
+			if !force && time.Since(lastPersist) < 250*time.Millisecond {
+				return
+			}
+			task.UpdatedAt = time.Now().Unix()
+			_ = m.Put(task, artifactPath)
+			lastPersist = time.Now()
+		}
+		if err := buildZip(resolver, mountID, items, artifactPath, func(delta int64) {
+			task.CompletedBytes += delta
+			persistProgress(false)
+		}); err != nil {
 			task.Status = "failed"
 			task.Detail = err.Error()
 			task.UpdatedAt = time.Now().Unix()
@@ -117,6 +165,7 @@ func (m *Manager) StartZipTask(resolver *fsops.MountResolver, mountID string, it
 		}
 		task.Status = "success"
 		task.Detail = "Archive ready"
+		task.CompletedBytes = task.TotalBytes
 		task.DownloadURL = "/api/tasks/" + task.ID + "/download"
 		task.UpdatedAt = time.Now().Unix()
 		_ = m.Put(task, artifactPath)
@@ -124,7 +173,7 @@ func (m *Manager) StartZipTask(resolver *fsops.MountResolver, mountID string, it
 	return task, nil
 }
 
-func buildZip(resolver *fsops.MountResolver, mountID string, items []string, artifactPath string) error {
+func buildZip(resolver *fsops.MountResolver, mountID string, items []string, artifactPath string, onProgress func(int64)) error {
 	dst, err := os.Create(artifactPath)
 	if err != nil {
 		return err
@@ -152,20 +201,20 @@ func buildZip(resolver *fsops.MountResolver, mountID string, items []string, art
 				if err != nil {
 					return err
 				}
-				return addFileToZip(zw, path, rel)
+				return addFileToZip(zw, path, rel, onProgress)
 			}); err != nil {
 				return err
 			}
 			continue
 		}
-		if err := addFileToZip(zw, abs, filepath.Base(abs)); err != nil {
+		if err := addFileToZip(zw, abs, filepath.Base(abs), onProgress); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func addFileToZip(zw *zip.Writer, absPath, archivePath string) error {
+func addFileToZip(zw *zip.Writer, absPath, archivePath string, onProgress func(int64)) error {
 	file, err := os.Open(absPath)
 	if err != nil {
 		return err
@@ -176,8 +225,70 @@ func addFileToZip(zw *zip.Writer, absPath, archivePath string) error {
 	if err != nil {
 		return err
 	}
-	_, err = io.Copy(writer, file)
+	dst := io.Writer(writer)
+	if onProgress != nil {
+		dst = &progressWriter{writer: writer, onProgress: onProgress}
+	}
+	_, err = io.Copy(dst, file)
 	return err
+}
+
+type progressWriter struct {
+	writer     io.Writer
+	onProgress func(int64)
+}
+
+func (w *progressWriter) Write(p []byte) (int, error) {
+	n, err := w.writer.Write(p)
+	if n > 0 && w.onProgress != nil {
+		w.onProgress(int64(n))
+	}
+	return n, err
+}
+
+func collectZipTaskItems(resolver *fsops.MountResolver, mountID string, items []string) ([]TaskItem, int64, error) {
+	taskItems := make([]TaskItem, 0, len(items))
+	var totalBytes int64
+	for _, item := range items {
+		_, abs, clean, err := resolver.Resolve(mountID, item)
+		if err != nil {
+			return nil, 0, err
+		}
+		info, err := os.Stat(abs)
+		if err != nil {
+			return nil, 0, err
+		}
+		size := info.Size()
+		if info.IsDir() {
+			size, err = directoryFileBytes(abs)
+			if err != nil {
+				return nil, 0, err
+			}
+		}
+		taskItems = append(taskItems, TaskItem{
+			Name:  filepath.Base(abs),
+			Path:  clean,
+			Size:  size,
+			IsDir: info.IsDir(),
+		})
+		totalBytes += size
+	}
+	return taskItems, totalBytes, nil
+}
+
+func directoryFileBytes(root string) (int64, error) {
+	var total int64
+	err := filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if info.IsDir() {
+			return nil
+		}
+		total += info.Size()
+		return nil
+	})
+	return total, err
 }
 
 func sanitizeArchiveName(name string) string {

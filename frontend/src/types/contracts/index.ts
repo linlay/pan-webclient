@@ -59,9 +59,19 @@ export interface TransferTask {
   kind: "upload" | "download";
   status: "pending" | "running" | "success" | "failed";
   detail: string;
+  items?: TransferTaskItem[];
+  totalBytes?: number;
+  completedBytes?: number;
   downloadUrl?: string;
   createdAt: number;
   updatedAt: number;
+}
+
+export interface TransferTaskItem {
+  name: string;
+  path: string;
+  size: number;
+  isDir: boolean;
 }
 
 export interface TrashItem {

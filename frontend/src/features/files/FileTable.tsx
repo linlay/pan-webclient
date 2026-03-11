@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { FileEntry } from "../../types/contracts/index";
 import {
 	IconCopy,
@@ -10,11 +11,15 @@ import {
 import { MenuButton } from "../shared/MenuButton";
 
 export function FileTable(props: {
+	isMobile?: boolean;
 	entries: FileEntry[];
+	selectionMode?: boolean;
 	selectedEntries: FileEntry[];
 	showPath: boolean;
 	viewMode: "grid" | "list";
 	onActivate: (entry: FileEntry) => void;
+	onSelectionModeChange?: (next: boolean) => void;
+	onSetSelection?: (entries: FileEntry[]) => void;
 	onToggleSelection: (entry: FileEntry) => void;
 	onRename: (entry: FileEntry) => void;
 	onMove: (entry: FileEntry) => void;
@@ -47,8 +52,29 @@ export function FileTable(props: {
 	return <ListView {...props} />;
 }
 
+const MOBILE_LONG_PRESS_MS = 380;
+
+type ListViewProps = {
+	isMobile?: boolean;
+	entries: FileEntry[];
+	selectionMode?: boolean;
+	selectedEntries: FileEntry[];
+	showPath: boolean;
+	onActivate: (entry: FileEntry) => void;
+	onSelectionModeChange?: (next: boolean) => void;
+	onSetSelection?: (entries: FileEntry[]) => void;
+	onToggleSelection: (entry: FileEntry) => void;
+	onRename: (entry: FileEntry) => void;
+	onMove: (entry: FileEntry) => void;
+	onCopy: (entry: FileEntry) => void;
+	onDelete: (entry: FileEntry) => void;
+	onDownload: (entry: FileEntry) => void;
+	onToggleAllSelection?: (selectAll: boolean) => void;
+};
+
 // ─── Grid View (based on pc_explorer_view prototype) ───
 function GridView(props: {
+	isMobile?: boolean;
 	entries: FileEntry[];
 	selectedEntries: FileEntry[];
 	onActivate: (entry: FileEntry) => void;
@@ -100,19 +126,11 @@ function GridView(props: {
 }
 
 // ─── List View (based on professional_remote_file_manager_pc prototype) ───
-function ListView(props: {
-	entries: FileEntry[];
-	selectedEntries: FileEntry[];
-	showPath: boolean;
-	onActivate: (entry: FileEntry) => void;
-	onToggleSelection: (entry: FileEntry) => void;
-	onRename: (entry: FileEntry) => void;
-	onMove: (entry: FileEntry) => void;
-	onCopy: (entry: FileEntry) => void;
-	onDelete: (entry: FileEntry) => void;
-	onDownload: (entry: FileEntry) => void;
-	onToggleAllSelection?: (selectAll: boolean) => void;
-}) {
+function ListView(props: ListViewProps) {
+	if (props.isMobile) {
+		return <MobileListView {...props} />;
+	}
+
 	const allSelected =
 		props.entries.length > 0 &&
 		props.entries.every((entry) =>
@@ -141,9 +159,13 @@ function ListView(props: {
 							</div>
 						</th>
 						<th className="px-4 py-3">Name</th>
-						<th className="px-4 py-3">Date Modified</th>
-						<th className="px-4 py-3">Type</th>
-						<th className="px-4 py-3 text-right">Size</th>
+						<th className="px-4 py-3 hidden md:table-cell">
+							Date Modified
+						</th>
+						<th className="px-4 py-3 hidden lg:table-cell">Type</th>
+						<th className="px-4 py-3 text-right hidden sm:table-cell">
+							Size
+						</th>
 						<th className="px-4 py-3 w-10"></th>
 					</tr>
 				</thead>
@@ -190,25 +212,41 @@ function ListView(props: {
 										>
 											{icon}
 										</span>
-										<div className="min-w-0">
+										<div className="min-w-0 flex-1">
 											<span className="block truncate">
 												{entry.name}
 											</span>
+											{/* Mobile specific merged details row */}
+											<div className="md:hidden flex items-center gap-2 mt-0.5 text-[11px] text-slate-400 font-normal">
+												<span>
+													{formatDateTime(
+														entry.modTime,
+													)}
+												</span>
+												<span>·</span>
+												<span>
+													{entry.isDir
+														? "--"
+														: formatBytes(
+																entry.size,
+															)}
+												</span>
+											</div>
 											{props.showPath ? (
-												<span className="block text-xs text-slate-400 truncate">
+												<span className="block text-xs text-slate-400 truncate mt-0.5">
 													{entry.path}
 												</span>
 											) : null}
 										</div>
 									</div>
 								</td>
-								<td className="px-4 py-3 text-slate-500">
+								<td className="px-4 py-3 text-slate-500 hidden md:table-cell">
 									{formatDateTime(entry.modTime)}
 								</td>
-								<td className="px-4 py-3 text-slate-500">
+								<td className="px-4 py-3 text-slate-500 hidden lg:table-cell">
 									{describeType(entry)}
 								</td>
-								<td className="px-4 py-3 text-right text-slate-500">
+								<td className="px-4 py-3 text-right text-slate-500 hidden sm:table-cell">
 									{entry.isDir
 										? "--"
 										: formatBytes(entry.size)}
@@ -220,25 +258,25 @@ function ListView(props: {
 									<MenuButton
 										actions={[
 											{
-												label: "重命名",
+												label: "Rename",
 												icon: <IconEdit size={14} />,
 												onSelect: () =>
 													props.onRename(entry),
 											},
 											{
-												label: "移动",
+												label: "Move",
 												icon: <IconMove size={14} />,
 												onSelect: () =>
 													props.onMove(entry),
 											},
 											{
-												label: "复制",
+												label: "Copy",
 												icon: <IconCopy size={14} />,
 												onSelect: () =>
 													props.onCopy(entry),
 											},
 											{
-												label: "下载",
+												label: "Download",
 												icon: (
 													<IconDownload size={14} />
 												),
@@ -246,7 +284,7 @@ function ListView(props: {
 													props.onDownload(entry),
 											},
 											{
-												label: "删除",
+												label: "Delete",
 												icon: <IconTrash size={14} />,
 												danger: true,
 												onSelect: () =>
@@ -273,11 +311,204 @@ function ListView(props: {
 	);
 }
 
+function MobileListView(props: ListViewProps) {
+	const longPressTimerRef = useRef<number | null>(null);
+	const suppressActivateKeyRef = useRef<string | null>(null);
+	const selectionMode = Boolean(props.selectionMode);
+
+	useEffect(
+		() => () => {
+			if (longPressTimerRef.current !== null) {
+				window.clearTimeout(longPressTimerRef.current);
+			}
+		},
+		[],
+	);
+
+	function clearLongPressTimer() {
+		if (longPressTimerRef.current !== null) {
+			window.clearTimeout(longPressTimerRef.current);
+			longPressTimerRef.current = null;
+		}
+	}
+
+	function setSelectionModeEnabled(next: boolean) {
+		props.onSetSelection?.([]);
+		if (!next) {
+			props.onSelectionModeChange?.(false);
+			return;
+		}
+		props.onSelectionModeChange?.(true);
+	}
+
+	function startLongPress(entry: FileEntry) {
+		if (selectionMode) return;
+		clearLongPressTimer();
+		longPressTimerRef.current = window.setTimeout(() => {
+			const key = entryKey(entry);
+			suppressActivateKeyRef.current = key;
+			props.onSelectionModeChange?.(true);
+			props.onSetSelection?.([entry]);
+			longPressTimerRef.current = null;
+		}, MOBILE_LONG_PRESS_MS);
+	}
+
+	function handleActivate(entry: FileEntry) {
+		const key = entryKey(entry);
+		if (suppressActivateKeyRef.current === key) {
+			suppressActivateKeyRef.current = null;
+			return;
+		}
+		props.onActivate(entry);
+	}
+
+	return (
+		<div className="space-y-3">
+			<div className="flex items-center justify-between px-1">
+				<span className="text-xs font-medium text-slate-400">
+					{selectionMode && props.selectedEntries.length > 0
+						? `已选 ${props.selectedEntries.length} 项`
+						: `${props.entries.length} 项`}
+				</span>
+				<button
+					className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+						selectionMode
+							? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
+							: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-200"
+					}`}
+					onClick={() => setSelectionModeEnabled(!selectionMode)}
+					type="button"
+				>
+					{selectionMode ? "完成" : "选择"}
+				</button>
+			</div>
+				<div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+					{props.entries.map((entry, index) => {
+						const selected = isSelected(entry, props.selectedEntries);
+						const { icon, textColor } = getFileVisual(entry);
+
+						return (
+							<div
+								className={`flex items-center gap-3 px-4 py-3 transition-colors ${
+									selectionMode && selected ? "bg-primary/5" : ""
+								} ${index > 0 ? "border-t border-slate-100 dark:border-slate-800" : ""}`}
+								key={entryKey(entry)}
+								onClick={() => handleActivate(entry)}
+								onKeyDown={(e) => {
+								if (e.key === "Enter") handleActivate(entry);
+							}}
+							onTouchCancel={clearLongPressTimer}
+							onTouchEnd={clearLongPressTimer}
+							onTouchMove={clearLongPressTimer}
+							onTouchStart={() => startLongPress(entry)}
+							role="button"
+							tabIndex={0}
+							>
+								{selectionMode ? (
+									<div
+										className="flex items-center self-stretch"
+									onClick={(e) => e.stopPropagation()}
+								>
+									<input
+										checked={selected}
+										className="rounded border-slate-300 text-primary focus:ring-primary"
+										onChange={() =>
+											props.onToggleSelection(entry)
+										}
+										onClick={(e) => e.stopPropagation()}
+										type="checkbox"
+									/>
+								</div>
+							) : null}
+							<div className="flex min-w-0 flex-1 items-center gap-3">
+								<span
+									className={`material-symbols-outlined text-xl ${textColor} ${entry.isDir ? "filled-icon" : ""}`}
+								>
+									{icon}
+								</span>
+								<div className="min-w-0 flex-1">
+									<div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+										{entry.name}
+									</div>
+									<div className="mt-0.5 flex items-center gap-2 text-[11px] font-normal text-slate-400">
+										<span>
+											{formatDateTime(entry.modTime)}
+										</span>
+										<span>·</span>
+										<span>
+											{entry.isDir
+												? "--"
+												: formatBytes(entry.size)}
+										</span>
+									</div>
+									{props.showPath ? (
+										<div className="mt-0.5 truncate text-[11px] text-slate-400">
+											{entry.path}
+										</div>
+									) : null}
+								</div>
+							</div>
+							<div onClick={(e) => e.stopPropagation()}>
+								<MenuButton
+									actions={[
+										{
+											label: "Rename",
+											icon: <IconEdit size={14} />,
+											onSelect: () =>
+												props.onRename(entry),
+										},
+										{
+											label: "Move",
+											icon: <IconMove size={14} />,
+											onSelect: () => props.onMove(entry),
+										},
+										{
+											label: "Copy",
+											icon: <IconCopy size={14} />,
+											onSelect: () => props.onCopy(entry),
+										},
+										{
+											label: "Download",
+											icon: <IconDownload size={14} />,
+											onSelect: () =>
+												props.onDownload(entry),
+										},
+										{
+											label: "Delete",
+											icon: <IconTrash size={14} />,
+											danger: true,
+											onSelect: () =>
+												props.onDelete(entry),
+										},
+									]}
+									align="right"
+									buttonClassName="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+									buttonContent={
+										<MaterialIcon
+											name="more_vert"
+											className="text-lg"
+										/>
+									}
+									buttonLabel={`${entry.name} 操作`}
+								/>
+							</div>
+							</div>
+						);
+					})}
+				</div>
+		</div>
+	);
+}
+
 // ─── Helpers ───
 function isSelected(entry: FileEntry, selectedEntries: FileEntry[]) {
 	return selectedEntries.some(
 		(item) => item.mountId === entry.mountId && item.path === entry.path,
 	);
+}
+
+function entryKey(entry: FileEntry) {
+	return `${entry.mountId}:${entry.path}`;
 }
 
 function getFileVisual(entry: FileEntry) {

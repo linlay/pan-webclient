@@ -3,6 +3,7 @@ import { MaterialIcon } from "../shared/Icons";
 
 export function TrashPanel(props: {
 	items: TrashItem[];
+	isMobile: boolean;
 	onRestore: (id: string) => void;
 	onDelete: (id: string) => void;
 	onRefresh: () => void;
@@ -17,22 +18,24 @@ export function TrashPanel(props: {
 					</p>
 					<h3 className="text-lg font-bold">垃圾桶</h3>
 				</div>
-				<div className="flex items-center gap-2">
-					<button
-						className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-400"
-						onClick={props.onRefresh}
-						type="button"
-					>
-						<MaterialIcon name="refresh" />
-					</button>
-					<button
-						className="px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-						onClick={props.onBack}
-						type="button"
-					>
-						返回
-					</button>
-				</div>
+				{!props.isMobile ? (
+					<div className="flex items-center gap-2">
+						<button
+							className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-400"
+							onClick={props.onRefresh}
+							type="button"
+						>
+							<MaterialIcon name="refresh" />
+						</button>
+						<button
+							className="px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+							onClick={props.onBack}
+							type="button"
+						>
+							返回
+						</button>
+					</div>
+				) : null}
 			</div>
 
 			<div className="space-y-2">
