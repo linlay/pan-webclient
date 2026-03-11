@@ -1,74 +1,53 @@
 # CLAUDE.md
 
 ## 1. 项目概览
-`pan-webclient` 是一个全栈本地网盘项目，后端基于 Go 1.26，前端基于 React + Vite。系统面向单用户私有部署，核心目标是把宿主机白名单目录以安全的 Web 方式浏览和管理。
+`pan-webclient` 是一个全栈单用户私有网盘项目。
 
-## 2. 技术栈
-- Backend: Go 1.26, `net/http`, embedded JSON-style `application.yml`
-- Frontend: React 19, TypeScript, Vite 7
-- Storage: 宿主机文件系统 + `./data` 运行时目录
-- Auth: Web Cookie session + externally issued App Bearer token
-- Build: Makefile, Docker multi-stage build
+- Backend: Go 1.26, `net/http`
+- Frontend: React 18, TypeScript, Webpack
+- Gateway: Nginx
+- Storage: 宿主机文件系统 + `./data`
+- Auth: Web Cookie Session + externally issued App Bearer token
 
-## 3. 架构设计
-- `backend` 提供鉴权、文件系统访问、搜索、预览、编辑、任务和垃圾桶 API。
-- `frontend` 提供桌面和手机 H5 共用的文件管理界面，通过 HTTP API 调用后端。
-- `packages/contracts` 放前后端共享 DTO 与错误码约定。
-- 文件系统是真实数据源；搜索直接遍历当前挂载目录，不做二次索引缓存。
-- 任务与垃圾桶元数据以 JSON 文件形式保存在 `./data/tasks` 与 `./data/trash`。
+## 2. 当前架构
+- Nginx 是唯一浏览器入口。
+- 开发态拓扑：`browser -> nginx -> frontend-dev + api`
+- 生产态拓扑：`browser -> frontend-nginx -> api`
+- Go 后端只处理 `/api/*`，不托管前端静态资源，不负责 `/pan/*`、`/apppan/*` 路由。
+- 外部兼容路径 `/pan/api/*` 和 `/apppan/api/*` 由 Nginx 重写到内部 `/api/*`。
 
-## 4. 目录结构
+## 3. 目录结构
 - `backend/cmd/server`: Go 服务入口
 - `backend/internal/config`: 默认配置与加载器
-- `backend/internal/auth`: Web session 与 App JWT 验签
-- `backend/internal/mounts`: 挂载根目录模型
-- `backend/internal/fsops`: 路径解析、安全校验与文件操作
-- `backend/internal/indexer`: 磁盘搜索、任务与垃圾桶元数据存储
-- `backend/internal/preview`: 预览类型判定
+- `backend/internal/auth`: Web Session 与 App JWT 验签
+- `backend/internal/httpapi`: 纯 API 路由
+- `backend/internal/fsops`: 挂载解析、安全校验、文件操作
+- `backend/internal/indexer`: 搜索、任务、垃圾桶元数据
 - `backend/internal/editor`: 文本与 Markdown 编辑
+- `backend/internal/preview`: 预览元数据构建
 - `backend/internal/transfer`: 上传、批量下载任务
-- `backend/internal/httpapi`: HTTP 路由与中间件
 - `frontend/src`: React 应用
-- `packages/contracts`: 共享接口协议
+- `deploy/nginx`: 开发态 / 生产态 Nginx 配置
+- `docker-compose.yml`: 本地开发与生产模拟编排
 
-## 5. 数据结构
-- `MountRoot`: 可挂载根目录定义
-- `FileEntry`: 文件列表项，含路径、大小、MIME、修改时间和目录标识
-- `FileTreeNode`: 目录树节点
-- `PreviewMeta`: 预览元数据，含预览类型、流地址和文本内容
-- `EditorDocument`: 在线编辑文档，含内容、版本与语法类型
-- `TransferTask`: 上传/下载任务状态
-- `TrashItem`: 垃圾桶条目
-- `SearchHit`: 搜索结果
-- `ApiError`: API 错误响应
+## 4. 配置原则
+- `.env.example` 是环境变量契约。
+- `backend/internal/config/application.yml` 是后端默认值。
+- 根目录 `./data` 是唯一默认运行时数据目录；`apps/` 是已废弃的历史遗留目录。
+- `configs/` 只存放运行时结构化配置和示例文件，不存真实密钥。
+- `configs/mounts/*.json` 里的挂载路径应写容器内路径。
 
-## 6. API 定义
-- 鉴权：`POST /api/web/session/login`、`POST /api/web/session/logout`、`GET /api/web/session/me`
-- 浏览：`GET /api/mounts`、`GET /api/tree`、`GET /api/files`、`GET /api/search`
-- 文件操作：`POST /api/files/folder`、`POST /api/files/copy`、`POST /api/files/move`、`POST /api/files/rename`、`POST /api/files/delete`
-- 预览与编辑：`GET /api/preview`、`GET /api/files/content`、`PUT /api/files/content`、`GET /api/files/raw`
-- 传输：`POST /api/uploads`、`POST /api/downloads/batch`、`GET /api/tasks`、`GET /api/tasks/:id`、`GET /api/tasks/:id/download`
-- 垃圾桶：`GET /api/trash`、`POST /api/trash/restore`、`POST /api/trash/delete`
+## 5. 开发命令
+- `make dev-up`: 启动开发态 Nginx、Go API、webpack dev server
+- `make dev-logs`: 查看开发态日志
+- `make dev-down`: 停止开发态服务
+- `make prod-sim-up`: 启动前端生产镜像 + Go API 做链路验证
+- `make backend-test`: 运行后端测试
+- `make frontend-test`: 运行前端路由测试
 
-## 7. 开发要点
-- 所有文件路径必须通过挂载解析器验证，禁止路径穿越和越权访问。
-- 默认拒绝符号链接穿透根目录。
-- 编辑器只允许文本类文件，并对大小做阈值限制。
-- 删除采用软删除移动到回收目录，不直接执行不可恢复删除。
-- 前端请求默认带 `credentials: include`，以支持 Web Cookie 鉴权。
-- App 场景不在本项目内登录；宿主 WebView 负责注入 Bearer token，本项目只做 `RS256 JWT` 验签。
-
-## 8. 开发流程
-- 根目录复制 `.env.example` 到 `.env`
-- 复制 `configs/local-public-key.example.pem` 到 `configs/local-public-key.pem`，并替换成真实 RSA 公钥
-- 在 `configs/mounts/` 下创建一个或多个运行时 `.json` 挂载文件
-- `make backend-run` 启动后端
-- `make frontend-install && make frontend-dev` 启动前端开发服务器
-- `make backend-test` 运行后端测试
-- `make frontend-build` 生成静态前端资源，生产环境可由后端直接托管
-
-## 9. 已知约束与注意事项
-- 搜索为实时遍历磁盘，超大挂载目录下响应速度受文件数量影响。
-- 服务重启后未完成任务会标记为失败，不做断点续跑。
-- 分享链接、版本历史和多用户权限不在当前范围内。
-- 后端必须持有 `WEB_SESSION_SECRET` 与管理员 bcrypt hash；App 私钥不在本项目内保存。
+## 6. 关键约束
+- 不要把前端静态托管重新加回 Go。
+- 浏览器端只通过 Nginx 暴露的 `/pan/`、`/apppan/` 访问系统。
+- 后端返回的资源链接使用 canonical `/api/*`；前端负责按当前 UI 基路径转换成外部可访问地址。
+- App 私钥不保存在本仓库；仓库内只允许放公钥示例文件。
+- 运行时若需要访问仓库外目录，必须在容器编排里显式增加 bind mount。

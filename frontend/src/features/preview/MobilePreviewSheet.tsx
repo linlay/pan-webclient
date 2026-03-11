@@ -2,6 +2,7 @@ import React from "react";
 import type { PreviewMeta } from "../../types/contracts";
 import { MaterialIcon } from "../shared/Icons";
 import { rawFileUrl } from "../../api";
+import { resolveExternalUrl } from "../../api/routing";
 
 function previewIconName(preview: PreviewMeta) {
 	switch (preview.kind) {
@@ -116,7 +117,9 @@ export function MobilePreviewSheet(props: MobilePreviewSheetProps) {
 
 	const { preview } = props;
 	const streamUrl =
-		preview.streamUrl ?? rawFileUrl(preview.mountId, preview.path);
+		(preview.streamUrl
+			? resolveExternalUrl(preview.streamUrl)
+			: null) ?? rawFileUrl(preview.mountId, preview.path);
 	const iconInfo = {
 		icon: previewIconName(preview),
 		color: previewBgColor(preview),

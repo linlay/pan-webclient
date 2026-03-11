@@ -4,6 +4,7 @@ import type {
 	PreviewMeta,
 } from "../../types/contracts/index";
 import { rawFileUrl } from "../../api";
+import { resolveExternalUrl } from "../../api/routing";
 import { renderMarkdown } from "../shared/markdown";
 import { MaterialIcon } from "../shared/Icons";
 import { useState } from "react";
@@ -143,8 +144,9 @@ export function PreviewPane(props: {
 
 	// File preview
 	const streamUrl =
-		props.preview.streamUrl ??
-		rawFileUrl(props.preview.mountId, props.preview.path);
+		(props.preview.streamUrl
+			? resolveExternalUrl(props.preview.streamUrl)
+			: null) ?? rawFileUrl(props.preview.mountId, props.preview.path);
 
 	return (
 		<div className="flex flex-col p-6">

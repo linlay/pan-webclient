@@ -6,11 +6,7 @@ configs/*.pem
 configs/mounts/*.json
 !configs/mounts/*.example.json
 node_modules/
-apps/web/dist/
 data/
-apps/api/data/
-apps/api/**/data/
-apps/api/.cache/
 
 .cache/
 

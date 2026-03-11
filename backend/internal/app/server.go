@@ -6,7 +6,8 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
+	"os/exec"
+	"strings"
 	"time"
 
 	"pan-webclient/backend/internal/auth"
@@ -22,7 +23,13 @@ type Server struct {
 	httpServer *http.Server
 }
 
+var lookPath = exec.LookPath
+
 func New(cfg config.Config) (*Server, error) {
+	if err := ensureAuthDependencies(cfg); err != nil {
+		return nil, err
+	}
+
 	mountList := mounts.FromConfig(cfg.Mounts)
 	resolver := fsops.NewMountResolver(mountList)
 	store := indexer.NewStore(cfg.DataDir)
@@ -45,7 +52,7 @@ func New(cfg config.Config) (*Server, error) {
 	})
 
 	server := &http.Server{
-		Addr:              ":" + cfg.PublicPort,
+		Addr:              ":" + cfg.APIPort,
 		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
@@ -53,6 +60,16 @@ func New(cfg config.Config) (*Server, error) {
 	return &Server{
 		httpServer: server,
 	}, nil
+}
+
+func ensureAuthDependencies(cfg config.Config) error {
+	if strings.TrimSpace(cfg.AdminPasswordHash) == "" {
+		return nil
+	}
+	if _, err := lookPath("htpasswd"); err != nil {
+		return fmt.Errorf("web login requires htpasswd in PATH: %w", err)
+	}
+	return nil
 }
 
 func (s *Server) Run() error {
@@ -73,33 +90,8 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 func EnsureRuntimeDirs(cfg config.Config) error {
 	store := indexer.NewStore(cfg.DataDir)
-	if err := migrateLegacyDir(filepath.Join("apps", "api", "data", "trash"), filepath.Join(cfg.DataDir, "trash")); err != nil {
-		return err
-	}
-	if err := migrateLegacyDir(filepath.Join("apps", "api", "data", "tasks"), filepath.Join(cfg.DataDir, "tasks")); err != nil {
-		return err
-	}
 	if err := os.MkdirAll(store.TrashItemsDir(), 0o755); err != nil {
 		return err
 	}
 	return os.MkdirAll(store.TasksDir(), 0o755)
-}
-
-func migrateLegacyDir(oldPath, newPath string) error {
-	_, oldErr := os.Stat(oldPath)
-	if oldErr != nil {
-		if os.IsNotExist(oldErr) {
-			return nil
-		}
-		return oldErr
-	}
-	if _, err := os.Stat(newPath); err == nil {
-		return nil
-	} else if !os.IsNotExist(err) {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(newPath), 0o755); err != nil {
-		return err
-	}
-	return os.Rename(oldPath, newPath)
 }

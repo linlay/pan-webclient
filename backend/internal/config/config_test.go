@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"pan-webclient/backend/internal/auth"
 )
 
 const testBcryptHash = "$2y$10$yuAuDodfV2Ko0nPhw6ogPOr6s1RGApvBz85NMPhL4Set882iEjfdm"
@@ -25,10 +27,10 @@ QwIDAQAB
 -----END PUBLIC KEY-----
 `
 
-func TestLoadDerivesWebOriginFromPublicPort(t *testing.T) {
+func TestLoadUsesExplicitAPIPort(t *testing.T) {
 	clearConfigEnv(t)
 	prepareConfigWorkspace(t)
-	t.Setenv("PUBLIC_PORT", "11946")
+	t.Setenv("API_PORT", "18080")
 	t.Setenv("WEB_SESSION_SECRET", "session-secret")
 	t.Setenv("AUTH_PASSWORD_HASH_BCRYPT", testBcryptHash)
 
@@ -37,19 +39,14 @@ func TestLoadDerivesWebOriginFromPublicPort(t *testing.T) {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if cfg.PublicPort != "11946" {
-		t.Fatalf("PublicPort = %q, want %q", cfg.PublicPort, "11946")
-	}
-	if cfg.WebOrigin != "http://127.0.0.1:11946" {
-		t.Fatalf("WebOrigin = %q, want %q", cfg.WebOrigin, "http://127.0.0.1:11946")
+	if cfg.APIPort != "18080" {
+		t.Fatalf("APIPort = %q, want %q", cfg.APIPort, "18080")
 	}
 }
 
-func TestLoadPreservesExplicitWebOrigin(t *testing.T) {
+func TestLoadUsesDefaultAPIPort(t *testing.T) {
 	clearConfigEnv(t)
 	prepareConfigWorkspace(t)
-	t.Setenv("PUBLIC_PORT", "11946")
-	t.Setenv("WEB_ORIGIN", "http://127.0.0.1:13000")
 	t.Setenv("WEB_SESSION_SECRET", "session-secret")
 	t.Setenv("AUTH_PASSWORD_HASH_BCRYPT", testBcryptHash)
 
@@ -58,14 +55,17 @@ func TestLoadPreservesExplicitWebOrigin(t *testing.T) {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if cfg.WebOrigin != "http://127.0.0.1:13000" {
-		t.Fatalf("WebOrigin = %q, want %q", cfg.WebOrigin, "http://127.0.0.1:13000")
+	if cfg.APIPort != "8080" {
+		t.Fatalf("APIPort = %q, want %q", cfg.APIPort, "8080")
 	}
 }
 
-func TestLoadUsesDefaultPublicPort(t *testing.T) {
+func TestLoadIgnoresLegacyBrowserPortEnvVars(t *testing.T) {
 	clearConfigEnv(t)
 	prepareConfigWorkspace(t)
+	t.Setenv("PUBLIC_PORT", "11946")
+	t.Setenv("DEV_WEB_PORT", "11936")
+	t.Setenv("NGINX_PORT", "11947")
 	t.Setenv("WEB_SESSION_SECRET", "session-secret")
 	t.Setenv("AUTH_PASSWORD_HASH_BCRYPT", testBcryptHash)
 
@@ -74,14 +74,8 @@ func TestLoadUsesDefaultPublicPort(t *testing.T) {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if cfg.PublicPort != "8080" {
-		t.Fatalf("PublicPort = %q, want %q", cfg.PublicPort, "8080")
-	}
-	if cfg.DevWebPort != "" {
-		t.Fatalf("DevWebPort = %q, want empty", cfg.DevWebPort)
-	}
-	if cfg.WebOrigin != "http://127.0.0.1:8080" {
-		t.Fatalf("WebOrigin = %q, want %q", cfg.WebOrigin, "http://127.0.0.1:8080")
+	if cfg.APIPort != "8080" {
+		t.Fatalf("APIPort = %q, want default 8080 when browser port vars are ignored", cfg.APIPort)
 	}
 }
 
@@ -98,11 +92,8 @@ func TestLoadIgnoresLegacyPortEnvVars(t *testing.T) {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if cfg.PublicPort != "8080" {
-		t.Fatalf("PublicPort = %q, want default 8080 when legacy vars are ignored", cfg.PublicPort)
-	}
-	if cfg.DevWebPort != "" {
-		t.Fatalf("DevWebPort = %q, want empty when legacy vars are ignored", cfg.DevWebPort)
+	if cfg.APIPort != "8080" {
+		t.Fatalf("APIPort = %q, want default 8080 when legacy vars are ignored", cfg.APIPort)
 	}
 }
 
@@ -124,6 +115,106 @@ func TestLoadRequiresSecretsAndPublicKeyFile(t *testing.T) {
 	t.Setenv("APP_AUTH_LOCAL_PUBLIC_KEY_FILE", missingKey)
 	if _, err := Load(); err == nil || err.Error() != "read app auth local public key file "+missingKey+": open "+missingKey+": no such file or directory" {
 		t.Fatalf("expected missing public key error, got %v", err)
+	}
+}
+
+func TestLoadNormalizesQuotedStringEnvValues(t *testing.T) {
+	clearConfigEnv(t)
+	dir := prepareConfigWorkspace(t)
+	if err := os.MkdirAll(filepath.Join(dir, "quoted-docs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "quoted-data"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("API_PORT", " '18080' ")
+	t.Setenv("WEB_SESSION_SECRET", " 'session-secret' ")
+	t.Setenv("PAN_ADMIN_USERNAME", ` "admin" `)
+	t.Setenv("AUTH_PASSWORD_HASH_BCRYPT", " '"+testBcryptHash+"' ")
+	t.Setenv("APP_AUTH_LOCAL_PUBLIC_KEY_FILE", " './configs/local-public-key.pem' ")
+	t.Setenv("PAN_DATA_DIR", ` "./quoted-data" `)
+	t.Setenv("SESSION_COOKIE_NAME", " 'quoted_session' ")
+	t.Setenv("PAN_MOUNTS", ` "docs|Docs|./quoted-docs" `)
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.APIPort != "18080" {
+		t.Fatalf("APIPort = %q, want %q", cfg.APIPort, "18080")
+	}
+	if cfg.SessionSecret != "session-secret" {
+		t.Fatalf("SessionSecret = %q, want %q", cfg.SessionSecret, "session-secret")
+	}
+	if cfg.AdminUsername != "admin" {
+		t.Fatalf("AdminUsername = %q, want %q", cfg.AdminUsername, "admin")
+	}
+	if cfg.AdminPasswordHash != testBcryptHash {
+		t.Fatalf("AdminPasswordHash = %q, want %q", cfg.AdminPasswordHash, testBcryptHash)
+	}
+	if cfg.SessionCookieName != "quoted_session" {
+		t.Fatalf("SessionCookieName = %q, want %q", cfg.SessionCookieName, "quoted_session")
+	}
+	if !samePath(t, cfg.AppAuthLocalPublicKeyFile, filepath.Join(dir, "configs", "local-public-key.pem")) {
+		t.Fatalf("AppAuthLocalPublicKeyFile = %q, want %q", cfg.AppAuthLocalPublicKeyFile, filepath.Join(dir, "configs", "local-public-key.pem"))
+	}
+	if !samePath(t, cfg.DataDir, filepath.Join(dir, "quoted-data")) {
+		t.Fatalf("DataDir = %q, want %q", cfg.DataDir, filepath.Join(dir, "quoted-data"))
+	}
+	if len(cfg.Mounts) != 1 || cfg.Mounts[0].ID != "docs" || cfg.Mounts[0].Name != "Docs" {
+		t.Fatalf("unexpected mounts = %+v", cfg.Mounts)
+	}
+	if !samePath(t, cfg.Mounts[0].Path, filepath.Join(dir, "quoted-docs")) {
+		t.Fatalf("Mount path = %q, want %q", cfg.Mounts[0].Path, filepath.Join(dir, "quoted-docs"))
+	}
+}
+
+func TestLoadNormalizesQuotedPasswordHashFromEnv(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		rawValue string
+	}{
+		{name: "single quotes", rawValue: "'" + testBcryptHash + "'"},
+		{name: "double quotes", rawValue: `"` + testBcryptHash + `"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			clearConfigEnv(t)
+			prepareConfigWorkspace(t)
+			t.Setenv("WEB_SESSION_SECRET", "session-secret")
+			t.Setenv("AUTH_PASSWORD_HASH_BCRYPT", tc.rawValue)
+
+			cfg, err := Load()
+			if err != nil {
+				t.Fatalf("Load() error = %v", err)
+			}
+
+			if cfg.AdminPasswordHash != testBcryptHash {
+				t.Fatalf("AdminPasswordHash = %q, want %q", cfg.AdminPasswordHash, testBcryptHash)
+			}
+		})
+	}
+}
+
+func TestLoadQuotedPasswordHashWorksWithAuthManager(t *testing.T) {
+	clearConfigEnv(t)
+	prepareConfigWorkspace(t)
+	t.Setenv("PAN_ADMIN_USERNAME", "admin")
+	t.Setenv("WEB_SESSION_SECRET", "session-secret")
+	t.Setenv("AUTH_PASSWORD_HASH_BCRYPT", "'"+testBcryptHash+"'")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	manager := auth.NewManager(cfg.SessionSecret, nil, cfg.AdminUsername, cfg.AdminPasswordHash)
+	if !manager.CheckCredentials("admin", "change-this-password") {
+		t.Fatal("expected valid credentials after config normalization")
+	}
+	if manager.CheckCredentials("admin", "wrong-password") {
+		t.Fatal("expected invalid credentials to be rejected")
 	}
 }
 
@@ -312,14 +403,14 @@ func TestLoadFallsBackToPanMountsEnv(t *testing.T) {
 func clearConfigEnv(t *testing.T) {
 	t.Helper()
 	for _, key := range []string{
+		"API_PORT",
+		"NGINX_PORT",
 		"PUBLIC_PORT",
 		"DEV_WEB_PORT",
 		"APP_PORT",
 		"WEB_PORT",
-		"WEB_ORIGIN",
 		"APP_AUTH_LOCAL_PUBLIC_KEY_FILE",
 		"AUTH_APP_PUBLIC_KEY_FILE",
-		"PAN_STATIC_DIR",
 		"PAN_DATA_DIR",
 		"SESSION_COOKIE_NAME",
 		"WEB_SESSION_SECRET",

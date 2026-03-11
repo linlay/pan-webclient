@@ -2,12 +2,12 @@
 
 set -euo pipefail
 
-DEFAULT_PUBLIC_PORT="$(sed -n 's/^PUBLIC_PORT=//p' .env 2>/dev/null | tail -n 1)"
-if [[ -z "${DEFAULT_PUBLIC_PORT}" ]]; then
-  DEFAULT_PUBLIC_PORT="11946"
+DEFAULT_NGINX_PORT="$(sed -n 's/^NGINX_PORT=//p' .env 2>/dev/null | tail -n 1)"
+if [[ -z "${DEFAULT_NGINX_PORT}" ]]; then
+  DEFAULT_NGINX_PORT="11946"
 fi
 
-BASE_URL="${APPPAN_BASE_URL:-http://127.0.0.1:${DEFAULT_PUBLIC_PORT}/apppan/api}"
+BASE_URL="${APPPAN_BASE_URL:-http://127.0.0.1:${DEFAULT_NGINX_PORT}/apppan/api}"
 TOKEN="${APPPAN_BEARER_TOKEN:-${PAN_APP_BEARER_TOKEN:-}}"
 SHOW_HIDDEN="${APPPAN_SHOW_HIDDEN:-0}"
 JQ_BIN="${JQ_BIN:-jq}"

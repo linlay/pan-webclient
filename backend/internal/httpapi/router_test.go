@@ -8,10 +8,8 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"net"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -106,187 +104,16 @@ func TestBearerTokenAuthUsesInjectedJWT(t *testing.T) {
 	}
 }
 
-func TestPrefixedAPIBaseWorksForWebAndAppModes(t *testing.T) {
+func TestOnlyCanonicalAPIBaseIsRegistered(t *testing.T) {
 	root := t.TempDir()
-	handler, privateKey := newJWTTestHandler(t, root)
+	handler := newTestHandler(t, root)
 	cookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
 
-	webRec := authedRequest(handler, cookie, http.MethodGet, "/pan/api/mounts", nil)
-	if webRec.Code != http.StatusOK {
-		t.Fatalf("expected web prefix 200, got %d: %s", webRec.Code, webRec.Body.String())
-	}
-
-	token := signRouterTestJWT(t, privateKey, map[string]any{
-		"sub": "mobile-user",
-		"exp": time.Now().Add(time.Hour).Unix(),
-	})
-	appReq := httptest.NewRequest(http.MethodGet, "/apppan/api/mounts", nil)
-	appReq.Header.Set("Authorization", "Bearer "+token)
-	appRec := httptest.NewRecorder()
-	handler.ServeHTTP(appRec, appReq)
-	if appRec.Code != http.StatusOK {
-		t.Fatalf("expected app prefix 200, got %d: %s", appRec.Code, appRec.Body.String())
-	}
-}
-
-func TestStaticRoutesRedirectAndServePrefixedSPA(t *testing.T) {
-	root := t.TempDir()
-	staticDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(staticDir, "index.html"), []byte("INDEX"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(filepath.Join(staticDir, "js"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(staticDir, "js", "app.js"), []byte("console.log('ok')"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(staticDir, "favicon.svg"), []byte("<svg></svg>"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	handler := newHandlerWithConfig(root, indexer.NewStore(t.TempDir()), config.Config{
-		SessionCookieName: "pan_session",
-		SessionSecret:     "secret",
-		AdminUsername:     "admin",
-		AdminPasswordHash: routerTestPasswordHash,
-		MaxEditFileBytes:  1024 * 1024,
-		StaticDir:         staticDir,
-	})
-
-	for _, path := range []struct {
-		requestPath string
-		location    string
-	}{
-		{requestPath: "/", location: "/pan/"},
-		{requestPath: "/pan", location: "/pan/"},
-		{requestPath: "/apppan", location: "/apppan/"},
-	} {
-		rec := httptest.NewRecorder()
-		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path.requestPath, nil))
-		if rec.Code != http.StatusFound {
-			t.Fatalf("%s expected 302, got %d", path.requestPath, rec.Code)
+	for _, path := range []string{"/", "/pan/", "/apppan/", "/pan/api/mounts", "/apppan/api/mounts"} {
+		rec := authedRequest(handler, cookie, http.MethodGet, path, nil)
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("%s expected 404, got %d", path, rec.Code)
 		}
-		if location := rec.Header().Get("Location"); location != path.location {
-			t.Fatalf("%s location = %q, want %q", path.requestPath, location, path.location)
-		}
-	}
-
-	for _, requestPath := range []string{"/pan/", "/pan/files/view", "/apppan/"} {
-		rec := httptest.NewRecorder()
-		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, requestPath, nil))
-		if rec.Code != http.StatusOK {
-			t.Fatalf("%s expected 200, got %d", requestPath, rec.Code)
-		}
-		if body := strings.TrimSpace(rec.Body.String()); body != "INDEX" {
-			t.Fatalf("%s body = %q, want index content", requestPath, body)
-		}
-	}
-
-	assetRec := httptest.NewRecorder()
-	handler.ServeHTTP(assetRec, httptest.NewRequest(http.MethodGet, "/pan/js/app.js", nil))
-	if assetRec.Code != http.StatusOK {
-		t.Fatalf("asset expected 200, got %d", assetRec.Code)
-	}
-	if !strings.Contains(assetRec.Body.String(), "console.log") {
-		t.Fatalf("asset body = %q, want js asset", assetRec.Body.String())
-	}
-
-	for _, requestPath := range []string{"/pan/favicon.svg", "/apppan/favicon.svg"} {
-		rec := httptest.NewRecorder()
-		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, requestPath, nil))
-		if rec.Code != http.StatusOK {
-			t.Fatalf("%s expected 200, got %d", requestPath, rec.Code)
-		}
-		if body := strings.TrimSpace(rec.Body.String()); body != "<svg></svg>" {
-			t.Fatalf("%s body = %q, want favicon asset", requestPath, body)
-		}
-	}
-}
-
-func TestDevProxyServesPrefixedUIAndRootAssets(t *testing.T) {
-	root := t.TempDir()
-	devHits := map[string]int{}
-	devServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		devHits[r.URL.Path]++
-		switch r.URL.Path {
-		case "/pan/":
-			_, _ = w.Write([]byte("DEV PAN"))
-		case "/apppan/":
-			_, _ = w.Write([]byte("DEV APPPAN"))
-		case "/js/main.js":
-			_, _ = w.Write([]byte("console.log('dev')"))
-		case "/ws":
-			_, _ = w.Write([]byte("DEV WS"))
-		case "/favicon.ico":
-			_, _ = w.Write([]byte("ICO"))
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	defer devServer.Close()
-
-	devURL, err := url.Parse(devServer.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, devPort, err := net.SplitHostPort(devURL.Host)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	handler := newHandlerWithConfig(root, indexer.NewStore(t.TempDir()), config.Config{
-		SessionCookieName: "pan_session",
-		SessionSecret:     "secret",
-		AdminUsername:     "admin",
-		AdminPasswordHash: routerTestPasswordHash,
-		MaxEditFileBytes:  1024 * 1024,
-		DevWebPort:        devPort,
-	})
-
-	rootRec := httptest.NewRecorder()
-	handler.ServeHTTP(rootRec, httptest.NewRequest(http.MethodGet, "/", nil))
-	if rootRec.Code != http.StatusFound || rootRec.Header().Get("Location") != "/pan/" {
-		t.Fatalf("root redirect = %d %q, want 302 /pan/", rootRec.Code, rootRec.Header().Get("Location"))
-	}
-
-	panRec := httptest.NewRecorder()
-	handler.ServeHTTP(panRec, httptest.NewRequest(http.MethodGet, "/pan/", nil))
-	if panRec.Code != http.StatusOK || strings.TrimSpace(panRec.Body.String()) != "DEV PAN" {
-		t.Fatalf("/pan/ = %d %q, want proxied dev body", panRec.Code, panRec.Body.String())
-	}
-
-	appPanRec := httptest.NewRecorder()
-	handler.ServeHTTP(appPanRec, httptest.NewRequest(http.MethodGet, "/apppan/", nil))
-	if appPanRec.Code != http.StatusOK || strings.TrimSpace(appPanRec.Body.String()) != "DEV APPPAN" {
-		t.Fatalf("/apppan/ = %d %q, want proxied app body", appPanRec.Code, appPanRec.Body.String())
-	}
-
-	jsRec := httptest.NewRecorder()
-	handler.ServeHTTP(jsRec, httptest.NewRequest(http.MethodGet, "/js/main.js", nil))
-	if jsRec.Code != http.StatusOK || !strings.Contains(jsRec.Body.String(), "console.log") {
-		t.Fatalf("/js/main.js = %d %q, want proxied asset", jsRec.Code, jsRec.Body.String())
-	}
-
-	wsRec := httptest.NewRecorder()
-	handler.ServeHTTP(wsRec, httptest.NewRequest(http.MethodGet, "/ws", nil))
-	if wsRec.Code != http.StatusOK || strings.TrimSpace(wsRec.Body.String()) != "DEV WS" {
-		t.Fatalf("/ws = %d %q, want proxied ws body", wsRec.Code, wsRec.Body.String())
-	}
-
-	faviconRec := httptest.NewRecorder()
-	handler.ServeHTTP(faviconRec, httptest.NewRequest(http.MethodGet, "/favicon.ico", nil))
-	if faviconRec.Code != http.StatusOK || strings.TrimSpace(faviconRec.Body.String()) != "ICO" {
-		t.Fatalf("/favicon.ico = %d %q, want proxied favicon", faviconRec.Code, faviconRec.Body.String())
-	}
-
-	apiRec := httptest.NewRecorder()
-	handler.ServeHTTP(apiRec, httptest.NewRequest(http.MethodGet, "/pan/api/health", nil))
-	if apiRec.Code != http.StatusOK {
-		t.Fatalf("/pan/api/health = %d, want 200", apiRec.Code)
-	}
-	if devHits["/pan/api/health"] != 0 {
-		t.Fatalf("expected API path to stay local, dev hits = %+v", devHits)
 	}
 }
 
@@ -512,7 +339,7 @@ func TestTaskDownloadUsesArchiveFilename(t *testing.T) {
 	}
 }
 
-func TestPrefixedPreviewAndTaskURLsUseCurrentAPIBase(t *testing.T) {
+func TestPreviewAndTaskURLsUseCanonicalAPIBase(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "note.txt"), []byte("hello"), 0o644); err != nil {
 		t.Fatal(err)
@@ -542,7 +369,7 @@ func TestPrefixedPreviewAndTaskURLsUseCurrentAPIBase(t *testing.T) {
 	})
 	cookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
 
-	previewRec := authedRequest(handler, cookie, http.MethodGet, "/pan/api/preview?mountId=root&path=/note.txt", nil)
+	previewRec := authedRequest(handler, cookie, http.MethodGet, "/api/preview?mountId=root&path=/note.txt", nil)
 	if previewRec.Code != http.StatusOK {
 		t.Fatalf("expected preview 200, got %d: %s", previewRec.Code, previewRec.Body.String())
 	}
@@ -552,11 +379,11 @@ func TestPrefixedPreviewAndTaskURLsUseCurrentAPIBase(t *testing.T) {
 	if err := json.Unmarshal(previewRec.Body.Bytes(), &meta); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(meta.StreamURL, "/pan/api/files/raw?") {
-		t.Fatalf("preview streamUrl = %q, want /pan/api/files/raw", meta.StreamURL)
+	if !strings.HasPrefix(meta.StreamURL, "/api/files/raw?") {
+		t.Fatalf("preview streamUrl = %q, want /api/files/raw", meta.StreamURL)
 	}
 
-	taskListRec := authedRequest(handler, cookie, http.MethodGet, "/pan/api/tasks", nil)
+	taskListRec := authedRequest(handler, cookie, http.MethodGet, "/api/tasks", nil)
 	if taskListRec.Code != http.StatusOK {
 		t.Fatalf("expected task list 200, got %d: %s", taskListRec.Code, taskListRec.Body.String())
 	}
@@ -564,19 +391,8 @@ func TestPrefixedPreviewAndTaskURLsUseCurrentAPIBase(t *testing.T) {
 	if err := json.Unmarshal(taskListRec.Body.Bytes(), &tasks); err != nil {
 		t.Fatal(err)
 	}
-	if len(tasks) != 1 || tasks[0].DownloadURL != "/pan/api/tasks/task-1/download" {
-		t.Fatalf("task download url = %+v, want /pan/api/tasks/task-1/download", tasks)
-	}
-
-	appTaskListRec := authedRequest(handler, cookie, http.MethodGet, "/apppan/api/tasks", nil)
-	if appTaskListRec.Code != http.StatusOK {
-		t.Fatalf("expected app task list 200, got %d: %s", appTaskListRec.Code, appTaskListRec.Body.String())
-	}
-	if err := json.Unmarshal(appTaskListRec.Body.Bytes(), &tasks); err != nil {
-		t.Fatal(err)
-	}
-	if len(tasks) != 1 || tasks[0].DownloadURL != "/apppan/api/tasks/task-1/download" {
-		t.Fatalf("app task download url = %+v, want /apppan/api/tasks/task-1/download", tasks)
+	if len(tasks) != 1 || tasks[0].DownloadURL != "/api/tasks/task-1/download" {
+		t.Fatalf("task download url = %+v, want /api/tasks/task-1/download", tasks)
 	}
 }
 

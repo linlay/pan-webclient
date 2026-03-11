@@ -8,7 +8,6 @@ import (
 	"io"
 	"mime"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -28,15 +27,9 @@ import (
 
 const (
 	canonicalAPIBase = "/api"
-	webUIBase        = "/pan"
-	appUIBase        = "/apppan"
 	webAPIBase       = "/pan/api"
 	appAPIBase       = "/apppan/api"
 )
-
-type requestContextKey string
-
-const apiBaseContextKey requestContextKey = "api-base"
 
 type Dependencies struct {
 	Config      config.Config
@@ -52,8 +45,6 @@ type api struct {
 	store       *indexer.Store
 	auth        *auth.Manager
 	taskManager *transfer.Manager
-	staticDir   string
-	devProxy    http.Handler
 }
 
 func New(deps Dependencies) http.Handler {
@@ -63,10 +54,6 @@ func New(deps Dependencies) http.Handler {
 		store:       deps.Store,
 		auth:        deps.Auth,
 		taskManager: deps.TaskManager,
-		staticDir:   deps.Config.StaticDir,
-	}
-	if deps.Config.DevWebPort != "" && deps.Config.StaticDir == "" {
-		a.devProxy = newDevProxy(deps.Config.DevWebPort)
 	}
 
 	mux := http.NewServeMux()
@@ -94,55 +81,7 @@ func New(deps Dependencies) http.Handler {
 	mux.HandleFunc("/api/trash/restore", a.withAuth(a.restoreTrash))
 	mux.HandleFunc("/api/trash/delete", a.withAuth(a.deleteTrash))
 
-	return a.wrap(mux)
-}
-
-func (a *api) wrap(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if err := a.applyCORS(w, r); err {
-			return
-		}
-		if target := redirectUIBase(r.URL.Path); target != "" {
-			http.Redirect(w, r, target+querySuffix(r), http.StatusFound)
-			return
-		}
-		if r.URL.Path == "/" {
-			http.Redirect(w, r, webUIBase+"/"+querySuffix(r), http.StatusFound)
-			return
-		}
-		if apiBase, ok := matchedAPIBase(r.URL.Path); ok {
-			next.ServeHTTP(w, withCanonicalAPIRequest(r, apiBase))
-			return
-		}
-		if a.staticDir != "" {
-			for _, uiBase := range []string{webUIBase, appUIBase} {
-				if matchesUIBase(r.URL.Path, uiBase) {
-					spaHandler(a.staticDir, uiBase).ServeHTTP(w, r)
-					return
-				}
-			}
-		}
-		if a.devProxy != nil {
-			a.devProxy.ServeHTTP(w, r)
-			return
-		}
-		http.NotFound(w, r)
-	})
-}
-
-func (a *api) applyCORS(w http.ResponseWriter, r *http.Request) bool {
-	origin := r.Header.Get("Origin")
-	if origin != "" && a.cfg.WebOrigin != "" && origin == a.cfg.WebOrigin {
-		w.Header().Set("Access-Control-Allow-Origin", origin)
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
-	}
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusNoContent)
-		return true
-	}
-	return false
+	return mux
 }
 
 func (a *api) withAuth(next http.HandlerFunc) http.HandlerFunc {
@@ -400,7 +339,6 @@ func (a *api) preview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rawURL := apiURL(
-		r,
 		"/files/raw?mountId="+url.QueryEscape(mountID)+"&path="+url.QueryEscape(path),
 	)
 	meta, err := preview.Build(a.resolver, mountID, path, rawURL, a.cfg.MaxEditFileBytes)
@@ -539,9 +477,6 @@ func (a *api) tasks(w http.ResponseWriter, r *http.Request) {
 		writeServerError(w, err)
 		return
 	}
-	for i := range items {
-		items[i] = rewriteTaskURLs(items[i], r)
-	}
 	writeJSON(w, http.StatusOK, items)
 }
 
@@ -563,7 +498,7 @@ func (a *api) batchDownload(w http.ResponseWriter, r *http.Request) {
 		writeServerError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusAccepted, rewriteTaskURLs(task, r))
+	writeJSON(w, http.StatusAccepted, task)
 }
 
 func (a *api) taskRoute(w http.ResponseWriter, r *http.Request) {
@@ -600,7 +535,7 @@ func (a *api) taskRoute(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, artifact)
 		return
 	}
-	writeJSON(w, http.StatusOK, rewriteTaskURLs(task, r))
+	writeJSON(w, http.StatusOK, task)
 }
 
 func taskAttachmentDisposition(taskID, artifact string) string {
@@ -803,103 +738,8 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 	})
 }
 
-func spaHandler(dir string, uiBase string) http.Handler {
-	fileServer := http.FileServer(http.Dir(dir))
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		relativePath := strings.TrimPrefix(filepath.Clean(r.URL.Path), uiBase)
-		if relativePath == "" || relativePath == "/" {
-			http.ServeFile(w, r, filepath.Join(dir, "index.html"))
-			return
-		}
-		abs := filepath.Join(dir, strings.TrimPrefix(relativePath, "/"))
-		if info, err := os.Stat(abs); err == nil && !info.IsDir() {
-			stripped := r.Clone(r.Context())
-			stripped.URL.Path = relativePath
-			stripped.URL.RawPath = relativePath
-			fileServer.ServeHTTP(w, stripped)
-			return
-		}
-		http.ServeFile(w, r, filepath.Join(dir, "index.html"))
-	})
-}
-
-func withCanonicalAPIRequest(r *http.Request, apiBase string) *http.Request {
-	cloned := r.Clone(context.WithValue(r.Context(), apiBaseContextKey, apiBase))
-	cloned.URL.Path = canonicalizeAPIPath(r.URL.Path, apiBase)
-	cloned.URL.RawPath = cloned.URL.Path
-	if cloned.RequestURI != "" {
-		cloned.RequestURI = cloned.URL.RequestURI()
-	}
-	return cloned
-}
-
-func canonicalizeAPIPath(requestPath string, apiBase string) string {
-	if apiBase == canonicalAPIBase {
-		return requestPath
-	}
-	if requestPath == apiBase {
-		return canonicalAPIBase
-	}
-	return canonicalAPIBase + strings.TrimPrefix(requestPath, apiBase)
-}
-
-func matchedAPIBase(requestPath string) (string, bool) {
-	for _, prefix := range []string{webAPIBase, appAPIBase, canonicalAPIBase} {
-		if requestPath == prefix || strings.HasPrefix(requestPath, prefix+"/") {
-			return prefix, true
-		}
-	}
-	return "", false
-}
-
-func matchesUIBase(requestPath, uiBase string) bool {
-	return requestPath == uiBase+"/" || strings.HasPrefix(requestPath, uiBase+"/")
-}
-
-func redirectUIBase(requestPath string) string {
-	switch requestPath {
-	case webUIBase:
-		return webUIBase + "/"
-	case appUIBase:
-		return appUIBase + "/"
-	default:
-		return ""
-	}
-}
-
-func querySuffix(r *http.Request) string {
-	if r.URL.RawQuery == "" {
-		return ""
-	}
-	return "?" + r.URL.RawQuery
-}
-
-func newDevProxy(devWebPort string) http.Handler {
-	target, err := url.Parse("http://127.0.0.1:" + strings.TrimSpace(devWebPort))
-	if err != nil {
-		panic("invalid dev web proxy target: " + err.Error())
-	}
-	proxy := httputil.NewSingleHostReverseProxy(target)
-	defaultDirector := proxy.Director
-	proxy.Director = func(r *http.Request) {
-		defaultDirector(r)
-		r.Host = target.Host
-	}
-	proxy.ErrorHandler = func(w http.ResponseWriter, _ *http.Request, _ error) {
-		writeError(w, http.StatusBadGateway, "DEV_WEB_UNAVAILABLE", "development frontend is unavailable")
-	}
-	return proxy
-}
-
-func apiBaseFromRequest(r *http.Request) string {
-	if value, ok := r.Context().Value(apiBaseContextKey).(string); ok && value != "" {
-		return value
-	}
-	return canonicalAPIBase
-}
-
-func apiURL(r *http.Request, path string) string {
-	return apiBaseFromRequest(r) + normalizeAPIPath(path)
+func apiURL(path string) string {
+	return normalizeAPIPath(path)
 }
 
 func normalizeAPIPath(path string) string {
@@ -907,25 +747,18 @@ func normalizeAPIPath(path string) string {
 	if trimmed == "" {
 		return ""
 	}
-	if trimmed == canonicalAPIBase || strings.HasPrefix(trimmed, canonicalAPIBase+"/") {
-		return strings.TrimPrefix(trimmed, canonicalAPIBase)
-	}
 	for _, prefix := range []string{webAPIBase, appAPIBase} {
 		if trimmed == prefix || strings.HasPrefix(trimmed, prefix+"/") {
-			return strings.TrimPrefix(trimmed, prefix)
+			return canonicalAPIBase + strings.TrimPrefix(trimmed, prefix)
 		}
 	}
-	if strings.HasPrefix(trimmed, "/") {
+	if trimmed == canonicalAPIBase || strings.HasPrefix(trimmed, canonicalAPIBase+"/") {
 		return trimmed
 	}
-	return "/" + trimmed
-}
-
-func rewriteTaskURLs(task transfer.Task, r *http.Request) transfer.Task {
-	if task.DownloadURL != "" {
-		task.DownloadURL = apiURL(r, task.DownloadURL)
+	if strings.HasPrefix(trimmed, "/") {
+		return canonicalAPIBase + trimmed
 	}
-	return task
+	return canonicalAPIBase + "/" + trimmed
 }
 
 func userFromContext(ctx context.Context) string {

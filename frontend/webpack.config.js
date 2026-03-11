@@ -3,9 +3,7 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const webpack = require("webpack");
 
-const publicPort = parseInt(process.env.PUBLIC_PORT || "8080", 10);
-const devWebPort = parseInt(process.env.DEV_WEB_PORT || "11936", 10);
-const normalizedProxyTarget = `http://127.0.0.1:${isNaN(publicPort) ? 8080 : publicPort}`;
+const devServerPort = parseInt(process.env.FRONTEND_DEV_PORT || "80", 10);
 
 module.exports = (_env, argv) => {
   const isProd = argv.mode === "production";
@@ -85,7 +83,7 @@ module.exports = (_env, argv) => {
     ],
     devServer: {
       static: path.resolve(__dirname, "public"),
-      port: isNaN(devWebPort) ? 11936 : devWebPort,
+      port: isNaN(devServerPort) ? 80 : devServerPort,
       host: "0.0.0.0",
       allowedHosts: "all",
       hot: true,
@@ -108,15 +106,6 @@ module.exports = (_env, argv) => {
         });
         return middlewares;
       },
-      proxy: [
-        {
-          context: ["/pan/api", "/apppan/api"],
-          target: normalizedProxyTarget,
-          changeOrigin: true,
-          pathRewrite: (requestPath) =>
-            requestPath.replace(/^\/(?:pan|apppan)\/api(?=\/|$)/, "/api"),
-        },
-      ],
     },
     devtool: isProd ? "source-map" : "eval-cheap-module-source-map",
     stats: "minimal",

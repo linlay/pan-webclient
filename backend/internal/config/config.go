@@ -26,11 +26,8 @@ type Mount struct {
 }
 
 type Config struct {
-	PublicPort                string  `json:"public_port"`
-	DevWebPort                string  `json:"dev_web_port"`
-	WebOrigin                 string  `json:"web_origin"`
+	APIPort                   string  `json:"api_port"`
 	AppAuthLocalPublicKeyFile string  `json:"app_auth_local_public_key_file"`
-	StaticDir                 string  `json:"pan_static_dir"`
 	DataDir                   string  `json:"pan_data_dir"`
 	SessionCookieName         string  `json:"session_cookie_name"`
 	SessionSecret             string  `json:"-"`
@@ -56,14 +53,11 @@ func Load() (Config, error) {
 		return cfg, err
 	}
 
-	applyString(&cfg.PublicPort, lookupEnv(dotEnv, "PUBLIC_PORT"))
-	applyString(&cfg.DevWebPort, lookupEnv(dotEnv, "DEV_WEB_PORT"))
-	applyString(&cfg.WebOrigin, lookupEnv(dotEnv, "WEB_ORIGIN"))
+	applyString(&cfg.APIPort, lookupEnv(dotEnv, "API_PORT"))
 	applyString(
 		&cfg.AppAuthLocalPublicKeyFile,
 		lookupEnv(dotEnv, "APP_AUTH_LOCAL_PUBLIC_KEY_FILE"),
 	)
-	applyString(&cfg.StaticDir, lookupEnv(dotEnv, "PAN_STATIC_DIR"))
 	applyString(&cfg.DataDir, lookupEnv(dotEnv, "PAN_DATA_DIR"))
 	applyString(&cfg.SessionCookieName, lookupEnv(dotEnv, "SESSION_COOKIE_NAME"))
 	applyString(&cfg.SessionSecret, lookupEnv(dotEnv, "WEB_SESSION_SECRET"))
@@ -80,11 +74,8 @@ func Load() (Config, error) {
 			cfg.MaxEditFileBytes = parsed
 		}
 	}
-	if cfg.PublicPort == "" {
-		cfg.PublicPort = "8080"
-	}
-	if cfg.WebOrigin == "" {
-		cfg.WebOrigin = localOrigin(cfg.PublicPort)
+	if cfg.APIPort == "" {
+		cfg.APIPort = "8080"
 	}
 	if cfg.SessionCookieName == "" {
 		cfg.SessionCookieName = "pan_session"
@@ -160,22 +151,22 @@ func Load() (Config, error) {
 }
 
 func applyString(dst *string, v string) {
-	if strings.TrimSpace(v) != "" {
-		*dst = strings.TrimSpace(v)
+	if v != "" {
+		*dst = v
 	}
-}
-
-func localOrigin(port string) string {
-	return "http://127.0.0.1:" + port
 }
 
 func lookupEnv(dotEnv map[string]string, key string) string {
 	if value, ok := os.LookupEnv(key); ok {
-		if strings.TrimSpace(value) != "" {
-			return value
+		if normalized := normalizeEnvValue(value); normalized != "" {
+			return normalized
 		}
 	}
-	return dotEnv[key]
+	return normalizeEnvValue(dotEnv[key])
+}
+
+func normalizeEnvValue(value string) string {
+	return trimQuotes(strings.TrimSpace(value))
 }
 
 func loadDotEnv() (map[string]string, string, error) {

@@ -1,7 +1,5 @@
 {
-  "public_port": "8080",
-  "dev_web_port": "",
-  "web_origin": "",
+  "api_port": "8080",
   "app_auth_local_public_key_file": "./configs/local-public-key.pem",
   "pan_data_dir": "./data",
   "session_cookie_name": "pan_session",

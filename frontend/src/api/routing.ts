@@ -51,3 +51,17 @@ export function apiUrl(
 ): string {
 	return `${API_BASE}${apiPath(path, pathname)}`;
 }
+
+export function resolveExternalUrl(
+	path: string,
+	pathname: string = window.location.pathname,
+): string {
+	const trimmed = path.trim();
+	if (trimmed === "") {
+		return trimmed;
+	}
+	if (/^[a-z]+:\/\//i.test(trimmed)) {
+		return trimmed;
+	}
+	return apiUrl(trimmed, pathname);
+}

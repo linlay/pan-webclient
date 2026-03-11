@@ -7,6 +7,7 @@ import {
 	WEB_UI_BASE,
 	apiPath,
 	apiPrefix,
+	resolveExternalUrl,
 	isAppMode,
 	uiBasePath,
 } from "./routing.ts";
@@ -25,3 +26,7 @@ assert.equal(apiPath("/files", "/apppan/files"), "/apppan/api/files");
 
 assert.equal(apiPath("/pan/api/files", "/apppan/files"), "/pan/api/files");
 assert.equal(apiPath("/apppan/api/files", "/pan/files"), "/apppan/api/files");
+assert.equal(resolveExternalUrl("/api/files", "/pan/files"), "/pan/api/files");
+assert.equal(resolveExternalUrl("/api/files", "/apppan/files"), "/apppan/api/files");
+assert.equal(resolveExternalUrl("/pan/api/files", "/apppan/files"), "/pan/api/files");
+assert.equal(resolveExternalUrl("https://example.com/a.png", "/pan/files"), "https://example.com/a.png");
