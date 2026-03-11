@@ -20,9 +20,11 @@ import (
 var defaultsFS embed.FS
 
 type Mount struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Path string `json:"path"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Source   string `json:"source,omitempty"`
+	Path     string `json:"path"`
+	ReadOnly bool   `json:"readOnly,omitempty"`
 }
 
 type Config struct {
@@ -49,6 +51,10 @@ func Load() (Config, error) {
 	}
 
 	dotEnv, envBaseDir, err := loadDotEnv()
+	if err != nil {
+		return cfg, err
+	}
+	configBaseDir, err := configBaseDir(envBaseDir)
 	if err != nil {
 		return cfg, err
 	}
@@ -96,7 +102,7 @@ func Load() (Config, error) {
 		cfg.AppAuthLocalPublicKeyFile = "./configs/local-public-key.pem"
 	}
 
-	mounts, err := loadMountFiles(filepath.Join("configs", "mounts"))
+	mounts, err := LoadMountDefinitions()
 	if err != nil {
 		return cfg, err
 	}
@@ -112,6 +118,10 @@ func Load() (Config, error) {
 	if len(cfg.Mounts) == 0 {
 		cfg.Mounts = []Mount{{ID: "workspace", Name: "Workspace", Path: "."}}
 	}
+	cfg.Mounts, err = resolveMounts(configBaseDir, cfg.Mounts)
+	if err != nil {
+		return cfg, err
+	}
 
 	if strings.TrimSpace(cfg.SessionSecret) == "" {
 		return cfg, fmt.Errorf("WEB_SESSION_SECRET is required")
@@ -120,34 +130,48 @@ func Load() (Config, error) {
 		return cfg, fmt.Errorf("AUTH_PASSWORD_HASH_BCRYPT is required")
 	}
 
-	for i := range cfg.Mounts {
-		if cfg.Mounts[i].ID == "" {
-			cfg.Mounts[i].ID = fmt.Sprintf("mount-%d", i+1)
-		}
-		if cfg.Mounts[i].Name == "" {
-			cfg.Mounts[i].Name = cfg.Mounts[i].ID
-		}
-		absPath, err := filepath.Abs(cfg.Mounts[i].Path)
-		if err != nil {
-			return cfg, fmt.Errorf("resolve mount %s: %w", cfg.Mounts[i].ID, err)
-		}
-		cfg.Mounts[i].Path = absPath
-	}
-
-	absDataDir, err := filepath.Abs(cfg.DataDir)
+	absDataDir, err := resolvePathAgainstBase(configBaseDir, cfg.DataDir)
 	if err != nil {
 		return cfg, fmt.Errorf("resolve data dir: %w", err)
 	}
 	cfg.DataDir = absDataDir
 	resolvedPublicKeyFile, err := resolveLocalPublicKeyFile(
 		cfg.AppAuthLocalPublicKeyFile,
-		envBaseDir,
+		configBaseDir,
 	)
 	if err != nil {
 		return cfg, err
 	}
 	cfg.AppAuthLocalPublicKeyFile = resolvedPublicKeyFile
 	return cfg, nil
+}
+
+func LoadMountDefinitions() ([]Mount, error) {
+	_, envBaseDir, err := loadDotEnv()
+	if err != nil {
+		return nil, err
+	}
+	configBaseDir, err := configBaseDir(envBaseDir)
+	if err != nil {
+		return nil, err
+	}
+	mounts, err := loadMountFiles(filepath.Join(configBaseDir, "configs", "mounts"))
+	if err != nil {
+		return nil, err
+	}
+	return resolveMounts(configBaseDir, mounts)
+}
+
+func configBaseDir(envBaseDir string) (string, error) {
+	baseDir := strings.TrimSpace(envBaseDir)
+	if baseDir == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return "", err
+		}
+		baseDir = cwd
+	}
+	return filepath.Abs(baseDir)
 }
 
 func applyString(dst *string, v string) {
@@ -239,21 +263,14 @@ func trimQuotes(value string) string {
 	return value
 }
 
-func resolveLocalPublicKeyFile(rawPath, envBaseDir string) (string, error) {
-	trimmed := strings.TrimSpace(rawPath)
-	if trimmed == "" {
+func resolveLocalPublicKeyFile(rawPath, configBaseDir string) (string, error) {
+	resolved, err := resolvePathAgainstBase(configBaseDir, rawPath)
+	if err != nil {
+		return "", err
+	}
+	if resolved == "" {
 		return "", nil
 	}
-	resolved := trimmed
-	if !filepath.IsAbs(resolved) {
-		baseDir := strings.TrimSpace(envBaseDir)
-		if baseDir == "" {
-			cwd, _ := os.Getwd()
-			baseDir = cwd
-		}
-		resolved = filepath.Join(baseDir, resolved)
-	}
-	resolved = filepath.Clean(resolved)
 	payload, err := os.ReadFile(resolved)
 	if err != nil {
 		return "", fmt.Errorf("read app auth local public key file %s: %w", resolved, err)
@@ -262,6 +279,48 @@ func resolveLocalPublicKeyFile(rawPath, envBaseDir string) (string, error) {
 		return "", fmt.Errorf("parse app auth local public key file %s: %w", resolved, err)
 	}
 	return resolved, nil
+}
+
+func resolvePathAgainstBase(baseDir, rawPath string) (string, error) {
+	trimmed := strings.TrimSpace(rawPath)
+	if trimmed == "" {
+		return "", nil
+	}
+	if filepath.IsAbs(trimmed) {
+		return filepath.Clean(trimmed), nil
+	}
+	return filepath.Abs(filepath.Join(baseDir, trimmed))
+}
+
+func resolveMounts(configBaseDir string, mounts []Mount) ([]Mount, error) {
+	result := make([]Mount, 0, len(mounts))
+	for i := range mounts {
+		mount := mounts[i]
+		if strings.TrimSpace(mount.Path) == "" && strings.TrimSpace(mount.Source) != "" {
+			mount.Path = mount.Source
+		}
+		if mount.ID == "" {
+			mount.ID = fmt.Sprintf("mount-%d", i+1)
+		}
+		if mount.Name == "" {
+			mount.Name = mount.ID
+		}
+		resolvedSource, err := resolvePathAgainstBase(configBaseDir, mount.Source)
+		if err != nil {
+			return nil, fmt.Errorf("resolve mount %s source: %w", mount.ID, err)
+		}
+		resolvedPath, err := resolvePathAgainstBase(configBaseDir, mount.Path)
+		if err != nil {
+			return nil, fmt.Errorf("resolve mount %s: %w", mount.ID, err)
+		}
+		if strings.TrimSpace(resolvedPath) == "" {
+			return nil, fmt.Errorf("mount %s path is required", mount.ID)
+		}
+		mount.Source = resolvedSource
+		mount.Path = resolvedPath
+		result = append(result, mount)
+	}
+	return result, nil
 }
 
 func parseRSAPublicKeyPEM(payload []byte) (*rsa.PublicKey, error) {

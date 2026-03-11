@@ -282,6 +282,68 @@ func TestLoadFindsParentDotEnvAndResolvesPublicKeyFromEnvDir(t *testing.T) {
 	}
 }
 
+func TestLoadFindsParentDotEnvAndResolvesConfigAndDataPathsFromEnvDir(t *testing.T) {
+	clearConfigEnv(t)
+	runtimeRoot := t.TempDir()
+	previousWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	backendDir := filepath.Join(runtimeRoot, "backend")
+	mountsDir := filepath.Join(runtimeRoot, "configs", "mounts")
+	if err := os.MkdirAll(mountsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(backendDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(runtimeRoot, "data"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(runtimeRoot, "shared-docs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(runtimeRoot, "configs", "local-public-key.pem"), []byte(testPublicKeyPEM), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(mountsDir, "docs.json"), []byte(`{"id":"docs","name":"Docs","path":"./shared-docs"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(runtimeRoot, ".env"), []byte(strings.Join([]string{
+		"WEB_SESSION_SECRET=session-secret",
+		"AUTH_PASSWORD_HASH_BCRYPT=" + testBcryptHash,
+		"APP_AUTH_LOCAL_PUBLIC_KEY_FILE=./configs/local-public-key.pem",
+	}, "\n")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(backendDir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(previousWD); err != nil {
+			t.Fatalf("restore working directory: %v", err)
+		}
+	})
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if !samePath(t, cfg.AppAuthLocalPublicKeyFile, filepath.Join(runtimeRoot, "configs", "local-public-key.pem")) {
+		t.Fatalf("AppAuthLocalPublicKeyFile = %q, want %q", cfg.AppAuthLocalPublicKeyFile, filepath.Join(runtimeRoot, "configs", "local-public-key.pem"))
+	}
+	if !samePath(t, cfg.DataDir, filepath.Join(runtimeRoot, "data")) {
+		t.Fatalf("DataDir = %q, want %q", cfg.DataDir, filepath.Join(runtimeRoot, "data"))
+	}
+	if len(cfg.Mounts) != 1 || cfg.Mounts[0].ID != "docs" || cfg.Mounts[0].Name != "Docs" {
+		t.Fatalf("unexpected mounts = %+v", cfg.Mounts)
+	}
+	if !samePath(t, cfg.Mounts[0].Path, filepath.Join(runtimeRoot, "shared-docs")) {
+		t.Fatalf("Mount path = %q, want %q", cfg.Mounts[0].Path, filepath.Join(runtimeRoot, "shared-docs"))
+	}
+}
+
 func TestLoadRejectsInvalidPublicKeyPEM(t *testing.T) {
 	clearConfigEnv(t)
 	dir := prepareConfigWorkspace(t)
@@ -374,6 +436,73 @@ func TestLoadMountsFromConfigFiles(t *testing.T) {
 	}
 	if !samePath(t, cfg.Mounts[0].Path, filepath.Join(dir, "home-dir")) {
 		t.Fatalf("Mount path = %q, want %q", cfg.Mounts[0].Path, filepath.Join(dir, "home-dir"))
+	}
+}
+
+func TestLoadMountsFromConfigFilesSupportsSourceAndReadOnly(t *testing.T) {
+	clearConfigEnv(t)
+	dir := prepareConfigWorkspace(t)
+	t.Setenv("WEB_SESSION_SECRET", "session-secret")
+	t.Setenv("AUTH_PASSWORD_HASH_BCRYPT", testBcryptHash)
+
+	mountsDir := filepath.Join(dir, "configs", "mounts")
+	if err := os.MkdirAll(mountsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "host-downloads"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(mountsDir, "downloads.json"), []byte(`{"id":"downloads","name":"Downloads","source":"./host-downloads","path":"/mnt/pan/downloads","readOnly":true}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if len(cfg.Mounts) != 1 {
+		t.Fatalf("Mounts len = %d, want 1", len(cfg.Mounts))
+	}
+	if !samePath(t, cfg.Mounts[0].Source, filepath.Join(dir, "host-downloads")) {
+		t.Fatalf("Mount source = %q, want %q", cfg.Mounts[0].Source, filepath.Join(dir, "host-downloads"))
+	}
+	if cfg.Mounts[0].Path != "/mnt/pan/downloads" {
+		t.Fatalf("Mount path = %q, want %q", cfg.Mounts[0].Path, "/mnt/pan/downloads")
+	}
+	if !cfg.Mounts[0].ReadOnly {
+		t.Fatal("expected mount to be read-only")
+	}
+}
+
+func TestLoadMountsFromConfigFilesDefaultsPathToSource(t *testing.T) {
+	clearConfigEnv(t)
+	dir := prepareConfigWorkspace(t)
+	t.Setenv("WEB_SESSION_SECRET", "session-secret")
+	t.Setenv("AUTH_PASSWORD_HASH_BCRYPT", testBcryptHash)
+
+	mountsDir := filepath.Join(dir, "configs", "mounts")
+	if err := os.MkdirAll(mountsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "notes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(mountsDir, "notes.json"), []byte(`{"id":"notes","name":"Notes","source":"./notes"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if len(cfg.Mounts) != 1 {
+		t.Fatalf("Mounts len = %d, want 1", len(cfg.Mounts))
+	}
+	if !samePath(t, cfg.Mounts[0].Source, filepath.Join(dir, "notes")) {
+		t.Fatalf("Mount source = %q, want %q", cfg.Mounts[0].Source, filepath.Join(dir, "notes"))
+	}
+	if !samePath(t, cfg.Mounts[0].Path, filepath.Join(dir, "notes")) {
+		t.Fatalf("Mount path = %q, want %q", cfg.Mounts[0].Path, filepath.Join(dir, "notes"))
 	}
 }
 

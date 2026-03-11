@@ -30,6 +30,8 @@ cp configs/local-public-key.example.pem configs/local-public-key.pem
 make dev-up
 ```
 
+`make dev-up` 会先根据 `configs/mounts/*.json` 自动生成 `.cache/docker-compose.mounts.yml`，再调用 `docker compose`。如果你直接手敲裸 `docker compose up`，这些自动生成的宿主机 bind mount 不会先被准备好。
+
 浏览器统一访问：
 
 ```text
@@ -98,38 +100,66 @@ http://127.0.0.1:${NGINX_PORT}/apppan/api
 - `API_PORT`：Go API 容器监听端口，默认 `8080`
 - `WEB_SESSION_SECRET`：Web Cookie Session 签名密钥，必填
 - `AUTH_PASSWORD_HASH_BCRYPT`：管理员密码 bcrypt hash，必填；在 Docker Compose 使用的仓库根 `.env` 中必须保留单引号，避免 `$2y$10$...` 被 Compose 当成变量插值；后端在读取运行时环境时会兼容剥离首尾成对引号
-- `APP_AUTH_LOCAL_PUBLIC_KEY_FILE`：App Bearer Token 验签公钥，必填
-- `PAN_DATA_DIR`：运行时数据目录，默认 `./data`
+- `APP_AUTH_LOCAL_PUBLIC_KEY_FILE`：App Bearer Token 验签公钥，必填；相对路径按 `.env` 所在目录解析
+- `PAN_DATA_DIR`：运行时数据目录，默认 `./data`；相对路径按 `.env` 所在目录解析
 
 Web 登录当前依赖容器或运行环境内存在 `htpasswd` 命令；如果你自定义后端镜像，需要把该命令一并打进去，否则服务会在启动期直接报错而不是错误地返回 `INVALID_CREDENTIALS`。
 
 运行时数据目录约定：
 
-- 根目录 `./data` 是唯一默认运行时数据目录
+- 根目录 `./data` 是唯一默认运行时数据目录，解析基准是 `.env` 所在目录，不是进程当前工作目录
 - 历史遗留 `apps/` 目录已废弃，不再承载数据、前端工程或构建产物
 - 如需把数据放到别处，覆盖 `PAN_DATA_DIR`，不要重新引入 `apps/`
 
 结构化运行时配置：
 
-- `configs/mounts/*.json`：挂载点定义
+- `configs/`：完整配置根目录的一部分，部署时应整体可见，不要只挂某个子文件
+- `configs/mounts/*.json`：挂载点定义；`source` 和相对 `path` 都按 `.env` 所在目录解析
 - `configs/local-public-key.pem`：JWT 验签公钥
 
 ## 5. 容器路径约定
-本项目已经切换到容器优先架构，`configs/mounts/*.json` 中的 `path` 应该写容器内路径，而不是宿主机路径。
+本项目支持在启动前根据 `configs/mounts/*.json` 自动生成 `api` 服务的 bind mount。推荐使用下面的结构：
 
-例如：
+```json
+{
+  "id": "downloads",
+  "name": "下载",
+  "source": "/Users/linlay-macmini/Downloads",
+  "path": "/mnt/pan/downloads",
+  "readOnly": true
+}
+```
+
+字段说明：
+
+- `id`：挂载点标识，必填
+- `name`：挂载点名称，必填
+- `source`：宿主机路径，可选；存在时项目启动入口会自动为 `api` 生成 bind mount
+- `path`：容器内访问路径，可选；省略时默认等于 `source`
+- `readOnly`：是否只读，可选，默认 `false`
+
+兼容规则：
+
+- 旧格式 `{ "id": "...", "name": "...", "path": "..." }` 仍然支持
+- 但旧格式只定义运行时挂载点，不会自动生成宿主机 bind mount
+- 要让本地 compose 启动时自动生效，请改用带 `source` 的新结构
+
+容器内实际访问的一直是 `path`，所以它应该写容器内路径，而不是宿主机路径。例如：
 
 ```json
 {
   "id": "home",
   "name": "Home",
+  "source": "/Users/yourname/Home",
   "path": "/mnt/pan/home"
 }
 ```
 
-然后在你的 compose / deployment 里把宿主机目录 bind mount 到 `/mnt/pan/home`。
+项目启动入口会自动把宿主机目录 bind mount 到 `/mnt/pan/home`。如果是你自己的 deployment / compose 体系，也要遵守同样的 source->path 映射关系。
 
 默认开发 compose 只会把仓库挂到 `/workspace`，不会自动暴露宿主机任意目录。如果你要浏览仓库外目录，需要自行扩展 compose 挂载。
+
+如果开发和生产需要不同挂载点，应该提供不同的 `configs/mounts/*.json` 内容或不同的挂载源；不要在代码里再分一套 dev/prod 路径解析逻辑。
 
 ## 6. 镜像构建
 ### 后端镜像
@@ -151,5 +181,5 @@ docker build -f frontend/Dockerfile -t pan-frontend-nginx:latest .
 - 浏览器入口始终是 Nginx，不要直接访问 Go 端口
 - 若 `/pan/api/*` 返回 502，先检查 `api` 容器是否启动、`API_PORT` 是否一致
 - 若页面能打开但静态资源 404，先检查前端是否从 Nginx 提供，而不是误连到 Go
-- 若挂载为空或访问失败，先确认 `configs/mounts/*.json` 写的是容器内路径，并且对应目录已被 bind mount
+- 若挂载为空或访问失败，先确认你是通过 `make dev-up` / `make prod-sim-up` 启动，并检查 `.cache/docker-compose.mounts.yml` 是否包含预期的 `source -> path` bind mount
 - 若 App Bearer Token 无法访问，检查 JWT 是否由匹配私钥签发、是否过期，以及 `APP_AUTH_LOCAL_PUBLIC_KEY_FILE` 是否正确
