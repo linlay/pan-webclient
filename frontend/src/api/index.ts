@@ -3,14 +3,18 @@ import type {
   FileEntry,
   FileTreeNode,
   MountRoot,
+  PublicShare,
   PreviewMeta,
   SearchHit,
   SessionUser,
+  ShareCreateResult,
+  SharePermission,
   TrashItem,
   TransferTask,
 } from "../types/contracts/index";
 import { getAppAccessToken, refreshAppAccessToken } from "./appAuth";
 import { apiUrl, isAppMode } from "./routing";
+import { uploadRequestErrorMessage } from "./uploadLimits";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return requestWithReplay<T>(path, init, true);
@@ -129,6 +133,117 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ mountId, path }),
     }),
+  createShare: (
+    mountId: string,
+    path: string,
+    access: "public" | "password",
+    permission: SharePermission,
+    expiresAt: number,
+  ) =>
+    request<ShareCreateResult>("/api/shares", {
+      method: "POST",
+      body: JSON.stringify({ mountId, path, access, permission, expiresAt }),
+    }),
+  publicShare: (shareId: string) =>
+    request<PublicShare>(`/api/public/shares/${encodeURIComponent(shareId)}`),
+  authorizeShare: (shareId: string, password: string) =>
+    request<{ ok: boolean }>(
+      `/api/public/shares/${encodeURIComponent(shareId)}/authorize`,
+      {
+        method: "POST",
+        body: JSON.stringify({ password }),
+      },
+    ),
+  publicShareFiles: (shareId: string, path: string) =>
+    request<FileEntry[]>(
+      `/api/public/shares/${encodeURIComponent(shareId)}/files?path=${encodeURIComponent(path)}`,
+    ),
+  publicSharePreview: (shareId: string, path: string) =>
+    request<PreviewMeta>(
+      `/api/public/shares/${encodeURIComponent(shareId)}/preview?path=${encodeURIComponent(path)}`,
+    ),
+  publicShareRawUrl: (shareId: string, path: string) =>
+    apiUrl(
+      `/api/public/shares/${encodeURIComponent(shareId)}/raw?path=${encodeURIComponent(path)}`,
+    ),
+  publicShareDownloadUrl: (shareId: string, path: string) =>
+    apiUrl(
+      `/api/public/shares/${encodeURIComponent(shareId)}/download?path=${encodeURIComponent(path)}`,
+    ),
+  savePublicShare: (
+    shareId: string,
+    path: string,
+    mountId: string,
+    targetDir: string,
+  ) =>
+    request<FileEntry>(
+      `/api/public/shares/${encodeURIComponent(shareId)}/save`,
+      {
+        method: "POST",
+        body: JSON.stringify({ path, mountId, targetDir }),
+      },
+    ),
+  publicShareUpload: async (
+    shareId: string,
+    path: string,
+    files: FileList | File[],
+    onProgress?: (progress: UploadProgress) => void,
+  ) => {
+    const form = new FormData();
+    const rows = Array.from(files);
+    const fallbackTotal = rows.reduce((sum, file) => sum + file.size, 0);
+    form.set("path", path);
+    rows.forEach((file) => form.append("files", file));
+    return new Promise<FileEntry[]>((resolve, reject) => {
+      const request = new XMLHttpRequest();
+      request.open(
+        "POST",
+        apiUrl(`/api/public/shares/${encodeURIComponent(shareId)}/uploads`),
+      );
+      request.withCredentials = !isAppMode();
+      request.responseType = "json";
+      if (isAppMode()) {
+        const token = getAppAccessToken();
+        if (token) {
+          request.setRequestHeader("Authorization", `Bearer ${token}`);
+        }
+      }
+      request.upload.onprogress = (event) => {
+        onProgress?.({
+          loaded: event.loaded,
+          total: event.lengthComputable ? event.total : fallbackTotal,
+        });
+      };
+      request.onerror = () => reject(new Error("Upload failed"));
+      request.onload = () => {
+        const response =
+          request.response && typeof request.response === "object"
+            ? request.response
+            : (() => {
+                try {
+                  return JSON.parse(request.responseText || "null");
+                } catch {
+                  return null;
+                }
+              })();
+        if (request.status >= 200 && request.status < 300) {
+          resolve((response as FileEntry[] | null) ?? []);
+          return;
+        }
+        reject(
+          new Error(
+            uploadRequestErrorMessage(
+              request.status,
+              request.statusText,
+              response,
+              request.responseText || "",
+            ) || "Upload failed",
+          ),
+        );
+      };
+      request.send(form);
+    });
+  },
   upload: async (
     mountId: string,
     path: string,
@@ -163,16 +278,25 @@ export const api = {
         const response =
           request.response && typeof request.response === "object"
             ? request.response
-            : JSON.parse(request.responseText || "null");
+            : (() => {
+                try {
+                  return JSON.parse(request.responseText || "null");
+                } catch {
+                  return null;
+                }
+              })();
         if (request.status >= 200 && request.status < 300) {
           resolve(response as TransferTask);
           return;
         }
-        const payload = response as { message?: string } | null;
         reject(
           new Error(
-            payload?.message ??
-              `${request.status} ${request.statusText}`,
+            uploadRequestErrorMessage(
+              request.status,
+              request.statusText,
+              response,
+              request.responseText || "",
+            ) || "Upload failed",
           ),
         );
       };

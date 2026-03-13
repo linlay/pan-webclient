@@ -173,6 +173,10 @@ func (m *Manager) StartZipTask(resolver *fsops.MountResolver, mountID string, it
 	return task, nil
 }
 
+func StreamZipArchive(dst io.Writer, resolver *fsops.MountResolver, mountID string, items []string) error {
+	return writeZipArchive(dst, resolver, mountID, items, nil)
+}
+
 func buildZip(resolver *fsops.MountResolver, mountID string, items []string, artifactPath string, onProgress func(int64)) error {
 	dst, err := os.Create(artifactPath)
 	if err != nil {
@@ -180,6 +184,10 @@ func buildZip(resolver *fsops.MountResolver, mountID string, items []string, art
 	}
 	defer dst.Close()
 
+	return writeZipArchive(dst, resolver, mountID, items, onProgress)
+}
+
+func writeZipArchive(dst io.Writer, resolver *fsops.MountResolver, mountID string, items []string, onProgress func(int64)) error {
 	zw := zip.NewWriter(dst)
 	defer zw.Close()
 

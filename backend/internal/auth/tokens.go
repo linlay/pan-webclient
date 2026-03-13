@@ -81,8 +81,20 @@ func (m *Manager) IssueSession(username string, ttl time.Duration) (string, erro
 	return signToken(m.sessionSecret, Claims{Sub: username, Typ: "session", Exp: time.Now().Add(ttl).Unix()})
 }
 
+func (m *Manager) IssueScopedToken(subject, tokenType string, ttl time.Duration) (string, error) {
+	return signToken(m.sessionSecret, Claims{
+		Sub: subject,
+		Typ: tokenType,
+		Exp: time.Now().Add(ttl).Unix(),
+	})
+}
+
 func (m *Manager) VerifySession(token string) (Claims, error) {
 	return verifyToken(m.sessionSecret, token, "session")
+}
+
+func (m *Manager) VerifyScopedToken(token, tokenType string) (Claims, error) {
+	return verifyToken(m.sessionSecret, token, tokenType)
 }
 
 func (m *Manager) VerifyAccessToken(token string) (Claims, error) {

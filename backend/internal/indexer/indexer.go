@@ -56,12 +56,27 @@ type TrashRecord struct {
 	Name         string `json:"name"`
 }
 
+type ShareRecord struct {
+	ID             string `json:"id"`
+	MountID        string `json:"mountId"`
+	Path           string `json:"path"`
+	Name           string `json:"name"`
+	IsDir          bool   `json:"isDir"`
+	Access         string `json:"access"`
+	Permission     string `json:"permission,omitempty"`
+	PasswordDigest string `json:"passwordDigest,omitempty"`
+	ExpiresAt      int64  `json:"expiresAt,omitempty"`
+	CreatedAt      int64  `json:"createdAt"`
+	UpdatedAt      int64  `json:"updatedAt"`
+}
+
 type Store struct {
 	dataDir          string
 	taskMetaDir      string
 	taskArtifactsDir string
 	trashMetaDir     string
 	trashItemsDir    string
+	shareMetaDir     string
 	mu               sync.RWMutex
 }
 
@@ -72,11 +87,12 @@ func NewStore(dataDir string) *Store {
 		taskArtifactsDir: filepath.Join(dataDir, "tasks", "artifacts"),
 		trashMetaDir:     filepath.Join(dataDir, "trash", "meta"),
 		trashItemsDir:    filepath.Join(dataDir, "trash", "items"),
+		shareMetaDir:     filepath.Join(dataDir, "shares", "meta"),
 	}
 }
 
 func (s *Store) Init() error {
-	for _, dir := range []string{s.dataDir, s.taskMetaDir, s.taskArtifactsDir, s.trashMetaDir, s.trashItemsDir} {
+	for _, dir := range []string{s.dataDir, s.taskMetaDir, s.taskArtifactsDir, s.trashMetaDir, s.trashItemsDir, s.shareMetaDir} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return err
 		}
@@ -221,6 +237,32 @@ func (s *Store) TasksDir() string {
 
 func (s *Store) TrashItemsDir() string {
 	return s.trashItemsDir
+}
+
+func (s *Store) PutShare(record ShareRecord) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return writeJSONFile(filepath.Join(s.shareMetaDir, record.ID+".json"), record)
+}
+
+func (s *Store) GetShare(id string) (ShareRecord, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var record ShareRecord
+	if err := readJSONFile(filepath.Join(s.shareMetaDir, id+".json"), &record); err != nil {
+		return ShareRecord{}, err
+	}
+	return record, nil
+}
+
+func (s *Store) DeleteShare(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	err := os.Remove(filepath.Join(s.shareMetaDir, id+".json"))
+	if os.IsNotExist(err) {
+		return nil
+	}
+	return err
 }
 
 func SearchMounts(items []mounts.Mount, query string, limit int, showHidden bool) ([]SearchHit, error) {

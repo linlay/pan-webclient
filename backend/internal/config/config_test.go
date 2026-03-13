@@ -60,6 +60,22 @@ func TestLoadUsesDefaultAPIPort(t *testing.T) {
 	}
 }
 
+func TestLoadUsesDefaultUploadLimit(t *testing.T) {
+	clearConfigEnv(t)
+	prepareConfigWorkspace(t)
+	t.Setenv("WEB_SESSION_SECRET", "session-secret")
+	t.Setenv("AUTH_PASSWORD_HASH_BCRYPT", testBcryptHash)
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.MaxUploadBytes != 100*1024*1024 {
+		t.Fatalf("MaxUploadBytes = %d, want %d", cfg.MaxUploadBytes, 100*1024*1024)
+	}
+}
+
 func TestLoadIgnoresLegacyBrowserPortEnvVars(t *testing.T) {
 	clearConfigEnv(t)
 	prepareConfigWorkspace(t)

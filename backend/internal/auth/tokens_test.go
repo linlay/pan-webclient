@@ -82,6 +82,23 @@ func TestVerifyAccessTokenRejectsInvalidJWT(t *testing.T) {
 	}
 }
 
+func TestIssueScopedToken(t *testing.T) {
+	manager := NewManager("session-secret", nil, "admin", testPasswordHash)
+
+	token, err := manager.IssueScopedToken("share-123", "share", time.Hour)
+	if err != nil {
+		t.Fatalf("IssueScopedToken() error = %v", err)
+	}
+
+	claims, err := manager.VerifyScopedToken(token, "share")
+	if err != nil {
+		t.Fatalf("VerifyScopedToken() error = %v", err)
+	}
+	if claims.Sub != "share-123" || claims.Typ != "share" {
+		t.Fatalf("unexpected scoped claims = %+v", claims)
+	}
+}
+
 func signTestJWT(t *testing.T, privateKey *rsa.PrivateKey, claims map[string]any) string {
 	t.Helper()
 	headerJSON, err := json.Marshal(map[string]string{"alg": "RS256", "typ": "JWT"})

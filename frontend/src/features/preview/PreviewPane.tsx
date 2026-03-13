@@ -7,7 +7,6 @@ import { rawFileUrl } from "../../api";
 import { resolveExternalUrl } from "../../api/routing";
 import { renderMarkdown } from "../shared/markdown";
 import { MaterialIcon } from "../shared/Icons";
-import { useState } from "react";
 
 export function PreviewPane(props: {
 	preview: PreviewMeta | null;
@@ -27,8 +26,8 @@ export function PreviewPane(props: {
 	// Multi-selection
 	if (props.selectedEntries.length > 1) {
 		return (
-			<div className="flex flex-col p-6">
-				<div className="flex items-center justify-between mb-6">
+			<div className="flex h-full min-h-0 flex-col overflow-y-auto p-4 sm:p-6">
+				<div className="mb-6 flex items-center justify-between">
 					<h3 className="text-lg font-bold">
 						{props.selectedEntries.length} 项已选
 					</h3>
@@ -67,12 +66,12 @@ export function PreviewPane(props: {
 	// Directory selected
 	if (entry?.isDir) {
 		return (
-			<div className="flex flex-col p-6">
-				<div className="flex items-center justify-between mb-6">
+			<div className="flex h-full min-h-0 flex-col overflow-y-auto p-4 sm:p-6">
+				<div className="mb-6 flex items-center justify-between">
 					<h3 className="text-lg font-bold">Properties</h3>
 				</div>
-				<div className="flex flex-col items-center gap-4 mb-8">
-					<div className="w-32 h-32 bg-blue-500/10 rounded-2xl flex items-center justify-center">
+				<div className="mb-8 flex flex-col items-center gap-4">
+					<div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-blue-500/10 sm:h-32 sm:w-32">
 						<MaterialIcon
 							name="folder"
 							className="text-blue-500 !text-6xl filled-icon"
@@ -116,7 +115,7 @@ export function PreviewPane(props: {
 	// No selection
 	if (!entry || !props.preview) {
 		return (
-			<div className="flex flex-col items-center justify-center p-6 py-20 text-center">
+			<div className="flex h-full min-h-0 flex-col items-center justify-center overflow-y-auto p-6 py-16 text-center sm:py-20">
 				<MaterialIcon
 					name="touch_app"
 					className="text-slate-300 dark:text-slate-600 !text-6xl mb-4"
@@ -149,15 +148,15 @@ export function PreviewPane(props: {
 			: null) ?? rawFileUrl(props.preview.mountId, props.preview.path);
 
 	return (
-		<div className="flex flex-col p-6">
-			<div className="flex items-center justify-between mb-6">
+		<div className="flex h-full min-h-0 flex-col overflow-y-auto p-4 sm:p-6">
+			<div className="mb-6 flex items-center justify-between">
 				<h3 className="text-lg font-bold">Properties</h3>
 			</div>
 
 			{/* Preview icon */}
-			<div className="flex flex-col items-center gap-4 mb-8">
+			<div className="mb-8 flex flex-col items-center gap-4">
 				<div
-					className={`w-32 h-32 ${previewBgColor(props.preview)} rounded-2xl flex items-center justify-center relative group overflow-hidden`}
+					className={`relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl ${previewBgColor(props.preview)} group sm:h-32 sm:w-32`}
 				>
 					{props.preview.kind === "image" ? (
 						<>
@@ -185,7 +184,7 @@ export function PreviewPane(props: {
 						/>
 					)}
 				</div>
-				<h4 className="text-md font-bold text-center">
+				<h4 className="text-center text-base font-bold sm:text-lg">
 					{props.preview.name}
 				</h4>
 				<p className="text-xs text-slate-500">
@@ -194,7 +193,7 @@ export function PreviewPane(props: {
 			</div>
 
 			{/* Metadata */}
-			<div className="space-y-4 mb-8">
+			<div className="mb-8 space-y-4">
 				<div className="flex justify-between text-sm">
 					<span className="text-slate-500 font-medium">Type:</span>
 					<span className="font-medium">
@@ -225,7 +224,7 @@ export function PreviewPane(props: {
 				<iframe
 					src={streamUrl}
 					title={props.preview.name}
-					className="w-full h-64 rounded-xl border border-slate-200 dark:border-slate-700 mb-4"
+					className="mb-4 h-64 w-full rounded-xl border border-slate-200 dark:border-slate-700 sm:h-72"
 				/>
 			) : null}
 			{props.preview.kind === "audio" ? (
@@ -235,11 +234,11 @@ export function PreviewPane(props: {
 				<video
 					controls
 					src={streamUrl}
-					className="w-full rounded-xl border border-slate-200 dark:border-slate-700 mb-4"
+					className="mb-4 w-full rounded-xl border border-slate-200 dark:border-slate-700"
 				/>
 			) : null}
 			{props.preview.kind === "text" ? (
-				<pre className="max-h-[300px] overflow-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-4 text-sm mb-4">
+				<pre className="mb-4 max-h-[320px] overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-700 dark:bg-slate-800/50 sm:max-h-[360px]">
 					{props.preview.content}
 				</pre>
 			) : null}
@@ -253,7 +252,7 @@ export function PreviewPane(props: {
 			) : null}
 
 			{/* Actions */}
-			<div className="mt-auto space-y-2">
+			<div className="mt-6 space-y-2 sm:mt-auto">
 				{props.canEdit ? (
 					<button
 						className="w-full py-2 bg-primary text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all"

@@ -9,6 +9,7 @@ export const APP_UI_BASE = "/apppan";
 export const WEB_API_BASE = "/pan/api";
 export const APP_API_BASE = "/apppan/api";
 export const CANONICAL_API_BASE = "/api";
+export const SHARE_UI_BASE = `${WEB_UI_BASE}/s`;
 
 export function isAppMode(pathname: string = window.location.pathname): boolean {
 	return pathname === APP_UI_BASE || pathname.startsWith(`${APP_UI_BASE}/`);
@@ -64,4 +65,15 @@ export function resolveExternalUrl(
 		return trimmed;
 	}
 	return apiUrl(trimmed, pathname);
+}
+
+export function sharePath(shareId: string): string {
+	return `${SHARE_UI_BASE}/${encodeURIComponent(shareId)}`;
+}
+
+export function shareIdFromPath(
+	pathname: string = window.location.pathname,
+): string | null {
+	const match = pathname.match(/^\/pan\/s\/([^/]+)$/);
+	return match ? decodeURIComponent(match[1]) : null;
 }

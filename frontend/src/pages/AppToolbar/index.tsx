@@ -16,6 +16,7 @@ export interface AppToolbarProps {
 	onDelete: () => void;
 	onMoveCopy: (kind: "move" | "copy") => void;
 	onRename: () => void;
+	onShare: () => void;
 	onUploadClick: () => void;
 	isMobile: boolean;
 }
@@ -77,6 +78,23 @@ export function AppToolbar(props: AppToolbarProps) {
 							/>{" "}
 							{props.isMobile ? "下载" : "Download"}
 						</button>
+						{props.isSingleSelection ? (
+							<button
+								className={
+									props.isMobile
+										? "flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+										: "flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-all"
+								}
+								onClick={props.onShare}
+								type="button"
+							>
+								<MaterialIcon
+									name="open_in_new"
+									className={props.isMobile ? "text-[13px]" : "text-sm"}
+								/>{" "}
+								{props.isMobile ? "分享" : "Share"}
+							</button>
+						) : null}
 						{props.isSingleSelection ? (
 							<button
 								className={

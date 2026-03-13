@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"archive/zip"
 	"bytes"
 	"crypto"
 	"crypto/rand"
@@ -8,6 +9,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -460,6 +462,538 @@ func TestTaskDeleteRejectsActiveTask(t *testing.T) {
 	}
 }
 
+func TestPublicShareForFileAllowsPreviewAndDownload(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "hello.txt"), []byte("hello share"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := newTestHandler(t, root)
+	ownerCookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	createBody, _ := json.Marshal(map[string]any{
+		"mountId":   "root",
+		"path":      "/hello.txt",
+		"access":    "public",
+		"expiresAt": 0,
+	})
+	createRec := authedRequest(handler, ownerCookie, http.MethodPost, "/api/shares", createBody)
+	if createRec.Code != http.StatusOK {
+		t.Fatalf("expected create share 200, got %d: %s", createRec.Code, createRec.Body.String())
+	}
+	var created struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	metaRec := requestWithCookies(handler, nil, http.MethodGet, "/api/public/shares/"+created.ID, nil)
+	if metaRec.Code != http.StatusOK {
+		t.Fatalf("expected public share meta 200, got %d: %s", metaRec.Code, metaRec.Body.String())
+	}
+	var meta struct {
+		Authorized bool `json:"authorized"`
+		Preview    struct {
+			Name string `json:"name"`
+			Path string `json:"path"`
+		} `json:"preview"`
+	}
+	if err := json.Unmarshal(metaRec.Body.Bytes(), &meta); err != nil {
+		t.Fatal(err)
+	}
+	if !meta.Authorized || meta.Preview.Name != "hello.txt" || meta.Preview.Path != "/" {
+		t.Fatalf("unexpected share meta: %+v", meta)
+	}
+
+	rawRec := requestWithCookies(handler, nil, http.MethodGet, "/api/public/shares/"+created.ID+"/raw?path=%2F", nil)
+	if rawRec.Code != http.StatusOK {
+		t.Fatalf("expected raw 200, got %d: %s", rawRec.Code, rawRec.Body.String())
+	}
+	if rawRec.Body.String() != "hello share" {
+		t.Fatalf("unexpected raw body: %q", rawRec.Body.String())
+	}
+
+	downloadRec := requestWithCookies(handler, nil, http.MethodGet, "/api/public/shares/"+created.ID+"/download?path=%2F", nil)
+	if downloadRec.Code != http.StatusOK {
+		t.Fatalf("expected download 200, got %d: %s", downloadRec.Code, downloadRec.Body.String())
+	}
+	if !strings.Contains(downloadRec.Header().Get("Content-Disposition"), `filename="hello.txt"`) {
+		t.Fatalf("expected attachment filename, got %q", downloadRec.Header().Get("Content-Disposition"))
+	}
+}
+
+func TestPasswordShareRequiresAuthorization(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "secret.txt"), []byte("top secret"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := newTestHandler(t, root)
+	ownerCookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	createBody, _ := json.Marshal(map[string]any{
+		"mountId":   "root",
+		"path":      "/secret.txt",
+		"access":    "password",
+		"expiresAt": 0,
+	})
+	createRec := authedRequest(handler, ownerCookie, http.MethodPost, "/api/shares", createBody)
+	if createRec.Code != http.StatusOK {
+		t.Fatalf("expected create share 200, got %d: %s", createRec.Code, createRec.Body.String())
+	}
+	var created struct {
+		ID       string `json:"id"`
+		Password string `json:"password"`
+	}
+	if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	if len(created.Password) != 4 {
+		t.Fatalf("expected 4-digit password, got %q", created.Password)
+	}
+
+	metaRec := requestWithCookies(handler, nil, http.MethodGet, "/api/public/shares/"+created.ID, nil)
+	if metaRec.Code != http.StatusOK {
+		t.Fatalf("expected locked share meta 200, got %d: %s", metaRec.Code, metaRec.Body.String())
+	}
+	var locked struct {
+		Name       string `json:"name"`
+		Authorized bool   `json:"authorized"`
+	}
+	if err := json.Unmarshal(metaRec.Body.Bytes(), &locked); err != nil {
+		t.Fatal(err)
+	}
+	if locked.Authorized || locked.Name != "受保护的分享" {
+		t.Fatalf("unexpected locked share payload: %+v", locked)
+	}
+
+	rawRec := requestWithCookies(handler, nil, http.MethodGet, "/api/public/shares/"+created.ID+"/raw?path=%2F", nil)
+	if rawRec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for locked raw access, got %d: %s", rawRec.Code, rawRec.Body.String())
+	}
+
+	authBody, _ := json.Marshal(map[string]string{"password": created.Password})
+	authRec := requestWithCookies(handler, nil, http.MethodPost, "/api/public/shares/"+created.ID+"/authorize", authBody)
+	if authRec.Code != http.StatusOK {
+		t.Fatalf("expected authorize 200, got %d: %s", authRec.Code, authRec.Body.String())
+	}
+	shareCookies := authRec.Result().Cookies()
+	if len(shareCookies) == 0 {
+		t.Fatal("expected share access cookie")
+	}
+
+	unlockedMeta := requestWithCookies(
+		handler,
+		[]*http.Cookie{shareCookies[0]},
+		http.MethodGet,
+		"/api/public/shares/"+created.ID,
+		nil,
+	)
+	if unlockedMeta.Code != http.StatusOK {
+		t.Fatalf("expected unlocked share meta 200, got %d: %s", unlockedMeta.Code, unlockedMeta.Body.String())
+	}
+	var unlocked struct {
+		Authorized bool `json:"authorized"`
+		Preview    struct {
+			Name string `json:"name"`
+		} `json:"preview"`
+	}
+	if err := json.Unmarshal(unlockedMeta.Body.Bytes(), &unlocked); err != nil {
+		t.Fatal(err)
+	}
+	if !unlocked.Authorized || unlocked.Preview.Name != "secret.txt" {
+		t.Fatalf("unexpected unlocked share payload: %+v", unlocked)
+	}
+}
+
+func TestDirectoryShareBlocksTraversalAndStreamsZip(t *testing.T) {
+	root := t.TempDir()
+	sharedDir := filepath.Join(root, "shared")
+	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sharedDir, "note.txt"), []byte("share note"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "outside.txt"), []byte("outside"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := newTestHandler(t, root)
+	ownerCookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	createBody, _ := json.Marshal(map[string]any{
+		"mountId":   "root",
+		"path":      "/shared",
+		"access":    "public",
+		"expiresAt": 0,
+	})
+	createRec := authedRequest(handler, ownerCookie, http.MethodPost, "/api/shares", createBody)
+	if createRec.Code != http.StatusOK {
+		t.Fatalf("expected create share 200, got %d: %s", createRec.Code, createRec.Body.String())
+	}
+	var created struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	filesRec := requestWithCookies(handler, nil, http.MethodGet, "/api/public/shares/"+created.ID+"/files?path=%2F", nil)
+	if filesRec.Code != http.StatusOK {
+		t.Fatalf("expected share files 200, got %d: %s", filesRec.Code, filesRec.Body.String())
+	}
+	var files []namedRow
+	if err := json.Unmarshal(filesRec.Body.Bytes(), &files); err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 1 || files[0].Name != "note.txt" {
+		t.Fatalf("unexpected directory share files: %+v", files)
+	}
+
+	traversalRec := requestWithCookies(handler, nil, http.MethodGet, "/api/public/shares/"+created.ID+"/files?path=%2F..%2F..", nil)
+	if traversalRec.Code != http.StatusBadRequest {
+		t.Fatalf("expected traversal 400, got %d: %s", traversalRec.Code, traversalRec.Body.String())
+	}
+
+	zipRec := requestWithCookies(handler, nil, http.MethodGet, "/api/public/shares/"+created.ID+"/download?path=%2F", nil)
+	if zipRec.Code != http.StatusOK {
+		t.Fatalf("expected directory zip 200, got %d: %s", zipRec.Code, zipRec.Body.String())
+	}
+	reader, err := zip.NewReader(bytes.NewReader(zipRec.Body.Bytes()), int64(zipRec.Body.Len()))
+	if err != nil {
+		t.Fatalf("expected zip response, got %v", err)
+	}
+	if len(reader.File) != 1 || reader.File[0].Name != "shared/note.txt" {
+		names := make([]string, 0, len(reader.File))
+		for _, file := range reader.File {
+			names = append(names, file.Name)
+		}
+		t.Fatalf("unexpected zip entries: %+v", names)
+	}
+}
+
+func TestPublicShareSaveRequiresLoginAndCopiesIntoTargetMount(t *testing.T) {
+	sourceRoot := t.TempDir()
+	targetRoot := t.TempDir()
+	sharedDir := filepath.Join(sourceRoot, "shared")
+	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sharedDir, "note.txt"), []byte("share note"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	store := indexer.NewStore(t.TempDir())
+	if err := store.Init(); err != nil {
+		t.Fatal(err)
+	}
+	handler := newHandlerWithMounts(store, []mounts.Mount{
+		{ID: "root", Name: "Root", Path: sourceRoot},
+		{ID: "dest", Name: "Destination", Path: targetRoot},
+	})
+	ownerCookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	createBody, _ := json.Marshal(map[string]any{
+		"mountId":   "root",
+		"path":      "/shared",
+		"access":    "public",
+		"expiresAt": 0,
+	})
+	createRec := authedRequest(handler, ownerCookie, http.MethodPost, "/api/shares", createBody)
+	if createRec.Code != http.StatusOK {
+		t.Fatalf("expected create share 200, got %d: %s", createRec.Code, createRec.Body.String())
+	}
+	var created struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	saveBody, _ := json.Marshal(map[string]any{
+		"mountId":   "dest",
+		"targetDir": "/",
+		"path":      "/",
+	})
+	unauthorizedSave := requestWithCookies(
+		handler,
+		nil,
+		http.MethodPost,
+		"/api/public/shares/"+created.ID+"/save",
+		saveBody,
+	)
+	if unauthorizedSave.Code != http.StatusUnauthorized {
+		t.Fatalf("expected unauthenticated save 401, got %d: %s", unauthorizedSave.Code, unauthorizedSave.Body.String())
+	}
+
+	saveRec := requestWithCookies(
+		handler,
+		[]*http.Cookie{ownerCookie},
+		http.MethodPost,
+		"/api/public/shares/"+created.ID+"/save",
+		saveBody,
+	)
+	if saveRec.Code != http.StatusOK {
+		t.Fatalf("expected authenticated save 200, got %d: %s", saveRec.Code, saveRec.Body.String())
+	}
+	if _, err := os.Stat(filepath.Join(targetRoot, "shared", "note.txt")); err != nil {
+		t.Fatalf("expected shared directory copied into destination mount, got %v", err)
+	}
+}
+
+func TestWriteShareRejectsFileCreation(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "hello.txt"), []byte("hello"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := newTestHandler(t, root)
+	ownerCookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	createBody, _ := json.Marshal(map[string]any{
+		"mountId":    "root",
+		"path":       "/hello.txt",
+		"access":     "public",
+		"permission": "write",
+		"expiresAt":  0,
+	})
+	createRec := authedRequest(handler, ownerCookie, http.MethodPost, "/api/shares", createBody)
+	if createRec.Code != http.StatusBadRequest {
+		t.Fatalf("expected create share 400, got %d: %s", createRec.Code, createRec.Body.String())
+	}
+}
+
+func TestWriteShareAllowsUploadButBlocksReadOperations(t *testing.T) {
+	sourceRoot := t.TempDir()
+	targetRoot := t.TempDir()
+	sharedDir := filepath.Join(sourceRoot, "drop")
+	if err := os.MkdirAll(filepath.Join(sharedDir, "nested"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sharedDir, "existing.txt"), []byte("existing"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	store := indexer.NewStore(t.TempDir())
+	if err := store.Init(); err != nil {
+		t.Fatal(err)
+	}
+	handler := newHandlerWithMounts(store, []mounts.Mount{
+		{ID: "root", Name: "Root", Path: sourceRoot},
+		{ID: "dest", Name: "Destination", Path: targetRoot},
+	})
+	ownerCookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	createBody, _ := json.Marshal(map[string]any{
+		"mountId":    "root",
+		"path":       "/drop",
+		"access":     "public",
+		"permission": "write",
+		"expiresAt":  0,
+	})
+	createRec := authedRequest(handler, ownerCookie, http.MethodPost, "/api/shares", createBody)
+	if createRec.Code != http.StatusOK {
+		t.Fatalf("expected create share 200, got %d: %s", createRec.Code, createRec.Body.String())
+	}
+	var created struct {
+		ID         string `json:"id"`
+		Permission string `json:"permission"`
+	}
+	if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	if created.Permission != "write" {
+		t.Fatalf("expected write permission, got %+v", created)
+	}
+
+	metaRec := requestWithCookies(handler, nil, http.MethodGet, "/api/public/shares/"+created.ID, nil)
+	if metaRec.Code != http.StatusOK {
+		t.Fatalf("expected public share meta 200, got %d: %s", metaRec.Code, metaRec.Body.String())
+	}
+	var meta struct {
+		Permission string `json:"permission"`
+		Preview    struct {
+			Kind string `json:"kind"`
+		} `json:"preview"`
+	}
+	if err := json.Unmarshal(metaRec.Body.Bytes(), &meta); err != nil {
+		t.Fatal(err)
+	}
+	if meta.Permission != "write" || meta.Preview.Kind != "directory" {
+		t.Fatalf("unexpected write share meta: %+v", meta)
+	}
+
+	uploadRec := multipartRequestWithCookies(
+		t,
+		handler,
+		nil,
+		http.MethodPost,
+		"/api/public/shares/"+created.ID+"/uploads",
+		map[string]string{"path": "/nested"},
+		[]multipartUploadFile{{name: "incoming.txt", content: []byte("uploaded")}},
+	)
+	if uploadRec.Code != http.StatusOK {
+		t.Fatalf("expected upload 200, got %d: %s", uploadRec.Code, uploadRec.Body.String())
+	}
+	if _, err := os.Stat(filepath.Join(sharedDir, "nested", "incoming.txt")); err != nil {
+		t.Fatalf("expected uploaded file inside shared directory, got %v", err)
+	}
+
+	filesRec := requestWithCookies(handler, nil, http.MethodGet, "/api/public/shares/"+created.ID+"/files?path=%2Fnested", nil)
+	if filesRec.Code != http.StatusOK {
+		t.Fatalf("expected directory listing 200, got %d: %s", filesRec.Code, filesRec.Body.String())
+	}
+
+	previewRec := requestWithCookies(handler, nil, http.MethodGet, "/api/public/shares/"+created.ID+"/preview?path=%2Fexisting.txt", nil)
+	if previewRec.Code != http.StatusForbidden {
+		t.Fatalf("expected file preview 403, got %d: %s", previewRec.Code, previewRec.Body.String())
+	}
+
+	downloadRec := requestWithCookies(handler, nil, http.MethodGet, "/api/public/shares/"+created.ID+"/download?path=%2Fexisting.txt", nil)
+	if downloadRec.Code != http.StatusForbidden {
+		t.Fatalf("expected file download 403, got %d: %s", downloadRec.Code, downloadRec.Body.String())
+	}
+
+	saveBody, _ := json.Marshal(map[string]any{
+		"mountId":   "dest",
+		"targetDir": "/",
+		"path":      "/",
+	})
+	saveRec := requestWithCookies(
+		handler,
+		[]*http.Cookie{ownerCookie},
+		http.MethodPost,
+		"/api/public/shares/"+created.ID+"/save",
+		saveBody,
+	)
+	if saveRec.Code != http.StatusForbidden {
+		t.Fatalf("expected save 403, got %d: %s", saveRec.Code, saveRec.Body.String())
+	}
+}
+
+func TestPasswordWriteShareUploadRequiresAuthorization(t *testing.T) {
+	root := t.TempDir()
+	sharedDir := filepath.Join(root, "drop")
+	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	handler := newTestHandler(t, root)
+	ownerCookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	createBody, _ := json.Marshal(map[string]any{
+		"mountId":    "root",
+		"path":       "/drop",
+		"access":     "password",
+		"permission": "write",
+		"expiresAt":  0,
+	})
+	createRec := authedRequest(handler, ownerCookie, http.MethodPost, "/api/shares", createBody)
+	if createRec.Code != http.StatusOK {
+		t.Fatalf("expected create share 200, got %d: %s", createRec.Code, createRec.Body.String())
+	}
+	var created struct {
+		ID       string `json:"id"`
+		Password string `json:"password"`
+	}
+	if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	unauthorizedUpload := multipartRequestWithCookies(
+		t,
+		handler,
+		nil,
+		http.MethodPost,
+		"/api/public/shares/"+created.ID+"/uploads",
+		map[string]string{"path": "/"},
+		[]multipartUploadFile{{name: "blocked.txt", content: []byte("blocked")}},
+	)
+	if unauthorizedUpload.Code != http.StatusUnauthorized {
+		t.Fatalf("expected upload 401 before password auth, got %d: %s", unauthorizedUpload.Code, unauthorizedUpload.Body.String())
+	}
+
+	authBody, _ := json.Marshal(map[string]string{"password": created.Password})
+	authRec := requestWithCookies(handler, nil, http.MethodPost, "/api/public/shares/"+created.ID+"/authorize", authBody)
+	if authRec.Code != http.StatusOK {
+		t.Fatalf("expected authorize 200, got %d: %s", authRec.Code, authRec.Body.String())
+	}
+	shareCookies := authRec.Result().Cookies()
+	if len(shareCookies) == 0 {
+		t.Fatal("expected share access cookie")
+	}
+
+	uploadRec := multipartRequestWithCookies(
+		t,
+		handler,
+		[]*http.Cookie{shareCookies[0]},
+		http.MethodPost,
+		"/api/public/shares/"+created.ID+"/uploads",
+		map[string]string{"path": "/"},
+		[]multipartUploadFile{{name: "allowed.txt", content: []byte("allowed")}},
+	)
+	if uploadRec.Code != http.StatusOK {
+		t.Fatalf("expected upload 200 after password auth, got %d: %s", uploadRec.Code, uploadRec.Body.String())
+	}
+	if _, err := os.Stat(filepath.Join(sharedDir, "allowed.txt")); err != nil {
+		t.Fatalf("expected uploaded file after authorization, got %v", err)
+	}
+}
+
+func TestUploadsRejectRequestsLargerThanConfiguredLimit(t *testing.T) {
+	root := t.TempDir()
+	store := indexer.NewStore(t.TempDir())
+	if err := store.Init(); err != nil {
+		t.Fatal(err)
+	}
+	handler := newHandlerWithConfig(root, store, config.Config{
+		SessionCookieName: "pan_session",
+		SessionSecret:     "secret",
+		AdminUsername:     "admin",
+		AdminPasswordHash: routerTestPasswordHash,
+		MaxUploadBytes:    4,
+		MaxEditFileBytes:  1024 * 1024,
+	})
+	cookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	if err := writer.WriteField("mountId", "root"); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.WriteField("path", "/"); err != nil {
+		t.Fatal(err)
+	}
+	part, err := writer.CreateFormFile("files", "large.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write([]byte("hello")); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/uploads", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("expected 413, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var payload map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload["code"] != "UPLOAD_TOO_LARGE" {
+		t.Fatalf("unexpected error payload: %+v", payload)
+	}
+	if _, err := os.Stat(filepath.Join(root, "large.txt")); !os.IsNotExist(err) {
+		t.Fatalf("expected oversized upload to be rejected before writing file, got %v", err)
+	}
+}
+
 func newTestHandler(t *testing.T, root string) http.Handler {
 	t.Helper()
 	store := indexer.NewStore(t.TempDir())
@@ -470,7 +1004,7 @@ func newTestHandler(t *testing.T, root string) http.Handler {
 }
 
 func newHandlerWithStore(root string, store *indexer.Store) http.Handler {
-	return newHandlerWithConfig(root, store, config.Config{
+	return newHandlerWithMountsAndConfig(store, []mounts.Mount{{ID: "root", Name: "Root", Path: root}}, config.Config{
 		SessionCookieName: "pan_session",
 		SessionSecret:     "secret",
 		AdminUsername:     "admin",
@@ -480,10 +1014,27 @@ func newHandlerWithStore(root string, store *indexer.Store) http.Handler {
 }
 
 func newHandlerWithConfig(root string, store *indexer.Store, cfg config.Config) http.Handler {
+	return newHandlerWithMountsAndConfig(store, []mounts.Mount{{ID: "root", Name: "Root", Path: root}}, cfg)
+}
+
+func newHandlerWithMounts(store *indexer.Store, mountsList []mounts.Mount) http.Handler {
+	return newHandlerWithMountsAndConfig(store, mountsList, config.Config{
+		SessionCookieName: "pan_session",
+		SessionSecret:     "secret",
+		AdminUsername:     "admin",
+		AdminPasswordHash: routerTestPasswordHash,
+		MaxEditFileBytes:  1024 * 1024,
+	})
+}
+
+func newHandlerWithMountsAndConfig(store *indexer.Store, mountsList []mounts.Mount, cfg config.Config) http.Handler {
+	if cfg.MaxUploadBytes <= 0 {
+		cfg.MaxUploadBytes = 100 * 1024 * 1024
+	}
 	manager := auth.NewManager(cfg.SessionSecret, nil, cfg.AdminUsername, cfg.AdminPasswordHash)
 	return New(Dependencies{
 		Config:      cfg,
-		Resolver:    fsops.NewMountResolver([]mounts.Mount{{ID: "root", Name: "Root", Path: root}}),
+		Resolver:    fsops.NewMountResolver(mountsList),
 		Store:       store,
 		Auth:        manager,
 		TaskManager: transfer.NewManager(store),
@@ -500,8 +1051,66 @@ func issueTestSession(t *testing.T, manager *auth.Manager) *http.Cookie {
 }
 
 func authedRequest(handler http.Handler, cookie *http.Cookie, method, path string, body []byte) *httptest.ResponseRecorder {
+	return requestWithCookies(handler, []*http.Cookie{cookie}, method, path, body)
+}
+
+func requestWithCookies(handler http.Handler, cookies []*http.Cookie, method, path string, body []byte) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(method, path, bytes.NewReader(body))
-	req.AddCookie(cookie)
+	for _, cookie := range cookies {
+		if cookie != nil {
+			req.AddCookie(cookie)
+		}
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	return rec
+}
+
+type multipartUploadFile struct {
+	name    string
+	content []byte
+}
+
+func multipartRequestWithCookies(
+	t *testing.T,
+	handler http.Handler,
+	cookies []*http.Cookie,
+	method string,
+	path string,
+	fields map[string]string,
+	files []multipartUploadFile,
+) *httptest.ResponseRecorder {
+	t.Helper()
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	for key, value := range fields {
+		if err := writer.WriteField(key, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, file := range files {
+		part, err := writer.CreateFormFile("files", file.name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := part.Write(file.content); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(method, path, &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	for _, cookie := range cookies {
+		if cookie != nil {
+			req.AddCookie(cookie)
+		}
+	}
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	return rec

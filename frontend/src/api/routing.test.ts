@@ -3,10 +3,13 @@ import assert from "node:assert/strict";
 import {
 	APP_API_BASE,
 	APP_UI_BASE,
+	SHARE_UI_BASE,
 	WEB_API_BASE,
 	WEB_UI_BASE,
 	apiPath,
 	apiPrefix,
+	shareIdFromPath,
+	sharePath,
 	resolveExternalUrl,
 	isAppMode,
 	uiBasePath,
@@ -30,3 +33,6 @@ assert.equal(resolveExternalUrl("/api/files", "/pan/files"), "/pan/api/files");
 assert.equal(resolveExternalUrl("/api/files", "/apppan/files"), "/apppan/api/files");
 assert.equal(resolveExternalUrl("/pan/api/files", "/apppan/files"), "/pan/api/files");
 assert.equal(resolveExternalUrl("https://example.com/a.png", "/pan/files"), "https://example.com/a.png");
+assert.equal(sharePath("AbCd1234"), `${SHARE_UI_BASE}/AbCd1234`);
+assert.equal(shareIdFromPath("/pan/s/AbCd1234"), "AbCd1234");
+assert.equal(shareIdFromPath("/pan/files"), null);

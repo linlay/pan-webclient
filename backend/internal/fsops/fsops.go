@@ -266,21 +266,43 @@ func Move(resolver *MountResolver, mountID, relPath, targetDir string) (Entry, e
 }
 
 func Copy(resolver *MountResolver, mountID, relPath, targetDir string) (Entry, error) {
+	return CopyToDirectory(resolver, mountID, relPath, resolver, mountID, targetDir)
+}
+
+func CopyToDirectory(
+	sourceResolver *MountResolver,
+	sourceMountID string,
+	relPath string,
+	targetResolver *MountResolver,
+	targetMountID string,
+	targetDir string,
+) (Entry, error) {
 	if cleanRelPath(relPath) == "/" {
 		return Entry{}, errors.New("mount root cannot be copied")
 	}
-	_, srcAbs, _, err := resolver.Resolve(mountID, relPath)
+	_, srcAbs, _, err := sourceResolver.Resolve(sourceMountID, relPath)
 	if err != nil {
 		return Entry{}, err
 	}
-	_, targetAbs, targetClean, err := resolver.Resolve(mountID, targetDir)
+	srcInfo, err := os.Stat(srcAbs)
 	if err != nil {
 		return Entry{}, err
 	}
-	if _, err := os.Stat(srcAbs); err != nil {
+	_, targetAbs, targetClean, err := targetResolver.Resolve(targetMountID, targetDir)
+	if err != nil {
 		return Entry{}, err
+	}
+	targetInfo, err := os.Stat(targetAbs)
+	if err != nil {
+		return Entry{}, err
+	}
+	if !targetInfo.IsDir() {
+		return Entry{}, errors.New("target is not a directory")
 	}
 	dest := filepath.Join(targetAbs, filepath.Base(srcAbs))
+	if srcInfo.IsDir() && withinRoot(srcAbs, dest) {
+		return Entry{}, errors.New("cannot copy a directory into itself")
+	}
 	if err := copyRecursively(srcAbs, dest); err != nil {
 		return Entry{}, err
 	}
@@ -289,7 +311,7 @@ func Copy(resolver *MountResolver, mountID, relPath, targetDir string) (Entry, e
 		return Entry{}, err
 	}
 	newRel := cleanRelPath(filepath.Join(targetClean, filepath.Base(srcAbs)))
-	return entryFromInfo(mountID, newRel, filepath.Base(srcAbs), newInfo, isHiddenRelPath(newRel)), nil
+	return entryFromInfo(targetMountID, newRel, filepath.Base(srcAbs), newInfo, isHiddenRelPath(newRel)), nil
 }
 
 func SaveUploadedFile(resolver *MountResolver, mountID, relPath, filename string, src io.Reader) (Entry, int64, error) {

@@ -21,9 +21,11 @@ import { FileTable } from "./features/files/FileTable";
 import { MaterialIcon } from "./features/shared/Icons";
 import { ResizableSidebar } from "./features/shared/ResizableSidebar";
 import { MobilePreviewSheet } from "./features/preview/MobilePreviewSheet";
+import { ShareDialog } from "./features/share/ShareDialog";
 import { TaskDeleteDialog } from "./features/tasks/TaskDeleteDialog";
 import { api, rawFileUrl } from "./api";
 import { isAppMode } from "./api/routing";
+import { uploadSizeErrorMessage } from "./api/uploadLimits";
 import {
 	readStoredShowHidden,
 	readStoredThemeMode,
@@ -107,6 +109,7 @@ export function App() {
 	const [dialog, setDialog] = useState<OperationDialog>(null);
 	const [taskDeleteDialog, setTaskDeleteDialog] =
 		useState<TaskDeleteDialogState | null>(null);
+	const [shareTarget, setShareTarget] = useState<FileEntry | null>(null);
 	const [dialogExpandedPaths, setDialogExpandedPaths] = useState<string[]>([
 		"/",
 	]);
@@ -666,6 +669,13 @@ export function App() {
 			submitting: false,
 		});
 	}
+	function openShareDialog(entry = selectedEntries[0]) {
+		if (!entry) {
+			setNotice({ tone: "error", text: "请选择一个文件或目录进行分享。" });
+			return;
+		}
+		setShareTarget(entry);
+	}
 	function openTasksPanel() {
 		setInspectorMode("tasks");
 		setTaskPanelCollapsed(false);
@@ -796,6 +806,11 @@ export function App() {
 	async function handleUpload(files: FileList | null) {
 		if (!files || !currentMountId) return;
 		const uploadFiles = Array.from(files);
+		const uploadError = uploadSizeErrorMessage(uploadFiles);
+		if (uploadError) {
+			setNotice({ tone: "error", text: uploadError });
+			return;
+		}
 		const localTask = buildLocalUploadTask(uploadFiles);
 		setTasks((prev) => mergeTasks(prev, [localTask]));
 		setTaskPanelCollapsed(false);
@@ -1095,67 +1110,73 @@ export function App() {
 				/>
 
 				{/* Content */}
-				<div className="flex-1 overflow-y-auto p-4 sm:p-8 relative">
-					{/* Toolbar */}
-					<AppToolbar
-						foldersCount={visibleRows.filter((e) => e.isDir).length}
-						filesCount={visibleRows.filter((e) => !e.isDir).length}
-						hasSelection={
-							isMobile
-								? mobileSelectionMode &&
-								  selectedEntries.length > 0
-								: selectedEntries.length > 0
-						}
-						isSingleSelection={selectedEntries.length === 1}
-						onBatchDownload={() => openBatchDownloadDialog()}
-						onCreateFolder={openCreateFolderDialog}
-						onDelete={() => openDeleteDialog()}
-						onMoveCopy={(kind) => openMoveCopyDialog(kind)}
-						onRename={() => openRenameDialog()}
-						onUploadClick={() => fileInputRef.current?.click()}
-						isMobile={isMobile}
-					/>
-
-					{/* Search results banner */}
-					{searchQuery ? (
-						<div className="mb-4 flex items-center gap-3 px-2">
-							<span className="text-xs uppercase tracking-wider text-slate-400">
-								Search
-							</span>
-							<strong className="text-sm">
-								{visibleRows.length} 条结果
-							</strong>
-							<span className="text-xs text-slate-400">
-								"{searchQuery}"
-							</span>
-						</div>
-					) : null}
-
-					{/* File table / grid */}
-					<FileTable
-						isMobile={isMobile}
-						entries={visibleRows}
-						selectionMode={mobileSelectionMode}
-						viewMode={viewMode}
-						onActivate={handleActivateEntry}
-						onCopy={(e) => openMoveCopyDialog("copy", [e])}
-						onDelete={(e) => openDeleteDialog([e])}
-						onDownload={(e) => openBatchDownloadDialog([e])}
-						onMove={(e) => openMoveCopyDialog("move", [e])}
-						onRename={(e) => openRenameDialog(e)}
-						onSelectionModeChange={setMobileSelectionMode}
-						onSetSelection={handleSetSelection}
-						onToggleSelection={handleToggleSelection}
-						onToggleAllSelection={(selectAll) => {
-							if (selectAll) {
-								setSelectedEntries(visibleRows);
-							} else {
-								setSelectedEntries([]);
+				<div className="relative flex min-h-0 flex-1 flex-col p-4 sm:p-8">
+					<div className="shrink-0">
+						{/* Toolbar */}
+						<AppToolbar
+							foldersCount={visibleRows.filter((e) => e.isDir).length}
+							filesCount={visibleRows.filter((e) => !e.isDir).length}
+							hasSelection={
+								isMobile
+									? mobileSelectionMode &&
+									  selectedEntries.length > 0
+									: selectedEntries.length > 0
 							}
-						}}
-						selectedEntries={selectedEntries}
-						showPath={Boolean(searchQuery)}
-					/>
+							isSingleSelection={selectedEntries.length === 1}
+							onBatchDownload={() => openBatchDownloadDialog()}
+							onCreateFolder={openCreateFolderDialog}
+							onDelete={() => openDeleteDialog()}
+							onMoveCopy={(kind) => openMoveCopyDialog(kind)}
+							onRename={() => openRenameDialog()}
+							onShare={() => openShareDialog()}
+							onUploadClick={() => fileInputRef.current?.click()}
+							isMobile={isMobile}
+						/>
+
+						{/* Search results banner */}
+						{searchQuery ? (
+							<div className="mb-4 flex items-center gap-3 px-2">
+								<span className="text-xs uppercase tracking-wider text-slate-400">
+									Search
+								</span>
+								<strong className="text-sm">
+									{visibleRows.length} 条结果
+								</strong>
+								<span className="text-xs text-slate-400">
+									"{searchQuery}"
+								</span>
+							</div>
+						) : null}
+					</div>
+
+					<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+						{/* File table / grid */}
+						<FileTable
+							isMobile={isMobile}
+							entries={visibleRows}
+							selectionMode={mobileSelectionMode}
+							viewMode={viewMode}
+							onActivate={handleActivateEntry}
+							onCopy={(e) => openMoveCopyDialog("copy", [e])}
+							onDelete={(e) => openDeleteDialog([e])}
+							onDownload={(e) => openBatchDownloadDialog([e])}
+							onMove={(e) => openMoveCopyDialog("move", [e])}
+							onRename={(e) => openRenameDialog(e)}
+							onShare={(e) => openShareDialog(e)}
+							onSelectionModeChange={setMobileSelectionMode}
+							onSetSelection={handleSetSelection}
+							onToggleSelection={handleToggleSelection}
+							onToggleAllSelection={(selectAll) => {
+								if (selectAll) {
+									setSelectedEntries(visibleRows);
+								} else {
+									setSelectedEntries([]);
+								}
+							}}
+							selectedEntries={selectedEntries}
+							showPath={Boolean(searchQuery)}
+						/>
+					</div>
 
 					{/* Notice Toast */}
 					{notice ? (
@@ -1391,6 +1412,12 @@ export function App() {
 						onSubmit={() => void submitTaskDeleteDialog()}
 						submitting={taskDeleteDialog.submitting}
 						task={taskDeleteDialog.task}
+					/>
+				) : null}
+				{shareTarget ? (
+					<ShareDialog
+						entry={shareTarget}
+						onClose={() => setShareTarget(null)}
 					/>
 				) : null}
 			</div>

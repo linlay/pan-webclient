@@ -104,3 +104,30 @@ export interface SessionUser {
   username: string;
   authMethod: "session" | "token";
 }
+
+export type ShareAccess = "public" | "password";
+export type SharePermission = "read" | "write";
+
+export interface ShareCreateResult {
+  id: string;
+  name: string;
+  isDir: boolean;
+  access: ShareAccess;
+  permission: SharePermission;
+  expiresAt: number;
+  password?: string;
+  urlPath: string;
+}
+
+export interface PublicShare {
+  id: string;
+  name: string;
+  isDir: boolean;
+  access: ShareAccess;
+  permission: SharePermission;
+  requiresPassword: boolean;
+  authorized: boolean;
+  expiresAt: number;
+  preview?: PreviewMeta;
+  entries?: FileEntry[];
+}

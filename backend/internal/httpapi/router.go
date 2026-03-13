@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
@@ -26,9 +27,11 @@ import (
 )
 
 const (
-	canonicalAPIBase = "/api"
-	webAPIBase       = "/pan/api"
-	appAPIBase       = "/apppan/api"
+	canonicalAPIBase                 = "/api"
+	webAPIBase                       = "/pan/api"
+	appAPIBase                       = "/apppan/api"
+	uploadParseMemoryBytes     int64 = 32 << 20
+	uploadRequestOverheadBytes int64 = 32 << 20
 )
 
 type Dependencies struct {
@@ -73,6 +76,7 @@ func New(deps Dependencies) http.Handler {
 	mux.HandleFunc("/api/preview", a.withAuth(a.preview))
 	mux.HandleFunc("/api/files/content", a.withAuth(a.fileContent))
 	mux.HandleFunc("/api/files/raw", a.withAuth(a.raw))
+	mux.HandleFunc("/api/shares", a.withAuth(a.shares))
 	mux.HandleFunc("/api/uploads", a.withAuth(a.uploads))
 	mux.HandleFunc("/api/tasks", a.withAuth(a.tasks))
 	mux.HandleFunc("/api/downloads/batch", a.withAuth(a.batchDownload))
@@ -80,6 +84,7 @@ func New(deps Dependencies) http.Handler {
 	mux.HandleFunc("/api/trash", a.withAuth(a.trash))
 	mux.HandleFunc("/api/trash/restore", a.withAuth(a.restoreTrash))
 	mux.HandleFunc("/api/trash/delete", a.withAuth(a.deleteTrash))
+	mux.HandleFunc("/api/public/shares/", a.publicShareRoute)
 
 	return mux
 }
@@ -339,7 +344,7 @@ func (a *api) preview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rawURL := apiURL(
-		"/files/raw?mountId="+url.QueryEscape(mountID)+"&path="+url.QueryEscape(path),
+		"/files/raw?mountId=" + url.QueryEscape(mountID) + "&path=" + url.QueryEscape(path),
 	)
 	meta, err := preview.Build(a.resolver, mountID, path, rawURL, a.cfg.MaxEditFileBytes)
 	if err != nil {
@@ -418,14 +423,38 @@ func (a *api) uploads(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		return
 	}
-	if err := r.ParseMultipartForm(a.cfg.MaxUploadBytes); err != nil {
+	r.Body = http.MaxBytesReader(w, r.Body, a.cfg.MaxUploadBytes+uploadRequestOverheadBytes)
+	if err := r.ParseMultipartForm(uploadParseMemoryBytes); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			writeError(
+				w,
+				http.StatusRequestEntityTooLarge,
+				"UPLOAD_TOO_LARGE",
+				uploadTooLargeMessage(a.cfg.MaxUploadBytes),
+			)
+			return
+		}
 		writeError(w, http.StatusBadRequest, "UPLOAD_PARSE_FAILED", err.Error())
+		return
+	}
+	if r.MultipartForm != nil {
+		defer r.MultipartForm.RemoveAll()
+	}
+	files := r.MultipartForm.File["files"]
+	if totalUploadBytes(files) > a.cfg.MaxUploadBytes {
+		writeError(
+			w,
+			http.StatusRequestEntityTooLarge,
+			"UPLOAD_TOO_LARGE",
+			uploadTooLargeMessage(a.cfg.MaxUploadBytes),
+		)
 		return
 	}
 	task := transfer.NewTask("upload", "Uploading files")
 	task.Status = "running"
-	task.Items = make([]transfer.TaskItem, 0, len(r.MultipartForm.File["files"]))
-	for _, header := range r.MultipartForm.File["files"] {
+	task.Items = make([]transfer.TaskItem, 0, len(files))
+	for _, header := range files {
 		task.Items = append(task.Items, transfer.TaskItem{
 			Name:  header.Filename,
 			Path:  header.Filename,
@@ -440,7 +469,6 @@ func (a *api) uploads(w http.ResponseWriter, r *http.Request) {
 	mountID := r.FormValue("mountId")
 	relPath := r.FormValue("path")
 	uploaded := 0
-	files := r.MultipartForm.File["files"]
 	for _, header := range files {
 		src, err := header.Open()
 		if err != nil {
@@ -774,4 +802,16 @@ func parseInt(v string, fallback int64) int64 {
 		return fallback
 	}
 	return parsed
+}
+
+func totalUploadBytes(files []*multipart.FileHeader) int64 {
+	var total int64
+	for _, header := range files {
+		total += header.Size
+	}
+	return total
+}
+
+func uploadTooLargeMessage(limit int64) string {
+	return fmt.Sprintf("upload size exceeds %d MB limit", limit/(1024*1024))
 }

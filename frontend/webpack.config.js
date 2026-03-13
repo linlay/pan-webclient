@@ -4,6 +4,7 @@ const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const webpack = require("webpack");
 
 const devServerPort = parseInt(process.env.FRONTEND_DEV_PORT || "80", 10);
+const webUiAssetPublicPath = "/pan/";
 
 module.exports = (_env, argv) => {
   const isProd = argv.mode === "production";
@@ -67,6 +68,7 @@ module.exports = (_env, argv) => {
       new HtmlWebpackPlugin({
         template: "./index.html",
         favicon: "./src/static/favicon.svg",
+        publicPath: webUiAssetPublicPath,
       }),
       new webpack.DefinePlugin({
         "process.env.REACT_APP_API_BASE_URL": JSON.stringify(

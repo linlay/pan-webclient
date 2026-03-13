@@ -26,6 +26,7 @@ export function FileTable(props: {
 	onCopy: (entry: FileEntry) => void;
 	onDelete: (entry: FileEntry) => void;
 	onDownload: (entry: FileEntry) => void;
+	onShare: (entry: FileEntry) => void;
 	onToggleAllSelection?: (selectAll: boolean) => void;
 }) {
 	if (props.entries.length === 0) {
@@ -69,6 +70,7 @@ type ListViewProps = {
 	onCopy: (entry: FileEntry) => void;
 	onDelete: (entry: FileEntry) => void;
 	onDownload: (entry: FileEntry) => void;
+	onShare: (entry: FileEntry) => void;
 	onToggleAllSelection?: (selectAll: boolean) => void;
 };
 
@@ -79,17 +81,16 @@ function GridView(props: {
 	selectedEntries: FileEntry[];
 	onActivate: (entry: FileEntry) => void;
 	onToggleSelection: (entry: FileEntry) => void;
+	onShare?: (entry: FileEntry) => void;
 }) {
 	return (
-		<div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-6">
+		<div className="grid grid-cols-[repeat(auto-fill,minmax(142px,1fr))] gap-x-3.5 gap-y-4.5 md:grid-cols-[repeat(auto-fill,minmax(148px,1fr))] md:gap-x-4 md:gap-y-5 xl:grid-cols-[repeat(auto-fill,minmax(156px,1fr))]">
 			{props.entries.map((entry) => {
 				const selected = isSelected(entry, props.selectedEntries);
-				const { icon, color } = getFileVisual(entry);
+				const { icon, color, textColor } = getFileVisual(entry);
 				return (
 					<div
-						className={`group flex flex-col items-center gap-2 cursor-pointer ${
-							selected ? "opacity-80" : ""
-						}`}
+						className="group cursor-pointer"
 						key={`${entry.mountId}:${entry.path}`}
 						onClick={() => props.onActivate(entry)}
 						onKeyDown={(e) => {
@@ -103,17 +104,51 @@ function GridView(props: {
 						tabIndex={0}
 					>
 						<div
-							className={`w-20 h-20 rounded-2xl flex items-center justify-center transition-all group-hover:scale-105 ${color} ${
+							className={`relative rounded-[24px] p-2 transition-all duration-200 ${
 								selected
-									? "ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900"
-									: ""
+									? "bg-primary/6"
+									: "hover:-translate-y-1 hover:bg-slate-50/90 dark:hover:bg-slate-800/35"
 							}`}
 						>
-							<MaterialIcon className="text-5xl" name={icon} />
+							{selected ? (
+								<div className="absolute right-3 top-3 z-10 rounded-full bg-white/95 p-1 text-primary shadow-sm dark:bg-slate-900/95">
+									<MaterialIcon
+										name="check_circle"
+										className="text-base"
+									/>
+								</div>
+							) : null}
+							<div
+								className={`relative flex aspect-[1/0.82] items-center justify-center overflow-hidden rounded-[20px] border border-white/90 bg-white shadow-[0_8px_18px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 ${
+									selected ? "ring-2 ring-primary/15" : ""
+								}`}
+							>
+								<div
+									className={`absolute inset-0 opacity-95 ${color}`}
+								/>
+								<MaterialIcon
+									className={`relative text-[3.6rem] transition-transform duration-200 group-hover:scale-110 ${textColor} font-normal`}
+									name={icon}
+								/>
+							</div>
+
+							<div className="mt-2.5 min-w-0 px-0.5">
+								<div className="truncate text-[14px] font-semibold leading-5 text-slate-900 dark:text-slate-100">
+									{entry.name}
+								</div>
+								<div className="mt-1 flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
+									<span className="truncate">
+										{entry.isDir
+											? "目录"
+											: formatBytes(entry.size)}
+									</span>
+									<span className="shrink-0">·</span>
+									<span className="shrink-0">
+										{formatCompactDate(entry.modTime)}
+									</span>
+								</div>
+							</div>
 						</div>
-						<span className="text-xs font-medium text-center truncate w-full px-1">
-							{entry.name}
-						</span>
 					</div>
 				);
 			})}
@@ -203,7 +238,10 @@ function ListView(props: ListViewProps) {
 								</td>
 								<td className="px-4 py-3">
 									<div className="flex items-center gap-3 font-medium text-slate-900 dark:text-slate-100">
-										<MaterialIcon className={`${textColor} text-xl`} name={icon} />
+										<MaterialIcon
+											className={`${textColor} text-xl`}
+											name={icon}
+										/>
 										<div className="min-w-0 flex-1">
 											<span className="block truncate">
 												{entry.name}
@@ -266,6 +304,17 @@ function ListView(props: ListViewProps) {
 												icon: <IconCopy size={14} />,
 												onSelect: () =>
 													props.onCopy(entry),
+											},
+											{
+												label: "Share",
+												icon: (
+													<MaterialIcon
+														name="open_in_new"
+														className="text-sm"
+													/>
+												),
+												onSelect: () =>
+													props.onShare(entry),
 											},
 											{
 												label: "Download",
@@ -374,19 +423,19 @@ function MobileListView(props: ListViewProps) {
 					{selectionMode ? "完成" : "选择"}
 				</button>
 			</div>
-				<div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-					{props.entries.map((entry, index) => {
-						const selected = isSelected(entry, props.selectedEntries);
-						const { icon, textColor } = getFileVisual(entry);
+			<div className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+				{props.entries.map((entry, index) => {
+					const selected = isSelected(entry, props.selectedEntries);
+					const { icon, textColor } = getFileVisual(entry);
 
-						return (
-							<div
-								className={`flex items-center gap-3 px-4 py-3 transition-colors ${
-									selectionMode && selected ? "bg-primary/5" : ""
-								} ${index > 0 ? "border-t border-slate-100 dark:border-slate-800" : ""}`}
-								key={entryKey(entry)}
-								onClick={() => handleActivate(entry)}
-								onKeyDown={(e) => {
+					return (
+						<div
+							className={`flex items-center gap-3 px-4 py-3 transition-colors ${
+								selectionMode && selected ? "bg-primary/5" : ""
+							} ${index > 0 ? "border-t border-slate-100 dark:border-slate-800" : ""}`}
+							key={entryKey(entry)}
+							onClick={() => handleActivate(entry)}
+							onKeyDown={(e) => {
 								if (e.key === "Enter") handleActivate(entry);
 							}}
 							onTouchCancel={clearLongPressTimer}
@@ -395,10 +444,10 @@ function MobileListView(props: ListViewProps) {
 							onTouchStart={() => startLongPress(entry)}
 							role="button"
 							tabIndex={0}
-							>
-								{selectionMode ? (
-									<div
-										className="flex items-center self-stretch"
+						>
+							{selectionMode ? (
+								<div
+									className="flex items-center self-stretch"
 									onClick={(e) => e.stopPropagation()}
 								>
 									<input
@@ -413,7 +462,10 @@ function MobileListView(props: ListViewProps) {
 								</div>
 							) : null}
 							<div className="flex min-w-0 flex-1 items-center gap-3">
-								<MaterialIcon className={`text-xl ${textColor}`} name={icon} />
+								<MaterialIcon
+									className={`text-xl ${textColor}`}
+									name={icon}
+								/>
 								<div className="min-w-0 flex-1">
 									<div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
 										{entry.name}
@@ -456,6 +508,17 @@ function MobileListView(props: ListViewProps) {
 											onSelect: () => props.onCopy(entry),
 										},
 										{
+											label: "Share",
+											icon: (
+												<MaterialIcon
+													name="open_in_new"
+													className="text-sm"
+												/>
+											),
+											onSelect: () =>
+												props.onShare(entry),
+										},
+										{
 											label: "Download",
 											icon: <IconDownload size={14} />,
 											onSelect: () =>
@@ -480,10 +543,10 @@ function MobileListView(props: ListViewProps) {
 									buttonLabel={`${entry.name} 操作`}
 								/>
 							</div>
-							</div>
-						);
-					})}
-				</div>
+						</div>
+					);
+				})}
+			</div>
 		</div>
 	);
 }
@@ -571,4 +634,11 @@ function formatBytes(value: number) {
 
 function formatDateTime(value: number) {
 	return new Date(value * 1000).toLocaleString();
+}
+
+function formatCompactDate(value: number) {
+	return new Date(value * 1000).toLocaleDateString(undefined, {
+		month: "numeric",
+		day: "numeric",
+	});
 }
