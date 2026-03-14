@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { EditorDocument, FileEntry } from "../../types/contracts/index";
+import { emptyEditorDescription, emptyEditorTitle } from "@/utils";
 
 export function EditorPane(props: {
 	editor: EditorDocument | null;
@@ -23,15 +24,18 @@ export function EditorPane(props: {
 				<div className="flex items-center justify-between mb-4">
 					<h3 className="text-lg font-bold">编辑器</h3>
 				</div>
-				<div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-6 text-center">
-					<strong className="text-slate-600 dark:text-slate-300">
-						{emptyTitle(props.selectionCount, props.activeEntry)}
-					</strong>
-					<p className="text-sm text-slate-500 mt-2">
-						{emptyDescription(
-							props.selectionCount,
-							props.activeEntry,
-						)}
+					<div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-6 text-center">
+						<strong className="text-slate-600 dark:text-slate-300">
+							{emptyEditorTitle(
+								props.selectionCount,
+								props.activeEntry,
+							)}
+						</strong>
+						<p className="text-sm text-slate-500 mt-2">
+							{emptyEditorDescription(
+								props.selectionCount,
+								props.activeEntry,
+							)}
 					</p>
 				</div>
 			</div>
@@ -101,23 +105,4 @@ export function EditorPane(props: {
 			/>
 		</div>
 	);
-}
-
-function emptyTitle(selectionCount: number, activeEntry: FileEntry | null) {
-	if (selectionCount > 1) return "批量选择不进入编辑模式";
-	if (activeEntry?.isDir) return "目录不可直接编辑";
-	if (activeEntry) return "该文件当前仅支持预览";
-	return "选择文本文件进入编辑";
-}
-
-function emptyDescription(
-	selectionCount: number,
-	activeEntry: FileEntry | null,
-) {
-	if (selectionCount > 1)
-		return "先收敛到单个文本或 Markdown 文件，再在这里修改内容。";
-	if (activeEntry?.isDir)
-		return "目录不会进入编辑状态；单击目录会直接进入该层级。";
-	if (activeEntry) return "现阶段只支持文本类文件和 Markdown 的在线编辑。";
-	return "支持纯文本、Markdown，以及后端当前已识别的其它文本类型。";
 }

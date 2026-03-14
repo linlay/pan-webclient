@@ -1,6 +1,8 @@
 package httpapi
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -28,6 +30,8 @@ const (
 	shareAccessPassword  = "password"
 	sharePermissionRead  = "read"
 	sharePermissionWrite = "write"
+	shareWriteModeLocal  = "local"
+	shareWriteModeText   = "text"
 	maxShareLifetime     = 365 * 24 * time.Hour
 	shareSessionTTL      = 24 * time.Hour
 	shareShortCodeLen    = 8
@@ -45,6 +49,7 @@ type shareCreateRequest struct {
 	Path       string `json:"path"`
 	Access     string `json:"access"`
 	Permission string `json:"permission"`
+	WriteMode  string `json:"writeMode"`
 	ExpiresAt  int64  `json:"expiresAt"`
 }
 
@@ -54,8 +59,26 @@ type shareCreateResponse struct {
 	IsDir      bool   `json:"isDir"`
 	Access     string `json:"access"`
 	Permission string `json:"permission"`
+	WriteMode  string `json:"writeMode"`
 	ExpiresAt  int64  `json:"expiresAt"`
 	Password   string `json:"password,omitempty"`
+	URLPath    string `json:"urlPath"`
+}
+
+type managedShareResponse struct {
+	ID         string `json:"id"`
+	MountID    string `json:"mountId"`
+	Path       string `json:"path"`
+	Name       string `json:"name"`
+	IsDir      bool   `json:"isDir"`
+	Access     string `json:"access"`
+	Permission string `json:"permission"`
+	WriteMode  string `json:"writeMode"`
+	Password   string `json:"password,omitempty"`
+	ExpiresAt  int64  `json:"expiresAt"`
+	CreatedAt  int64  `json:"createdAt"`
+	UpdatedAt  int64  `json:"updatedAt"`
+	Expired    bool   `json:"expired"`
 	URLPath    string `json:"urlPath"`
 }
 
@@ -71,6 +94,7 @@ type publicShareResponse struct {
 	IsDir            bool          `json:"isDir"`
 	Access           string        `json:"access"`
 	Permission       string        `json:"permission"`
+	WriteMode        string        `json:"writeMode"`
 	RequiresPassword bool          `json:"requiresPassword"`
 	Authorized       bool          `json:"authorized"`
 	ExpiresAt        int64         `json:"expiresAt"`
@@ -79,7 +103,12 @@ type publicShareResponse struct {
 }
 
 func (a *api) shares(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
+	switch r.Method {
+	case http.MethodGet:
+		a.listShares(w, r)
+		return
+	case http.MethodPost:
+	default:
 		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		return
 	}
@@ -98,10 +127,69 @@ func (a *api) shares(w http.ResponseWriter, r *http.Request) {
 		IsDir:      record.IsDir,
 		Access:     record.Access,
 		Permission: record.Permission,
+		WriteMode:  record.WriteMode,
 		ExpiresAt:  record.ExpiresAt,
 		Password:   password,
 		URLPath:    shareURLPath(record.ID),
 	})
+}
+
+func (a *api) shareRoute(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	id := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/shares/"), "/")
+	if id == "" {
+		writeError(w, http.StatusNotFound, "NOT_FOUND", "share not found")
+		return
+	}
+	if err := a.store.DeleteShare(id); err != nil {
+		if os.IsNotExist(err) {
+			writeError(w, http.StatusNotFound, "SHARE_NOT_FOUND", "share not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "SHARE_DELETE_FAILED", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+func (a *api) listShares(w http.ResponseWriter, _ *http.Request) {
+	records, err := a.store.ListShares(0)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "SHARE_LIST_FAILED", err.Error())
+		return
+	}
+	now := time.Now().Unix()
+	items := make([]managedShareResponse, 0, len(records))
+	for _, record := range records {
+		permission := sharePermission(record)
+		password := ""
+		if record.Access == shareAccessPassword && record.PasswordCipher != "" {
+			password, err = decryptSharePassword(a.cfg.SessionSecret, record.ID, record.PasswordCipher)
+			if err != nil {
+				password = ""
+			}
+		}
+		items = append(items, managedShareResponse{
+			ID:         record.ID,
+			MountID:    record.MountID,
+			Path:       record.Path,
+			Name:       record.Name,
+			IsDir:      record.IsDir,
+			Access:     record.Access,
+			Permission: permission,
+			WriteMode:  shareWriteMode(record),
+			Password:   password,
+			ExpiresAt:  record.ExpiresAt,
+			CreatedAt:  record.CreatedAt,
+			UpdatedAt:  record.UpdatedAt,
+			Expired:    record.ExpiresAt > 0 && now >= record.ExpiresAt,
+			URLPath:    shareURLPath(record.ID),
+		})
+	}
+	writeJSON(w, http.StatusOK, items)
 }
 
 func (a *api) createShare(req shareCreateRequest) (indexer.ShareRecord, string, error) {
@@ -118,6 +206,10 @@ func (a *api) createShare(req shareCreateRequest) (indexer.ShareRecord, string, 
 		return indexer.ShareRecord{}, "", err
 	}
 	permission, err := normalizeSharePermission(req.Permission, info.IsDir())
+	if err != nil {
+		return indexer.ShareRecord{}, "", err
+	}
+	writeMode, err := normalizeShareWriteMode(req.WriteMode, permission)
 	if err != nil {
 		return indexer.ShareRecord{}, "", err
 	}
@@ -138,6 +230,7 @@ func (a *api) createShare(req shareCreateRequest) (indexer.ShareRecord, string, 
 		IsDir:      info.IsDir(),
 		Access:     access,
 		Permission: permission,
+		WriteMode:  writeMode,
 		ExpiresAt:  expiresAt,
 		CreatedAt:  now,
 		UpdatedAt:  now,
@@ -149,6 +242,10 @@ func (a *api) createShare(req shareCreateRequest) (indexer.ShareRecord, string, 
 			return indexer.ShareRecord{}, "", err
 		}
 		record.PasswordDigest = hashSharePassword(a.cfg.SessionSecret, record.ID, password)
+		record.PasswordCipher, err = encryptSharePassword(a.cfg.SessionSecret, record.ID, password)
+		if err != nil {
+			return indexer.ShareRecord{}, "", err
+		}
 	}
 	if err := a.store.PutShare(record); err != nil {
 		return indexer.ShareRecord{}, "", err
@@ -206,6 +303,7 @@ func (a *api) publicShare(w http.ResponseWriter, r *http.Request, record indexer
 		IsDir:            record.IsDir,
 		Access:           record.Access,
 		Permission:       record.Permission,
+		WriteMode:        shareWriteMode(record),
 		RequiresPassword: record.Access == shareAccessPassword,
 		Authorized:       authorized,
 		ExpiresAt:        record.ExpiresAt,
@@ -742,11 +840,35 @@ func normalizeSharePermission(permission string, isDir bool) (string, error) {
 	}
 }
 
+func normalizeShareWriteMode(writeMode string, permission string) (string, error) {
+	if permission != sharePermissionWrite {
+		return shareWriteModeLocal, nil
+	}
+	switch strings.ToLower(strings.TrimSpace(writeMode)) {
+	case "", shareWriteModeLocal:
+		return shareWriteModeLocal, nil
+	case shareWriteModeText:
+		return shareWriteModeText, nil
+	default:
+		return "", errors.New("invalid share write mode")
+	}
+}
+
 func sharePermission(record indexer.ShareRecord) string {
 	if record.IsDir && strings.EqualFold(strings.TrimSpace(record.Permission), sharePermissionWrite) {
 		return sharePermissionWrite
 	}
 	return sharePermissionRead
+}
+
+func shareWriteMode(record indexer.ShareRecord) string {
+	if sharePermission(record) != sharePermissionWrite {
+		return shareWriteModeLocal
+	}
+	if strings.EqualFold(strings.TrimSpace(record.WriteMode), shareWriteModeText) {
+		return shareWriteModeText
+	}
+	return shareWriteModeLocal
 }
 
 func requireShareRead(record indexer.ShareRecord) error {
@@ -783,6 +905,55 @@ func hashSharePassword(secret, shareID, password string) string {
 	_, _ = io.WriteString(mac, ":")
 	_, _ = io.WriteString(mac, strings.TrimSpace(password))
 	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
+func encryptSharePassword(secret, shareID, password string) (string, error) {
+	key := sharePasswordKey(secret, shareID)
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return "", err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := rand.Read(nonce); err != nil {
+		return "", err
+	}
+	payload := gcm.Seal(nonce, nonce, []byte(strings.TrimSpace(password)), []byte(shareID))
+	return base64.RawURLEncoding.EncodeToString(payload), nil
+}
+
+func decryptSharePassword(secret, shareID, encoded string) (string, error) {
+	key := sharePasswordKey(secret, shareID)
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return "", err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(encoded)
+	if err != nil {
+		return "", err
+	}
+	if len(payload) < gcm.NonceSize() {
+		return "", errors.New("invalid password payload")
+	}
+	nonce := payload[:gcm.NonceSize()]
+	ciphertext := payload[gcm.NonceSize():]
+	plaintext, err := gcm.Open(nil, nonce, ciphertext, []byte(shareID))
+	if err != nil {
+		return "", err
+	}
+	return string(plaintext), nil
+}
+
+func sharePasswordKey(secret, shareID string) []byte {
+	sum := sha256.Sum256([]byte(secret + ":" + shareID))
+	return sum[:]
 }
 
 func matchSharePassword(secret string, record indexer.ShareRecord, password string) bool {

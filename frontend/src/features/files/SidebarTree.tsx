@@ -1,5 +1,6 @@
 import { MaterialIcon } from "../shared/Icons";
 import type { FileTreeNode, MountRoot } from "../../types/contracts/index";
+import { treeCacheKey } from "@/utils";
 
 export function SidebarTree(props: {
 	mounts: MountRoot[];
@@ -160,8 +161,4 @@ function TreeBranch(props: {
 			) : null}
 		</div>
 	);
-}
-
-function treeCacheKey(mountId: string, path: string, showHidden: string) {
-	return `${mountId}:${showHidden}:${path}`;
 }

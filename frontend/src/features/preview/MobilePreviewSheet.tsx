@@ -3,102 +3,14 @@ import type { PreviewMeta } from "../../types/contracts";
 import { MaterialIcon } from "../shared/Icons";
 import { rawFileUrl } from "../../api";
 import { resolveExternalUrl } from "../../api/routing";
-
-function previewIconName(preview: PreviewMeta) {
-	switch (preview.kind) {
-		case "image":
-			return "image";
-		case "video":
-			return "movie";
-		case "audio":
-			return "music_note";
-		case "pdf":
-			return "picture_as_pdf";
-		case "markdown":
-			return "article";
-		case "text":
-			return "description";
-		case "directory":
-			return "folder";
-		default:
-			return "draft";
-	}
-}
-
-function previewBgColor(preview: PreviewMeta) {
-	switch (preview.kind) {
-		case "image":
-			return "bg-amber-500/10";
-		case "video":
-			return "bg-slate-500/10";
-		case "audio":
-			return "bg-zinc-500/10";
-		case "pdf":
-			return "bg-rose-500/10";
-		case "markdown":
-			return "bg-slate-400/10";
-		case "text":
-			return "bg-slate-400/10";
-		case "directory":
-			return "bg-primary/10";
-		default:
-			return "bg-slate-100 dark:bg-slate-800";
-	}
-}
-
-function previewTextColor(preview: PreviewMeta) {
-	switch (preview.kind) {
-		case "image":
-			return "text-amber-500";
-		case "video":
-			return "text-slate-500";
-		case "audio":
-			return "text-zinc-500";
-		case "pdf":
-			return "text-rose-500";
-		case "markdown":
-			return "text-slate-400";
-		case "text":
-			return "text-slate-400";
-		case "directory":
-			return "text-primary";
-		default:
-			return "text-slate-500";
-	}
-}
-
-function describePreviewKind(kind: PreviewMeta["kind"], mime: string) {
-	switch (kind) {
-		case "markdown":
-			return "Markdown";
-		case "text":
-			return "Text File";
-		case "download":
-			return mime || "File";
-		case "image":
-			return "Image";
-		case "audio":
-			return "Audio";
-		case "video":
-			return "Video";
-		case "pdf":
-			return "PDF Document";
-		default:
-			return kind;
-	}
-}
-
-function formatBytes(value: number) {
-	if (value < 1024) return `${value} B`;
-	if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
-	if (value < 1024 * 1024 * 1024)
-		return `${(value / 1024 / 1024).toFixed(1)} MB`;
-	return `${(value / 1024 / 1024 / 1024).toFixed(1)} GB`;
-}
-
-function formatDateTime(value: number) {
-	return new Date(value * 1000).toLocaleString();
-}
+import {
+	describePreviewKind,
+	formatBytes,
+	formatDateTime,
+	previewBgColor,
+	previewIconName,
+	previewTextColor,
+} from "@/utils";
 
 export interface MobilePreviewSheetProps {
 	preview: PreviewMeta;
@@ -173,7 +85,7 @@ export function MobilePreviewSheet(props: MobilePreviewSheetProps) {
 							<p className="text-xs text-slate-400 mt-0.5">
 								{describePreviewKind(
 									preview.kind,
-									preview.size ? preview.size.toString() : "",
+									preview.mime,
 								)}
 								{preview.kind !== "directory" &&
 									preview.size !== undefined && (

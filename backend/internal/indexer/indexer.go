@@ -64,7 +64,9 @@ type ShareRecord struct {
 	IsDir          bool   `json:"isDir"`
 	Access         string `json:"access"`
 	Permission     string `json:"permission,omitempty"`
+	WriteMode      string `json:"writeMode,omitempty"`
 	PasswordDigest string `json:"passwordDigest,omitempty"`
+	PasswordCipher string `json:"passwordCipher,omitempty"`
 	ExpiresAt      int64  `json:"expiresAt,omitempty"`
 	CreatedAt      int64  `json:"createdAt"`
 	UpdatedAt      int64  `json:"updatedAt"`
@@ -253,6 +255,37 @@ func (s *Store) GetShare(id string) (ShareRecord, error) {
 		return ShareRecord{}, err
 	}
 	return record, nil
+}
+
+func (s *Store) ListShares(limit int) ([]ShareRecord, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	entries, err := os.ReadDir(s.shareMetaDir)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]ShareRecord, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+		var item ShareRecord
+		if err := readJSONFile(filepath.Join(s.shareMetaDir, entry.Name()), &item); err != nil {
+			continue
+		}
+		items = append(items, item)
+	}
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].UpdatedAt == items[j].UpdatedAt {
+			return items[i].CreatedAt > items[j].CreatedAt
+		}
+		return items[i].UpdatedAt > items[j].UpdatedAt
+	})
+	if limit > 0 && len(items) > limit {
+		items = items[:limit]
+	}
+	return items, nil
 }
 
 func (s *Store) DeleteShare(id string) error {

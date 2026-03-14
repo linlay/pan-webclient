@@ -19,11 +19,13 @@ export interface AppSidebarProps {
 	mounts: MountRoot[];
 	showHidden: boolean;
 	singleMountMode: boolean;
+	sharesLength: number;
 	tasksLength: number;
 	trashItemsLength: number;
 	treeCache: Record<string, FileTreeNode[]>;
 	onCloseMobileNav: () => void;
 	onNavigateHome: () => void;
+	onOpenShares: () => void;
 	onOpenTasks: () => void;
 	onOpenTrash: () => void;
 	onRefresh: () => void;
@@ -87,6 +89,19 @@ export function AppSidebar(props: AppSidebarProps) {
 						>
 							<MaterialIcon className="text-[20px]" name="star" />
 							<span>Quick Access</span>
+						</button>
+						<button
+							className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left text-sm"
+							onClick={props.onOpenShares}
+							type="button"
+						>
+							<MaterialIcon className="text-[20px]" name="share" />
+							<span>My Shares</span>
+							{props.sharesLength > 0 ? (
+								<span className="ml-auto text-xs text-slate-400">
+									{props.sharesLength}
+								</span>
+							) : null}
 						</button>
 						<button
 							className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left text-sm"

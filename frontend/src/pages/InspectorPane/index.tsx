@@ -1,5 +1,6 @@
 import { EditorPane } from "@/features/editor/EditorPane";
 import { PreviewPane } from "@/features/preview/PreviewPane";
+import { MySharesPanel } from "@/features/share/MySharesPanel";
 import { TaskPanel } from "@/features/tasks/TaskPanel";
 import { TrashPanel } from "@/features/tasks/TrashPanel";
 import { InspectorMode } from "@/types/home";
@@ -7,6 +8,7 @@ import {
 	FileEntry,
 	MountRoot,
 	EditorDocument,
+	ManagedShare,
 	TransferTask,
 	TrashItem,
 } from "@/types/contracts";
@@ -20,18 +22,23 @@ export interface InspectorPaneProps {
 	editor: EditorDocument | null;
 	handleDeleteTask: (id: string) => void;
 	handleDeleteTrash: (id: string) => void;
+	handleDeleteShare: (id: string) => void;
 	handleOpenTask: (taskId: string) => Promise<void>;
 	handleRestoreTrash: (id: string) => void;
+	handleCopyShare: (share: ManagedShare) => void;
 	isMobile: boolean;
 	inspectorMode: InspectorMode;
 	onBack: () => void;
 	onEnterEdit: () => void;
+	onRefreshShares: () => void;
 	onRefreshTrash: () => void;
 	onSaveEditor: (c: string) => Promise<void>;
 	onShowTasks: () => void;
 	preview: Awaited<ReturnType<typeof api.preview>> | null;
 	searchQuery: string;
 	selectedEntries: FileEntry[];
+	shares: ManagedShare[];
+	deletingShareId: string | null;
 	setTaskPanelCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
 	taskPanelCollapsed: boolean;
 	tasks: TransferTask[];
@@ -72,6 +79,18 @@ export function InspectorPane(props: InspectorPaneProps) {
 				onDelete={props.handleDeleteTrash}
 				onRefresh={props.onRefreshTrash}
 				onRestore={props.handleRestoreTrash}
+			/>
+		);
+	if (props.inspectorMode === "shares")
+		return (
+			<MySharesPanel
+				deletingShareId={props.deletingShareId}
+				isMobile={props.isMobile}
+				items={props.shares}
+				onBack={props.onBack}
+				onCopy={props.handleCopyShare}
+				onDelete={props.handleDeleteShare}
+				onRefresh={props.onRefreshShares}
 			/>
 		);
 	return (

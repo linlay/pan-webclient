@@ -1,5 +1,16 @@
 import type { TransferTask } from "../../types/contracts/index";
 import { MaterialIcon } from "../shared/Icons";
+import {
+	formatBytes,
+	formatDateTime,
+	taskCompletedBytes,
+	taskHasByteProgress,
+	taskPrimaryLabel,
+	taskProgressPercent,
+	taskSummary,
+	taskTotalBytes,
+	shouldShowTaskProgress,
+} from "@/utils";
 
 function statusColor(status: TransferTask["status"]) {
 	switch (status) {
@@ -30,66 +41,6 @@ function statusLabel(status: TransferTask["status"]) {
 		case "failed":
 			return <MaterialIcon name="error" className="text-[14px]" />;
 	}
-}
-
-function formatTime(value: number) {
-	return new Date(value * 1000).toLocaleString();
-}
-
-function formatBytes(value: number) {
-	if (value < 1024) return `${value} B`;
-	if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
-	if (value < 1024 * 1024 * 1024)
-		return `${(value / 1024 / 1024).toFixed(1)} MB`;
-	return `${(value / 1024 / 1024 / 1024).toFixed(1)} GB`;
-}
-
-function taskPrimaryLabel(task: TransferTask) {
-	const items = task.items ?? [];
-	if (items.length === 0) {
-		return task.kind === "upload" ? "Upload Task" : "Download Task";
-	}
-	if (items.length === 1) {
-		return items[0].name;
-	}
-	return `${items[0].name} +${items.length - 1}`;
-}
-
-function taskTotalBytes(task: TransferTask) {
-	if (typeof task.totalBytes === "number" && task.totalBytes > 0) {
-		return task.totalBytes;
-	}
-	return (task.items ?? []).reduce((sum, item) => sum + item.size, 0);
-}
-
-function taskCompletedBytes(task: TransferTask) {
-	const total = taskTotalBytes(task);
-	if (typeof task.completedBytes === "number") {
-		return Math.max(
-			0,
-			Math.min(task.completedBytes, total || task.completedBytes),
-		);
-	}
-	return task.status === "success" ? total : 0;
-}
-
-function taskProgressPercent(task: TransferTask) {
-	const total = taskTotalBytes(task);
-	const completed = taskCompletedBytes(task);
-	if (total <= 0) {
-		return task.status === "success" ? 100 : 0;
-	}
-	return Math.max(0, Math.min(100, (completed / total) * 100));
-}
-
-function taskSummary(task: TransferTask) {
-	const count = task.items?.length ?? 0;
-	const noun = count === 1 ? "item" : "items";
-	const type = task.kind === "upload" ? "Upload" : "Download";
-	if (!count) {
-		return type;
-	}
-	return `${type} · ${count} ${noun}`;
 }
 
 function progressColor(status: TransferTask["status"]) {
@@ -262,7 +213,7 @@ export function TaskPanel(props: {
 												) : null}
 											</div>
 										</div>
-										{taskTotalBytes(task) > 0 ? (
+										{shouldShowTaskProgress(task) ? (
 											<div className="mt-3">
 												<div className="h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
 													<div
@@ -274,20 +225,14 @@ export function TaskPanel(props: {
 												</div>
 												<div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
 													<span>
-														{formatBytes(
-															taskCompletedBytes(
-																task,
-															),
-														)}{" "}
-														/{" "}
-														{formatBytes(
-															taskTotalBytes(
-																task,
-															),
-														)}
+														{taskHasByteProgress(task)
+															? `${formatBytes(taskCompletedBytes(task))} / ${formatBytes(taskTotalBytes(task))}`
+															: task.status === "success"
+																? "100%"
+																: ""}
 													</span>
 													<span>
-														{formatTime(
+														{formatDateTime(
 															task.updatedAt,
 														)}
 													</span>
@@ -295,7 +240,7 @@ export function TaskPanel(props: {
 											</div>
 										) : (
 											<p className="mt-3 text-[11px] text-slate-400">
-												{formatTime(task.updatedAt)}
+												{formatDateTime(task.updatedAt)}
 											</p>
 										)}
 									</div>

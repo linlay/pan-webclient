@@ -6,13 +6,20 @@ import type {
 	ShareAccess,
 	ShareCreateResult,
 	SharePermission,
+	ShareWriteMode,
 } from "@/types/contracts";
-
-type ExpiryPreset = "7d" | "14d" | "30d" | "permanent" | "custom";
+import {
+	defaultShareCustomDate,
+	describeShareExpiry,
+	maxShareCustomDate,
+	minShareCustomDate,
+	resolveShareExpiryUnix,
+	type ShareExpiryPreset,
+} from "@/utils";
 
 const expiryOptions: Array<{
 	label: string;
-	value: ExpiryPreset;
+	value: ShareExpiryPreset;
 	description: string;
 }> = [
 	{ label: "7 天内有效", value: "7d", description: "适合短期临时分享" },
@@ -25,11 +32,14 @@ const expiryOptions: Array<{
 export function ShareDialog(props: {
 	entry: FileEntry;
 	onClose: () => void;
+	onCreated?: () => void;
 }) {
 	const [access, setAccess] = useState<ShareAccess>("public");
 	const [permission, setPermission] = useState<SharePermission>("read");
-	const [expiryPreset, setExpiryPreset] = useState<ExpiryPreset>("30d");
-	const [customDate, setCustomDate] = useState(defaultCustomDate);
+	const [writeMode, setWriteMode] = useState<ShareWriteMode>("local");
+	const [expiryPreset, setExpiryPreset] =
+		useState<ShareExpiryPreset>("30d");
+	const [customDate, setCustomDate] = useState(defaultShareCustomDate);
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError] = useState("");
 	const [result, setResult] = useState<ShareCreateResult | null>(null);
@@ -38,8 +48,9 @@ export function ShareDialog(props: {
 	useEffect(() => {
 		setAccess("public");
 		setPermission("read");
+		setWriteMode("local");
 		setExpiryPreset("30d");
-		setCustomDate(defaultCustomDate());
+		setCustomDate(defaultShareCustomDate());
 		setSubmitting(false);
 		setError("");
 		setResult(null);
@@ -69,15 +80,17 @@ export function ShareDialog(props: {
 		setSubmitting(true);
 		setError("");
 		try {
-			const expiresAt = resolveExpiryUnix(expiryPreset, customDate);
+			const expiresAt = resolveShareExpiryUnix(expiryPreset, customDate);
 			const next = await api.createShare(
 				props.entry.mountId,
 				props.entry.path,
 				access,
 				permission,
+				writeMode,
 				expiresAt,
 			);
 			setResult(next);
+			props.onCreated?.();
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "创建分享失败");
 		} finally {
@@ -138,7 +151,7 @@ export function ShareDialog(props: {
 								<div>
 									<div className="font-semibold">分享已创建</div>
 									<div className="text-sm opacity-80">
-										{describeExpiry(result.expiresAt)}
+										{describeShareExpiry(result.expiresAt)}
 									</div>
 								</div>
 							</div>
@@ -198,6 +211,18 @@ export function ShareDialog(props: {
 											? "访问者只能在当前目录及子目录内上传文件，不提供下载和转存。"
 											: "访问者可浏览、下载并保存当前分享内容。"}
 									</p>
+									{result.permission === "write" ? (
+										<div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
+											<div className="text-xs uppercase tracking-[0.2em] text-slate-400">
+												写入方式
+											</div>
+											<div className="mt-2 font-semibold text-slate-900 dark:text-white">
+												{result.writeMode === "text"
+													? "文本输入（仅 Markdown）"
+													: "本地文件上传"}
+											</div>
+										</div>
+									) : null}
 								</div>
 							</div>
 						</div>
@@ -343,6 +368,72 @@ export function ShareDialog(props: {
 							</div>
 						)}
 
+						{props.entry.isDir && permission === "write" ? (
+							<div>
+								<div className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">
+									写入方式
+								</div>
+								<div className="grid gap-3 md:grid-cols-2">
+									<button
+										className={`rounded-2xl border px-4 py-4 text-left transition-all ${
+											writeMode === "local"
+												? "border-primary bg-primary/5 shadow-sm"
+												: "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600"
+										}`}
+										onClick={() => {
+											setWriteMode("local");
+											setError("");
+										}}
+										type="button"
+									>
+										<div className="flex items-center gap-3">
+											<div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-500">
+												<MaterialIcon name="upload" className="text-xl" />
+											</div>
+											<div>
+												<div className="font-semibold text-slate-900 dark:text-white">
+													本地文件
+												</div>
+												<div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+													访问者只能选择本地文件上传
+												</div>
+											</div>
+										</div>
+									</button>
+
+									<button
+										className={`rounded-2xl border px-4 py-4 text-left transition-all ${
+											writeMode === "text"
+												? "border-primary bg-primary/5 shadow-sm"
+												: "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600"
+										}`}
+										onClick={() => {
+											setWriteMode("text");
+											setError("");
+										}}
+										type="button"
+									>
+										<div className="flex items-center gap-3">
+											<div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500">
+												<MaterialIcon
+													name="edit_note"
+													className="text-xl"
+												/>
+											</div>
+											<div>
+												<div className="font-semibold text-slate-900 dark:text-white">
+													文本输入
+												</div>
+												<div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+													访问者直接填写内容，保存为 `.md`
+												</div>
+											</div>
+										</div>
+									</button>
+								</div>
+							</div>
+						) : null}
+
 						<div>
 							<div className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">
 								有效期设置
@@ -378,8 +469,8 @@ export function ShareDialog(props: {
 									</label>
 									<input
 										className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800"
-										max={maxCustomDate()}
-										min={minCustomDate()}
+										max={maxShareCustomDate()}
+										min={minShareCustomDate()}
 										onChange={(e) => setCustomDate(e.target.value)}
 										type="date"
 										value={customDate}
@@ -416,52 +507,4 @@ export function ShareDialog(props: {
 			</div>
 		</div>
 	);
-}
-
-function resolveExpiryUnix(preset: ExpiryPreset, customDate: string) {
-	if (preset === "permanent") {
-		return 0;
-	}
-	if (preset === "custom") {
-		if (!customDate) {
-			throw new Error("请选择自定义到期日期。");
-		}
-		const next = new Date(`${customDate}T23:59:59`);
-		if (Number.isNaN(next.getTime())) {
-			throw new Error("自定义到期日期无效。");
-		}
-		return Math.floor(next.getTime() / 1000);
-	}
-	const days =
-		preset === "7d" ? 7 : preset === "14d" ? 14 : 30;
-	return Math.floor(Date.now() / 1000) + days * 24 * 60 * 60;
-}
-
-function describeExpiry(expiresAt: number) {
-	if (!expiresAt) {
-		return "当前分享永久有效";
-	}
-	return `当前分享将于 ${new Date(expiresAt * 1000).toLocaleString()} 到期`;
-}
-
-function defaultCustomDate() {
-	const next = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-	return formatDateInput(next);
-}
-
-function minCustomDate() {
-	return formatDateInput(new Date());
-}
-
-function maxCustomDate() {
-	return formatDateInput(
-		new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-	);
-}
-
-function formatDateInput(value: Date) {
-	const year = value.getFullYear();
-	const month = `${value.getMonth() + 1}`.padStart(2, "0");
-	const day = `${value.getDate()}`.padStart(2, "0");
-	return `${year}-${month}-${day}`;
 }

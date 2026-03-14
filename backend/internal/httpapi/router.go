@@ -77,6 +77,7 @@ func New(deps Dependencies) http.Handler {
 	mux.HandleFunc("/api/files/content", a.withAuth(a.fileContent))
 	mux.HandleFunc("/api/files/raw", a.withAuth(a.raw))
 	mux.HandleFunc("/api/shares", a.withAuth(a.shares))
+	mux.HandleFunc("/api/shares/", a.withAuth(a.shareRoute))
 	mux.HandleFunc("/api/uploads", a.withAuth(a.uploads))
 	mux.HandleFunc("/api/tasks", a.withAuth(a.tasks))
 	mux.HandleFunc("/api/downloads/batch", a.withAuth(a.batchDownload))

@@ -11,11 +11,23 @@ module.exports = (_env, argv) => {
 
   return {
     entry: "./src/main.tsx",
-    mode: process.env.NODE_ENV || 'production',
+    mode: isProd ? "production" : "development",
+    cache: {
+      type: "filesystem",
+      buildDependencies: {
+        config: [__filename],
+      },
+    },
     output: {
       path: path.resolve(__dirname, "dist"),
       filename: isProd ? "js/[name].[contenthash:8].js" : "js/[name].js",
-      publicPath: "",
+      chunkFilename: isProd
+        ? "js/[name].[contenthash:8].chunk.js"
+        : "js/[name].chunk.js",
+      assetModuleFilename: isProd
+        ? "assets/[name].[contenthash:8][ext][query]"
+        : "assets/[name][ext][query]",
+      publicPath: "auto",
       clean: true,
     },
     resolve: {
@@ -83,6 +95,36 @@ module.exports = (_env, argv) => {
         ]
         : []),
     ],
+    optimization: {
+      moduleIds: isProd ? "deterministic" : "named",
+      chunkIds: isProd ? "deterministic" : "named",
+      runtimeChunk: isProd
+        ? {
+          name: "runtime",
+        }
+        : false,
+      splitChunks: isProd
+        ? {
+          chunks: "all",
+          minSize: 20000,
+          cacheGroups: {
+            reactVendor: {
+              test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+              name: "vendor-react",
+              priority: 30,
+              enforce: true,
+              reuseExistingChunk: true,
+            },
+            vendor: {
+              test: /[\\/]node_modules[\\/]/,
+              name: "vendor",
+              priority: 20,
+              reuseExistingChunk: true,
+            },
+          },
+        }
+        : false,
+    },
     devServer: {
       static: path.resolve(__dirname, "public"),
       port: isNaN(devServerPort) ? 80 : devServerPort,
@@ -90,6 +132,14 @@ module.exports = (_env, argv) => {
       allowedHosts: "all",
       hot: true,
       historyApiFallback: true,
+      headers: {
+        "Cache-Control":
+          "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0",
+        Pragma: "no-cache",
+        Expires: "0",
+        "CDN-Cache-Control": "no-store",
+        "Cloudflare-CDN-Cache-Control": "no-store",
+      },
       client: {
         webSocketURL: {
           protocol: "auto:",

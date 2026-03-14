@@ -1,5 +1,6 @@
 import { MaterialIcon } from "@/features/shared/Icons";
 import type { TransferTask } from "@/types/contracts";
+import { taskPrimaryLabel } from "@/utils";
 
 export function TaskDeleteDialog(props: {
 	error: string;
@@ -91,15 +92,4 @@ export function TaskDeleteDialog(props: {
 			</form>
 		</div>
 	);
-}
-
-function taskPrimaryLabel(task: TransferTask) {
-	const items = task.items ?? [];
-	if (items.length === 0) {
-		return task.kind === "upload" ? "Upload Task" : "Download Task";
-	}
-	if (items.length === 1) {
-		return items[0].name;
-	}
-	return `${items[0].name} +${items.length - 1}`;
 }

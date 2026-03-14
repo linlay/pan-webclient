@@ -1,5 +1,6 @@
 import type { TrashItem } from "../../types/contracts/index";
 import { MaterialIcon } from "../shared/Icons";
+import { formatDateTime } from "@/utils";
 
 export function TrashPanel(props: {
 	items: TrashItem[];
@@ -64,7 +65,7 @@ export function TrashPanel(props: {
 									</p>
 									<p className="text-xs text-slate-400 truncate">
 										{item.originalPath} ·{" "}
-										{formatTime(item.deletedAt)}
+										{formatDateTime(item.deletedAt)}
 									</p>
 								</div>
 							</div>
@@ -98,8 +99,4 @@ export function TrashPanel(props: {
 			</div>
 		</div>
 	);
-}
-
-function formatTime(value: number) {
-	return new Date(value * 1000).toLocaleString();
 }

@@ -13,6 +13,11 @@ import {
   THEME_STORAGE_KEY,
   VIEW_MODE_STORAGE_KEY,
 } from "@/static";
+export * from "./editor";
+export * from "./fileDisplay";
+export * from "./formatters";
+export * from "./share";
+export * from "./tasks";
 
 // ─── Dialog helpers ───
 export function dialogEyebrow(kind: NonNullable<OperationDialog>["kind"]) {
@@ -227,4 +232,18 @@ export function sortEntries(rows: FileEntry[]) {
       sensitivity: "base",
     });
   });
+}
+
+export function pathLineage(path: string) {
+  const normalized = normalizeDirectory(path) || "/";
+  if (normalized === "/") {
+    return ["/"];
+  }
+  const lineage = ["/"];
+  let cursor = "";
+  for (const part of normalized.split("/").filter(Boolean)) {
+    cursor += `/${part}`;
+    lineage.push(cursor);
+  }
+  return lineage;
 }

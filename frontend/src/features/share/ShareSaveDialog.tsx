@@ -8,7 +8,7 @@ import type {
 	FileTreeNode,
 	MountRoot,
 } from "@/types/contracts";
-import { normalizeDirectory, treeCacheKey } from "@/utils";
+import { normalizeDirectory, pathLineage, treeCacheKey } from "@/utils";
 
 export function ShareSaveDialog(props: {
 	shareId: string;
@@ -341,18 +341,4 @@ export function ShareSaveDialog(props: {
 			</div>
 		</div>
 	);
-}
-
-function pathLineage(path: string) {
-	const normalized = normalizeDirectory(path) || "/";
-	if (normalized === "/") {
-		return ["/"];
-	}
-	const lineage = ["/"];
-	let cursor = "";
-	for (const part of normalized.split("/").filter(Boolean)) {
-		cursor += `/${part}`;
-		lineage.push(cursor);
-	}
-	return lineage;
 }

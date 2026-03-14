@@ -2,7 +2,7 @@ import { FileEntry } from "../contracts";
 
 export type Notice = { tone: "info" | "error"; text: string } | null;
 export type ThemeMode = "system" | "light" | "dark";
-export type InspectorMode = "preview" | "editor" | "tasks" | "trash";
+export type InspectorMode = "preview" | "editor" | "tasks" | "trash" | "shares";
 export type ViewMode = "grid" | "list";
 export type DialogBase = { error: string; submitting: boolean };
 export type OperationDialog =

@@ -605,6 +605,121 @@ func TestPasswordShareRequiresAuthorization(t *testing.T) {
 	}
 }
 
+func TestShareManagementListsAndDeletesShares(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "report.txt"), []byte("report"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "workspace"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := newTestHandler(t, root)
+	ownerCookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	fileShareBody, _ := json.Marshal(map[string]any{
+		"mountId":    "root",
+		"path":       "/report.txt",
+		"access":     "public",
+		"permission": "read",
+		"expiresAt":  0,
+	})
+	fileShareRec := authedRequest(handler, ownerCookie, http.MethodPost, "/api/shares", fileShareBody)
+	if fileShareRec.Code != http.StatusOK {
+		t.Fatalf("expected file share create 200, got %d: %s", fileShareRec.Code, fileShareRec.Body.String())
+	}
+
+	dirShareBody, _ := json.Marshal(map[string]any{
+		"mountId":    "root",
+		"path":       "/workspace",
+		"access":     "password",
+		"permission": "write",
+		"writeMode":  "text",
+		"expiresAt":  time.Now().Add(24 * time.Hour).Unix(),
+	})
+	dirShareRec := authedRequest(handler, ownerCookie, http.MethodPost, "/api/shares", dirShareBody)
+	if dirShareRec.Code != http.StatusOK {
+		t.Fatalf("expected directory share create 200, got %d: %s", dirShareRec.Code, dirShareRec.Body.String())
+	}
+	var created struct {
+		ID       string `json:"id"`
+		Password string `json:"password"`
+	}
+	if err := json.Unmarshal(dirShareRec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	if len(created.Password) != 4 {
+		t.Fatalf("expected persisted 4-digit password, got %q", created.Password)
+	}
+
+	listRec := authedRequest(handler, ownerCookie, http.MethodGet, "/api/shares", nil)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("expected share list 200, got %d: %s", listRec.Code, listRec.Body.String())
+	}
+	var items []struct {
+		ID         string `json:"id"`
+		Name       string `json:"name"`
+		Path       string `json:"path"`
+		Access     string `json:"access"`
+		Permission string `json:"permission"`
+		WriteMode  string `json:"writeMode"`
+		Password   string `json:"password"`
+		URLPath    string `json:"urlPath"`
+		Expired    bool   `json:"expired"`
+	}
+	if err := json.Unmarshal(listRec.Body.Bytes(), &items); err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("expected 2 shares, got %+v", items)
+	}
+	var workspaceItem *struct {
+		ID         string `json:"id"`
+		Name       string `json:"name"`
+		Path       string `json:"path"`
+		Access     string `json:"access"`
+		Permission string `json:"permission"`
+		WriteMode  string `json:"writeMode"`
+		Password   string `json:"password"`
+		URLPath    string `json:"urlPath"`
+		Expired    bool   `json:"expired"`
+	}
+	for i := range items {
+		if items[i].Path == "/workspace" {
+			workspaceItem = &items[i]
+			break
+		}
+	}
+	if workspaceItem == nil {
+		t.Fatalf("expected workspace share in list, got %+v", items)
+	}
+	if workspaceItem.ID != created.ID || workspaceItem.Access != "password" || workspaceItem.Permission != "write" || workspaceItem.WriteMode != "text" {
+		t.Fatalf("unexpected workspace share item: %+v", *workspaceItem)
+	}
+	if workspaceItem.Password != created.Password {
+		t.Fatalf("expected share list to include password %q, got %+v", created.Password, *workspaceItem)
+	}
+	if workspaceItem.URLPath != "/pan/s/"+created.ID || workspaceItem.Expired {
+		t.Fatalf("unexpected share metadata: %+v", *workspaceItem)
+	}
+
+	deleteRec := authedRequest(handler, ownerCookie, http.MethodDelete, "/api/shares/"+created.ID, nil)
+	if deleteRec.Code != http.StatusOK {
+		t.Fatalf("expected delete share 200, got %d: %s", deleteRec.Code, deleteRec.Body.String())
+	}
+
+	listAfterDelete := authedRequest(handler, ownerCookie, http.MethodGet, "/api/shares", nil)
+	if listAfterDelete.Code != http.StatusOK {
+		t.Fatalf("expected share list after delete 200, got %d: %s", listAfterDelete.Code, listAfterDelete.Body.String())
+	}
+	if err := json.Unmarshal(listAfterDelete.Body.Bytes(), &items); err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].Path != "/report.txt" {
+		t.Fatalf("expected only file share to remain, got %+v", items)
+	}
+}
+
 func TestDirectoryShareBlocksTraversalAndStreamsZip(t *testing.T) {
 	root := t.TempDir()
 	sharedDir := filepath.Join(root, "shared")
@@ -797,11 +912,12 @@ func TestWriteShareAllowsUploadButBlocksReadOperations(t *testing.T) {
 	var created struct {
 		ID         string `json:"id"`
 		Permission string `json:"permission"`
+		WriteMode  string `json:"writeMode"`
 	}
 	if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
 		t.Fatal(err)
 	}
-	if created.Permission != "write" {
+	if created.Permission != "write" || created.WriteMode != "local" {
 		t.Fatalf("expected write permission, got %+v", created)
 	}
 
@@ -811,6 +927,7 @@ func TestWriteShareAllowsUploadButBlocksReadOperations(t *testing.T) {
 	}
 	var meta struct {
 		Permission string `json:"permission"`
+		WriteMode  string `json:"writeMode"`
 		Preview    struct {
 			Kind string `json:"kind"`
 		} `json:"preview"`
@@ -818,7 +935,7 @@ func TestWriteShareAllowsUploadButBlocksReadOperations(t *testing.T) {
 	if err := json.Unmarshal(metaRec.Body.Bytes(), &meta); err != nil {
 		t.Fatal(err)
 	}
-	if meta.Permission != "write" || meta.Preview.Kind != "directory" {
+	if meta.Permission != "write" || meta.WriteMode != "local" || meta.Preview.Kind != "directory" {
 		t.Fatalf("unexpected write share meta: %+v", meta)
 	}
 
@@ -935,6 +1052,54 @@ func TestPasswordWriteShareUploadRequiresAuthorization(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(sharedDir, "allowed.txt")); err != nil {
 		t.Fatalf("expected uploaded file after authorization, got %v", err)
+	}
+}
+
+func TestWriteShareReturnsConfiguredTextMode(t *testing.T) {
+	root := t.TempDir()
+	sharedDir := filepath.Join(root, "drop")
+	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	handler := newTestHandler(t, root)
+	ownerCookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	createBody, _ := json.Marshal(map[string]any{
+		"mountId":    "root",
+		"path":       "/drop",
+		"access":     "public",
+		"permission": "write",
+		"writeMode":  "text",
+		"expiresAt":  0,
+	})
+	createRec := authedRequest(handler, ownerCookie, http.MethodPost, "/api/shares", createBody)
+	if createRec.Code != http.StatusOK {
+		t.Fatalf("expected create share 200, got %d: %s", createRec.Code, createRec.Body.String())
+	}
+	var created struct {
+		ID        string `json:"id"`
+		WriteMode string `json:"writeMode"`
+	}
+	if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	if created.WriteMode != "text" {
+		t.Fatalf("expected text write mode, got %+v", created)
+	}
+
+	metaRec := requestWithCookies(handler, nil, http.MethodGet, "/api/public/shares/"+created.ID, nil)
+	if metaRec.Code != http.StatusOK {
+		t.Fatalf("expected public share meta 200, got %d: %s", metaRec.Code, metaRec.Body.String())
+	}
+	var meta struct {
+		Permission string `json:"permission"`
+		WriteMode  string `json:"writeMode"`
+	}
+	if err := json.Unmarshal(metaRec.Body.Bytes(), &meta); err != nil {
+		t.Fatal(err)
+	}
+	if meta.Permission != "write" || meta.WriteMode != "text" {
+		t.Fatalf("unexpected write share meta: %+v", meta)
 	}
 }
 

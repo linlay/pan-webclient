@@ -3,12 +3,14 @@ import type {
   FileEntry,
   FileTreeNode,
   MountRoot,
+  ManagedShare,
   PublicShare,
   PreviewMeta,
   SearchHit,
   SessionUser,
   ShareCreateResult,
   SharePermission,
+  ShareWriteMode,
   TrashItem,
   TransferTask,
 } from "../types/contracts/index";
@@ -138,11 +140,24 @@ export const api = {
     path: string,
     access: "public" | "password",
     permission: SharePermission,
+    writeMode: ShareWriteMode,
     expiresAt: number,
   ) =>
     request<ShareCreateResult>("/api/shares", {
       method: "POST",
-      body: JSON.stringify({ mountId, path, access, permission, expiresAt }),
+      body: JSON.stringify({
+        mountId,
+        path,
+        access,
+        permission,
+        writeMode,
+        expiresAt,
+      }),
+    }),
+  shares: () => request<ManagedShare[]>("/api/shares"),
+  deleteShare: (shareId: string) =>
+    request<{ ok: boolean }>(`/api/shares/${encodeURIComponent(shareId)}`, {
+      method: "DELETE",
     }),
   publicShare: (shareId: string) =>
     request<PublicShare>(`/api/public/shares/${encodeURIComponent(shareId)}`),

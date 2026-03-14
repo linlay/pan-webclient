@@ -9,6 +9,15 @@ import {
 	MaterialIcon,
 } from "../shared/Icons";
 import { MenuButton } from "../shared/MenuButton";
+import {
+	describeEntryType,
+	entryKey,
+	formatBytes,
+	formatCompactDate,
+	formatDateTime,
+	getFileVisual,
+	isEntrySelected,
+} from "@/utils";
 
 export function FileTable(props: {
 	isMobile?: boolean;
@@ -86,7 +95,7 @@ function GridView(props: {
 	return (
 		<div className="grid grid-cols-[repeat(auto-fill,minmax(142px,1fr))] gap-x-3.5 gap-y-4.5 md:grid-cols-[repeat(auto-fill,minmax(148px,1fr))] md:gap-x-4 md:gap-y-5 xl:grid-cols-[repeat(auto-fill,minmax(156px,1fr))]">
 			{props.entries.map((entry) => {
-				const selected = isSelected(entry, props.selectedEntries);
+				const selected = isEntrySelected(entry, props.selectedEntries);
 				const { icon, color, textColor } = getFileVisual(entry);
 				return (
 					<div
@@ -165,7 +174,7 @@ function ListView(props: ListViewProps) {
 	const allSelected =
 		props.entries.length > 0 &&
 		props.entries.every((entry) =>
-			isSelected(entry, props.selectedEntries),
+			isEntrySelected(entry, props.selectedEntries),
 		);
 
 	return (
@@ -202,7 +211,7 @@ function ListView(props: ListViewProps) {
 				</thead>
 				<tbody className="divide-y divide-slate-100 dark:divide-slate-800">
 					{props.entries.map((entry) => {
-						const selected = isSelected(
+						const selected = isEntrySelected(
 							entry,
 							props.selectedEntries,
 						);
@@ -274,7 +283,7 @@ function ListView(props: ListViewProps) {
 									{formatDateTime(entry.modTime)}
 								</td>
 								<td className="px-4 py-3 text-slate-500 hidden lg:table-cell">
-									{describeType(entry)}
+									{describeEntryType(entry)}
 								</td>
 								<td className="px-4 py-3 text-right text-slate-500 hidden sm:table-cell">
 									{entry.isDir
@@ -425,7 +434,7 @@ function MobileListView(props: ListViewProps) {
 			</div>
 			<div className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
 				{props.entries.map((entry, index) => {
-					const selected = isSelected(entry, props.selectedEntries);
+					const selected = isEntrySelected(entry, props.selectedEntries);
 					const { icon, textColor } = getFileVisual(entry);
 
 					return (
@@ -549,96 +558,4 @@ function MobileListView(props: ListViewProps) {
 			</div>
 		</div>
 	);
-}
-
-// ─── Helpers ───
-function isSelected(entry: FileEntry, selectedEntries: FileEntry[]) {
-	return selectedEntries.some(
-		(item) => item.mountId === entry.mountId && item.path === entry.path,
-	);
-}
-
-function entryKey(entry: FileEntry) {
-	return `${entry.mountId}:${entry.path}`;
-}
-
-function getFileVisual(entry: FileEntry) {
-	if (entry.isDir) {
-		return {
-			icon: "folder",
-			color: "bg-primary/10 dark:bg-primary/20",
-			textColor: "text-primary",
-		};
-	}
-	if (entry.mime.startsWith("image/")) {
-		return {
-			icon: "image",
-			color: "bg-amber-500/10 dark:bg-amber-500/20",
-			textColor: "text-amber-500",
-		};
-	}
-	if (entry.mime.startsWith("video/")) {
-		return {
-			icon: "movie",
-			color: "bg-slate-500/10 dark:bg-slate-500/20",
-			textColor: "text-slate-500",
-		};
-	}
-	if (entry.mime.startsWith("audio/")) {
-		return {
-			icon: "music_note",
-			color: "bg-zinc-500/10 dark:bg-zinc-500/20",
-			textColor: "text-zinc-500",
-		};
-	}
-	if (entry.mime === "application/pdf") {
-		return {
-			icon: "picture_as_pdf",
-			color: "bg-rose-500/10 dark:bg-rose-500/20",
-			textColor: "text-rose-500",
-		};
-	}
-	if (entry.mime.startsWith("text/")) {
-		return {
-			icon: "description",
-			color: "bg-slate-400/10 dark:bg-slate-400/20",
-			textColor: "text-slate-400",
-		};
-	}
-	return {
-		icon: "draft",
-		color: "bg-slate-100 dark:bg-slate-800",
-		textColor: "text-slate-500",
-	};
-}
-
-function describeType(entry: FileEntry) {
-	if (entry.isDir) return "Folder";
-	if (entry.mime === "application/pdf") return "PDF Document";
-	if (entry.mime.startsWith("image/")) return "Image";
-	if (entry.mime.startsWith("video/")) return "Video";
-	if (entry.mime.startsWith("audio/")) return "Audio";
-	if (entry.mime.startsWith("text/")) return "Text File";
-	return entry.extension
-		? entry.extension.toUpperCase().replace(".", "") + " File"
-		: "File";
-}
-
-function formatBytes(value: number) {
-	if (value < 1024) return `${value} B`;
-	if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
-	if (value < 1024 * 1024 * 1024)
-		return `${(value / 1024 / 1024).toFixed(1)} MB`;
-	return `${(value / 1024 / 1024 / 1024).toFixed(1)} GB`;
-}
-
-function formatDateTime(value: number) {
-	return new Date(value * 1000).toLocaleString();
-}
-
-function formatCompactDate(value: number) {
-	return new Date(value * 1000).toLocaleDateString(undefined, {
-		month: "numeric",
-		day: "numeric",
-	});
 }

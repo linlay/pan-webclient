@@ -107,6 +107,7 @@ export interface SessionUser {
 
 export type ShareAccess = "public" | "password";
 export type SharePermission = "read" | "write";
+export type ShareWriteMode = "local" | "text";
 
 export interface ShareCreateResult {
   id: string;
@@ -114,8 +115,26 @@ export interface ShareCreateResult {
   isDir: boolean;
   access: ShareAccess;
   permission: SharePermission;
+  writeMode: ShareWriteMode;
   expiresAt: number;
   password?: string;
+  urlPath: string;
+}
+
+export interface ManagedShare {
+  id: string;
+  mountId: string;
+  path: string;
+  name: string;
+  isDir: boolean;
+  access: ShareAccess;
+  permission: SharePermission;
+  writeMode: ShareWriteMode;
+  password?: string;
+  expiresAt: number;
+  createdAt: number;
+  updatedAt: number;
+  expired: boolean;
   urlPath: string;
 }
 
@@ -125,6 +144,7 @@ export interface PublicShare {
   isDir: boolean;
   access: ShareAccess;
   permission: SharePermission;
+  writeMode: ShareWriteMode;
   requiresPassword: boolean;
   authorized: boolean;
   expiresAt: number;
