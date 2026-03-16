@@ -270,14 +270,7 @@ export function PreviewPane(props: {
 						Edit File
 					</button>
 				) : (
-					<a
-						className="w-full py-2 bg-primary text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all flex items-center justify-center"
-						href={streamUrl}
-						rel="noreferrer"
-						download={entry?.name}
-					>
-						Download File
-					</a>
+					<></>
 				)}
 			</div>
 		</div>

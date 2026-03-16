@@ -90,7 +90,7 @@ func Load() (Config, error) {
 		cfg.AdminUsername = "admin"
 	}
 	if cfg.MaxUploadBytes <= 0 {
-		cfg.MaxUploadBytes = 100 * 1024 * 1024
+		cfg.MaxUploadBytes = 20 * 1024 * 1024
 	}
 	if cfg.MaxEditFileBytes <= 0 {
 		cfg.MaxEditFileBytes = 1024 * 1024

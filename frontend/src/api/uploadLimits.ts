@@ -1,4 +1,33 @@
-export const MAX_UPLOAD_BYTES = 500 * 1024 * 1024;
+import { apiUrl } from "./routing";
+
+export const DEFAULT_MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+export let MAX_UPLOAD_BYTES = DEFAULT_MAX_UPLOAD_BYTES;
+
+export function setMaxUploadBytes(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) {
+    return;
+  }
+  MAX_UPLOAD_BYTES = Math.floor(bytes);
+}
+
+export async function loadUploadLimits() {
+  try {
+    const response = await fetch(apiUrl("/api/health"), {
+      credentials: "omit",
+    });
+    if (!response.ok) {
+      return;
+    }
+    const payload = (await response.json().catch(() => null)) as
+      | { maxUploadBytes?: number }
+      | null;
+    if (typeof payload?.maxUploadBytes === "number") {
+      setMaxUploadBytes(payload.maxUploadBytes);
+    }
+  } catch {
+    // Fall back to the default limit when runtime config cannot be loaded.
+  }
+}
 
 export function formatUploadLimit(bytes: number) {
   const megabytes = bytes / 1024 / 1024;

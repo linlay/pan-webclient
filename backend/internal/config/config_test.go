@@ -71,8 +71,8 @@ func TestLoadUsesDefaultUploadLimit(t *testing.T) {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if cfg.MaxUploadBytes != 100*1024*1024 {
-		t.Fatalf("MaxUploadBytes = %d, want %d", cfg.MaxUploadBytes, 100*1024*1024)
+	if cfg.MaxUploadBytes != 20*1024*1024 {
+		t.Fatalf("MaxUploadBytes = %d, want %d", cfg.MaxUploadBytes, 20*1024*1024)
 	}
 }
 

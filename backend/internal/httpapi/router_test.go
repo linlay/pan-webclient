@@ -88,6 +88,37 @@ func TestWebLoginAndSessionMe(t *testing.T) {
 	}
 }
 
+func TestHealthReportsConfiguredUploadLimit(t *testing.T) {
+	root := t.TempDir()
+	store := indexer.NewStore(t.TempDir())
+	if err := store.Init(); err != nil {
+		t.Fatal(err)
+	}
+	handler := newHandlerWithConfig(root, store, config.Config{
+		SessionCookieName: "pan_session",
+		SessionSecret:     "secret",
+		AdminUsername:     "admin",
+		AdminPasswordHash: routerTestPasswordHash,
+		MaxUploadBytes:    7 * 1024 * 1024,
+		MaxEditFileBytes:  1024 * 1024,
+	})
+
+	rec := requestWithCookies(handler, nil, http.MethodGet, "/api/health", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var payload struct {
+		Status         string `json:"status"`
+		MaxUploadBytes int64  `json:"maxUploadBytes"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Status != "ok" || payload.MaxUploadBytes != 7*1024*1024 {
+		t.Fatalf("unexpected health payload: %+v", payload)
+	}
+}
+
 func TestBearerTokenAuthUsesInjectedJWT(t *testing.T) {
 	root := t.TempDir()
 	handler, privateKey := newJWTTestHandler(t, root)
@@ -519,6 +550,65 @@ func TestPublicShareForFileAllowsPreviewAndDownload(t *testing.T) {
 	}
 	if !strings.Contains(downloadRec.Header().Get("Content-Disposition"), `filename="hello.txt"`) {
 		t.Fatalf("expected attachment filename, got %q", downloadRec.Header().Get("Content-Disposition"))
+	}
+}
+
+func TestExpiredPublicShareRejectsAnonymousAccessAndDownload(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "hello.txt"), []byte("hello share"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	store := indexer.NewStore(t.TempDir())
+	if err := store.Init(); err != nil {
+		t.Fatal(err)
+	}
+	handler := newHandlerWithStore(root, store)
+	ownerCookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	createBody, _ := json.Marshal(map[string]any{
+		"mountId":   "root",
+		"path":      "/hello.txt",
+		"access":    "public",
+		"expiresAt": time.Now().Add(time.Hour).Unix(),
+	})
+	createRec := authedRequest(handler, ownerCookie, http.MethodPost, "/api/shares", createBody)
+	if createRec.Code != http.StatusOK {
+		t.Fatalf("expected create share 200, got %d: %s", createRec.Code, createRec.Body.String())
+	}
+	var created struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	metaRec := requestWithCookies(handler, nil, http.MethodGet, "/api/public/shares/"+created.ID, nil)
+	if metaRec.Code != http.StatusOK {
+		t.Fatalf("expected public share meta 200 before expiry, got %d: %s", metaRec.Code, metaRec.Body.String())
+	}
+
+	downloadRec := requestWithCookies(handler, nil, http.MethodGet, "/api/public/shares/"+created.ID+"/download?path=%2F", nil)
+	if downloadRec.Code != http.StatusOK {
+		t.Fatalf("expected public share download 200 before expiry, got %d: %s", downloadRec.Code, downloadRec.Body.String())
+	}
+
+	updateTestShareExpiry(t, store, created.ID, time.Now().Add(-time.Minute).Unix())
+
+	expiredMeta := requestWithCookies(handler, nil, http.MethodGet, "/api/public/shares/"+created.ID, nil)
+	if expiredMeta.Code != http.StatusGone {
+		t.Fatalf("expected expired public share meta 410, got %d: %s", expiredMeta.Code, expiredMeta.Body.String())
+	}
+
+	expiredDownload := requestWithCookies(
+		handler,
+		nil,
+		http.MethodGet,
+		"/api/public/shares/"+created.ID+"/download?path=%2F",
+		nil,
+	)
+	if expiredDownload.Code != http.StatusGone {
+		t.Fatalf("expected expired public share download 410, got %d: %s", expiredDownload.Code, expiredDownload.Body.String())
 	}
 }
 
@@ -987,6 +1077,67 @@ func TestWriteShareAllowsUploadButBlocksReadOperations(t *testing.T) {
 	}
 }
 
+func TestExpiredWriteShareRejectsAnonymousUpload(t *testing.T) {
+	root := t.TempDir()
+	sharedDir := filepath.Join(root, "drop")
+	if err := os.MkdirAll(filepath.Join(sharedDir, "nested"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	store := indexer.NewStore(t.TempDir())
+	if err := store.Init(); err != nil {
+		t.Fatal(err)
+	}
+	handler := newHandlerWithStore(root, store)
+	ownerCookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	createBody, _ := json.Marshal(map[string]any{
+		"mountId":    "root",
+		"path":       "/drop",
+		"access":     "public",
+		"permission": "write",
+		"expiresAt":  time.Now().Add(time.Hour).Unix(),
+	})
+	createRec := authedRequest(handler, ownerCookie, http.MethodPost, "/api/shares", createBody)
+	if createRec.Code != http.StatusOK {
+		t.Fatalf("expected create share 200, got %d: %s", createRec.Code, createRec.Body.String())
+	}
+	var created struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	uploadRec := multipartRequestWithCookies(
+		t,
+		handler,
+		nil,
+		http.MethodPost,
+		"/api/public/shares/"+created.ID+"/uploads",
+		map[string]string{"path": "/nested"},
+		[]multipartUploadFile{{name: "before-expiry.txt", content: []byte("uploaded")}},
+	)
+	if uploadRec.Code != http.StatusOK {
+		t.Fatalf("expected upload 200 before expiry, got %d: %s", uploadRec.Code, uploadRec.Body.String())
+	}
+
+	updateTestShareExpiry(t, store, created.ID, time.Now().Add(-time.Minute).Unix())
+
+	expiredUpload := multipartRequestWithCookies(
+		t,
+		handler,
+		nil,
+		http.MethodPost,
+		"/api/public/shares/"+created.ID+"/uploads",
+		map[string]string{"path": "/nested"},
+		[]multipartUploadFile{{name: "after-expiry.txt", content: []byte("blocked")}},
+	)
+	if expiredUpload.Code != http.StatusGone {
+		t.Fatalf("expected expired share upload 410, got %d: %s", expiredUpload.Code, expiredUpload.Body.String())
+	}
+}
+
 func TestPasswordWriteShareUploadRequiresAuthorization(t *testing.T) {
 	root := t.TempDir()
 	sharedDir := filepath.Join(root, "drop")
@@ -1194,7 +1345,7 @@ func newHandlerWithMounts(store *indexer.Store, mountsList []mounts.Mount) http.
 
 func newHandlerWithMountsAndConfig(store *indexer.Store, mountsList []mounts.Mount, cfg config.Config) http.Handler {
 	if cfg.MaxUploadBytes <= 0 {
-		cfg.MaxUploadBytes = 100 * 1024 * 1024
+		cfg.MaxUploadBytes = 20 * 1024 * 1024
 	}
 	manager := auth.NewManager(cfg.SessionSecret, nil, cfg.AdminUsername, cfg.AdminPasswordHash)
 	return New(Dependencies{
@@ -1213,6 +1364,19 @@ func issueTestSession(t *testing.T, manager *auth.Manager) *http.Cookie {
 		t.Fatal(err)
 	}
 	return &http.Cookie{Name: "pan_session", Value: session}
+}
+
+func updateTestShareExpiry(t *testing.T, store *indexer.Store, id string, expiresAt int64) {
+	t.Helper()
+	record, err := store.GetShare(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	record.ExpiresAt = expiresAt
+	record.UpdatedAt = time.Now().Unix()
+	if err := store.PutShare(record); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func authedRequest(handler http.Handler, cookie *http.Cookie, method, path string, body []byte) *httptest.ResponseRecorder {

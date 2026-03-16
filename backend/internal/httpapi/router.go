@@ -118,7 +118,10 @@ func (a *api) authenticate(r *http.Request) (auth.SessionUser, error) {
 }
 
 func (a *api) health(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":         "ok",
+		"maxUploadBytes": a.cfg.MaxUploadBytes,
+	})
 }
 
 func (a *api) webLogin(w http.ResponseWriter, r *http.Request) {

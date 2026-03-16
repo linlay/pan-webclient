@@ -5,6 +5,8 @@
 - Base Path: `/api`
 - 鉴权方式:
   - `GET /api/health` 无需鉴权
+  - `/api/public/shares/:id` 及其 `files`、`preview`、`raw`、`download`、`uploads` 子路由默认无需登录；只要分享未过期即可访问，密码分享需先调用 `authorize` 获取分享访问 Cookie
+  - `/api/public/shares/:id/save` 仍需登录，因为该接口会写入用户自己的挂载目录
   - 其他接口需要以下任一方式
   - Web: Cookie Session
   - App: `Authorization: Bearer <token>`
@@ -141,6 +143,55 @@
 | `size` | `number` | 大小 |
 | `name` | `string` | 名称 |
 
+### ShareCreateResult
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | `string` | 分享 ID |
+| `name` | `string` | 被分享的文件或目录名称 |
+| `isDir` | `boolean` | 是否目录 |
+| `access` | `"public" \| "password"` | 分享访问方式 |
+| `permission` | `"read" \| "write"` | 只读或可写 |
+| `writeMode` | `"local" \| "text"` | 写入分享的前端交互模式 |
+| `expiresAt` | `number` | 过期时间 Unix 时间戳，`0` 表示不过期 |
+| `password` | `string` | 密码分享的 4 位密码，仅创建成功时返回 |
+| `urlPath` | `string` | 分享页面路径 |
+
+### ManagedShare
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | `string` | 分享 ID |
+| `mountId` | `string` | 源挂载 ID |
+| `path` | `string` | 源路径 |
+| `name` | `string` | 名称 |
+| `isDir` | `boolean` | 是否目录 |
+| `access` | `"public" \| "password"` | 分享访问方式 |
+| `permission` | `"read" \| "write"` | 分享权限 |
+| `writeMode` | `"local" \| "text"` | 可写分享模式 |
+| `password` | `string` | 密码分享的明文密码，仅列表接口返回 |
+| `expiresAt` | `number` | 过期时间 Unix 时间戳 |
+| `createdAt` | `number` | 创建时间 Unix 时间戳 |
+| `updatedAt` | `number` | 更新时间 Unix 时间戳 |
+| `expired` | `boolean` | 当前是否已过期 |
+| `urlPath` | `string` | 分享页面路径 |
+
+### PublicShare
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | `string` | 分享 ID |
+| `name` | `string` | 展示名称；密码分享未授权时返回占位名称 |
+| `isDir` | `boolean` | 是否目录 |
+| `access` | `"public" \| "password"` | 分享访问方式 |
+| `permission` | `"read" \| "write"` | 分享权限 |
+| `writeMode` | `"local" \| "text"` | 可写分享模式 |
+| `requiresPassword` | `boolean` | 是否需要分享密码 |
+| `authorized` | `boolean` | 当前请求是否已通过分享访问校验 |
+| `expiresAt` | `number` | 过期时间 Unix 时间戳 |
+| `preview` | `PreviewMeta` | 根路径预览信息，未授权时可能为空 |
+| `entries` | `FileEntry[]` | 根目录条目列表，仅目录分享返回 |
+
 ## 健康检查
 
 ### 健康检查
@@ -152,12 +203,15 @@
 
 ```json
 {
-  "status": "ok"
+  "status": "ok",
+  "maxUploadBytes": 20971520
 }
 ```
 
 - 主要错误返回: 无特殊业务错误
-- 备注: 用于存活检查
+- 备注:
+  - 用于存活检查
+  - `maxUploadBytes` 为当前生效的单次上传总大小限制，前端会在运行时读取该值
 
 ## 会话鉴权
 
@@ -504,6 +558,93 @@
   - 响应不是 JSON
   - `Content-Type` 优先按扩展名推断，失败时按文件内容探测
 
+## 分享
+
+### 创建分享
+
+- Method + Path: `POST /api/shares`
+- 鉴权: 是
+- Body(JSON):
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `mountId` | `string` | 是 | 源挂载 ID |
+| `path` | `string` | 是 | 源文件或目录路径 |
+| `access` | `"public" \| "password"` | 是 | 公开分享或密码分享 |
+| `permission` | `"read" \| "write"` | 否 | 默认 `read`；`write` 仅目录支持 |
+| `writeMode` | `"local" \| "text"` | 否 | 仅 `write` 分享生效 |
+| `expiresAt` | `number` | 否 | 过期时间 Unix 时间戳，`0` 表示不过期 |
+
+- 成功返回: `200 OK`，返回 `ShareCreateResult`
+- 主要错误返回:
+  - `400 BAD_REQUEST`: JSON 非法
+  - `400 SHARE_REQUEST_FAILED`: 分享参数非法、过期时间非法或源路径不支持分享
+  - `401 UNAUTHORIZED`: 缺少或无效凭证
+  - `404 NOT_FOUND`: 源路径不存在
+
+### 分享列表
+
+- Method + Path: `GET /api/shares`
+- 鉴权: 是
+- 入参: 无
+- 成功返回: `200 OK`，返回 `ManagedShare[]`
+- 主要错误返回:
+  - `401 UNAUTHORIZED`: 缺少或无效凭证
+  - `500 SHARE_LIST_FAILED`: 读取分享列表失败
+
+### 删除分享
+
+- Method + Path: `DELETE /api/shares/:id`
+- 鉴权: 是
+- Path:
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `id` | `string` | 是 | 分享 ID |
+
+- 成功返回: `200 OK`
+
+```json
+{
+  "ok": true
+}
+```
+
+- 主要错误返回:
+  - `401 UNAUTHORIZED`: 缺少或无效凭证
+  - `404 SHARE_NOT_FOUND`: 分享不存在
+  - `500 SHARE_DELETE_FAILED`: 删除失败
+
+### 公开分享接口
+
+- 路由前缀: `/api/public/shares/:id`
+- 鉴权:
+  - `GET /api/public/shares/:id` 以及 `files`、`preview`、`raw`、`download`、`uploads` 子路由默认无需登录
+  - 只要分享链接未过期，即可匿名访问；密码分享需先调用 `POST /authorize` 获取分享访问 Cookie
+  - `POST /save` 仍需要登录，因为该接口会把分享内容复制到用户自己的挂载目录
+- 常见错误返回:
+  - `410 SHARE_EXPIRED`: 分享已过期
+  - `401 SHARE_PASSWORD_REQUIRED`: 密码分享尚未完成授权
+  - `403 SHARE_READ_ONLY`: 写入分享不允许文件预览或下载
+  - `403 SHARE_UPLOAD_FORBIDDEN`: 非可写分享不可上传
+  - `404 SHARE_NOT_FOUND`: 分享不存在
+
+| Path | Method | 额外入参 | 成功返回 | 说明 |
+| --- | --- | --- | --- | --- |
+| `/api/public/shares/:id` | `GET` | 无 | `PublicShare` | 获取公开分享根信息 |
+| `/api/public/shares/:id/authorize` | `POST` | Body: `{"password":"1234"}` | `{"ok":true}` | 校验分享密码并写入访问 Cookie |
+| `/api/public/shares/:id/files` | `GET` | Query: `path` | `FileEntry[]` | 读取目录条目 |
+| `/api/public/shares/:id/preview` | `GET` | Query: `path` | `PreviewMeta` | 预览目录或文件 |
+| `/api/public/shares/:id/raw` | `GET` | Query: `path` | 文件流 | 直接读取原始内容 |
+| `/api/public/shares/:id/download` | `GET` | Query: `path` | 附件流 | 下载文件，目录会打包为 zip |
+| `/api/public/shares/:id/uploads` | `POST` | FormData: `path`, `files[]` | `FileEntry[]` | 向可写分享目录上传文件 |
+| `/api/public/shares/:id/save` | `POST` | Body: `{"path":"/","mountId":"dest","targetDir":"/"}` | `FileEntry` | 复制分享内容到已登录用户的挂载目录 |
+
+- 备注:
+  - `path` 为空时按 `/` 处理
+  - 目录写入分享允许目录浏览和上传，但不允许文件预览或下载
+  - 密码分享授权 Cookie 的有效期不会超过分享本身的剩余有效时间
+
 ## 上传下载与任务
 
 ### 上传文件
@@ -526,6 +667,7 @@
 - 备注:
   - 请求体为 `multipart/form-data`
   - 返回的是上传任务快照
+  - 单次上传总大小限制由配置项 `MAX_UPLOAD_BYTES` 控制，默认 `20971520` 字节（20 MB）
   - 当前实现即使部分文件上传失败，也可能返回 `success` 状态并只统计成功部分
 
 ### 任务列表
