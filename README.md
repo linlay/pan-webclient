@@ -13,8 +13,8 @@
 ### 前置要求
 - Docker Engine / Docker Desktop
 - Docker Compose v2
-- Go 1.26+（仅当你需要在宿主机直接执行 `make backend-test` / `make backend-build`）
-- Node.js 22+（仅当你需要在宿主机直接执行 `make frontend-build` / `make frontend-test`）
+- Go 1.26+（仅当你需要在宿主机直接执行 `make build` / `make build-backend`）
+- Node.js 22+（仅当你需要在宿主机直接执行 `make build` / `make build-frontend`）
 
 ### 初始化
 ```bash
@@ -28,10 +28,10 @@ cp configs/local-public-key.example.pem configs/local-public-key.pem
 
 ### 本地开发
 ```bash
-make dev-up
+make run
 ```
 
-`make dev-up` 会先根据 `configs/mounts/*.json` 自动生成 `.cache/docker-compose.mounts.yml`，再调用 `docker compose`。如果你直接手敲裸 `docker compose up`，这些自动生成的宿主机 bind mount 不会先被准备好。
+`make run` 会先根据 `configs/mounts/*.json` 自动生成 `.cache/docker-compose.mounts.yml`，再调用开发态 `docker compose`。如果你直接手敲裸 `docker compose up`，这些自动生成的宿主机 bind mount 不会先被准备好。
 
 浏览器统一访问：
 
@@ -51,13 +51,13 @@ http://127.0.0.1:${NGINX_PORT}/pan/
 常用命令：
 
 ```bash
-make dev-logs
-make dev-down
+make stop
+docker compose -f docker-compose.yml -f docker-compose.dev.yml -f .cache/docker-compose.mounts.yml logs -f nginx api frontend-dev
 ```
 
 ### 本地生产启动
 ```bash
-make prod-up
+make docker-up
 ```
 
 这会启动本地生产形态的完整容器编排：
@@ -73,27 +73,38 @@ make prod-up
 常用命令：
 
 ```bash
-make prod-logs
-make prod-down
+make docker-down
+docker compose -f docker-compose.yml -f .cache/docker-compose.mounts.yml logs -f frontend api
 ```
 
-## 3. 构建与测试
+## 3. 构建、运行与测试
+### 一次构建前后端
+```bash
+make build
+```
+
 ### 后端
 ```bash
-make backend-build
-make backend-test
+make build-backend
 ```
 
-- `make backend-build` 输出 `./bin/pan-api`
+- `make build-backend` 输出 `./bin/pan-api`
 
 ### 前端
 ```bash
-make frontend-install
-make frontend-build
-make frontend-test
+make build-frontend
 ```
 
-- `make frontend-build` 输出 `./frontend/dist`
+- `make build-frontend` 会在缺少依赖时自动执行 `npm ci`
+- `make build-frontend` 输出 `./frontend/dist`
+
+### 测试
+Makefile 不再封装测试命令，直接使用各子项目原生命令：
+
+```bash
+cd backend && go test ./...
+cd frontend && node --test src/api/routing.test.ts
+```
 
 ### `/apppan/` smoke test
 先启动开发环境或本地生产环境，再准备一个能被 `APP_AUTH_LOCAL_PUBLIC_KEY_FILE` 对应公钥验签的 `RS256 JWT`：
@@ -109,7 +120,7 @@ http://127.0.0.1:${NGINX_PORT}/apppan/api
 ```
 
 ### 基础 `curl` 测试
-启动 `make dev-up` 或 `make prod-up` 后，可以先做最小链路验证。对外入口建议始终打到 Nginx，而不是直接打 Go 服务。
+启动 `make run` 或 `make docker-up` 后，可以先做最小链路验证。对外入口建议始终打到 Nginx，而不是直接打 Go 服务。
 
 先验证无鉴权健康检查：
 
@@ -253,5 +264,5 @@ docker build -f frontend/Dockerfile -t pan-frontend-nginx:latest .
 - 浏览器入口始终是 Nginx，不要直接访问 Go 端口
 - 若 `/pan/api/*` 返回 502，先检查 `api` 容器是否启动、`API_PORT` 是否一致
 - 若页面能打开但静态资源 404，先检查前端是否从 Nginx 提供，而不是误连到 Go
-- 若挂载为空或访问失败，先确认你是通过 `make dev-up` / `make prod-up` 启动，并检查 `.cache/docker-compose.mounts.yml` 是否包含预期的 `source -> path` bind mount
+- 若挂载为空或访问失败，先确认你是通过 `make run` / `make docker-up` 启动，并检查 `.cache/docker-compose.mounts.yml` 是否包含预期的 `source -> path` bind mount
 - 若 App Bearer Token 无法访问，检查 JWT 是否由匹配私钥签发、是否过期，以及 `APP_AUTH_LOCAL_PUBLIC_KEY_FILE` 是否正确

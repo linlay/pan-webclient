@@ -10,46 +10,33 @@ ENV_PUBLIC_PORT := $(shell sed -n 's/^PUBLIC_PORT=//p' .env 2>/dev/null | tail -
 NGINX_PORT_VALUE := $(or $(NGINX_PORT),$(ENV_NGINX_PORT),$(ENV_WEB_PORT),$(ENV_PUBLIC_PORT),11946)
 API_PORT_VALUE := $(or $(API_PORT),$(ENV_API_PORT),8080)
 
-.PHONY: backend-build backend-test frontend-install frontend-build frontend-test compose-mounts dev-up dev-logs dev-down prod-up prod-logs prod-down apppan-smoke clean
+.PHONY: build build-backend build-frontend compose-mounts run stop docker-up docker-down apppan-smoke clean
 
-backend-build:
+build: build-backend build-frontend
+
+build-backend:
 	mkdir -p bin
 	mkdir -p $(GO_CACHE)
 	cd backend && GOCACHE=$(GO_CACHE) go build -o ../bin/$(APP_NAME) ./cmd/server
 
-backend-test:
-	mkdir -p $(GO_CACHE)
-	cd backend && GOCACHE=$(GO_CACHE) go test ./...
-
-frontend-install:
-	cd frontend && npm install
-
-frontend-build:
+build-frontend:
+	if [ ! -d frontend/node_modules ]; then cd frontend && npm ci; fi
 	cd frontend && npm run build
-
-frontend-test:
-	cd frontend && node --test src/api/routing.test.ts
 
 compose-mounts:
 	mkdir -p .cache
 	cd backend && GOCACHE=$(GO_CACHE) go run ./cmd/composemounts -output ../$(COMPOSE_MOUNTS_FILE)
 
-dev-up: compose-mounts
+run: compose-mounts
 	NGINX_PORT=$(NGINX_PORT_VALUE) API_PORT=$(API_PORT_VALUE) docker compose $(DEV_COMPOSE_FILES) up -d --build api frontend-dev nginx
 
-dev-logs: compose-mounts
-	NGINX_PORT=$(NGINX_PORT_VALUE) API_PORT=$(API_PORT_VALUE) docker compose $(DEV_COMPOSE_FILES) logs -f nginx api frontend-dev
-
-dev-down: compose-mounts
+stop: compose-mounts
 	NGINX_PORT=$(NGINX_PORT_VALUE) API_PORT=$(API_PORT_VALUE) docker compose $(DEV_COMPOSE_FILES) down --remove-orphans
 
-prod-up: compose-mounts
+docker-up: compose-mounts
 	NGINX_PORT=$(NGINX_PORT_VALUE) API_PORT=$(API_PORT_VALUE) docker compose $(COMPOSE_FILES) up -d --build
 
-prod-logs: compose-mounts
-	NGINX_PORT=$(NGINX_PORT_VALUE) API_PORT=$(API_PORT_VALUE) docker compose $(COMPOSE_FILES) logs -f frontend api
-
-prod-down: compose-mounts
+docker-down: compose-mounts
 	NGINX_PORT=$(NGINX_PORT_VALUE) API_PORT=$(API_PORT_VALUE) docker compose $(COMPOSE_FILES) down --remove-orphans
 
 apppan-smoke:

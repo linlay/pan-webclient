@@ -40,14 +40,14 @@
 - `configs/mounts/*.json` 里的挂载路径应写容器内路径。
 
 ## 5. 开发命令
-- `make dev-up`: 启动开发态 Nginx、Go API、webpack dev server
-- `make dev-logs`: 查看开发态日志
-- `make dev-down`: 停止开发态服务
-- `make prod-up`: 启动本地生产形态容器编排
-- `make prod-logs`: 查看本地生产形态日志
-- `make prod-down`: 停止本地生产形态服务
-- `make backend-test`: 运行后端测试
-- `make frontend-test`: 运行前端路由测试
+- `make build`: 串行构建前后端
+- `make build-backend`: 构建 Go 二进制到 `./bin/pan-api`
+- `make build-frontend`: 构建前端静态资源；缺少依赖时先执行 `npm ci`
+- `make run`: 启动开发态 Nginx、Go API、webpack dev server
+- `make stop`: 停止开发态服务
+- `make docker-up`: 启动本地生产形态容器编排
+- `make docker-down`: 停止本地生产形态服务
+- 测试直接使用原生命令：`cd backend && go test ./...`、`cd frontend && node --test src/api/routing.test.ts`
 
 ## 6. 关键约束
 - 不要把前端静态托管重新加回 Go。
