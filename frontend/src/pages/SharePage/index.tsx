@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/api";
 import { uploadSizeErrorMessage } from "@/api/uploadLimits";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { ShareSaveDialog } from "@/features/share/ShareSaveDialog";
 import { MOBILE_MEDIA_QUERY } from "@/static";
 import {
+	basename,
 	buildShareTextFilename,
 	dirname,
 	entryFromPreview,
@@ -95,6 +97,12 @@ export function SharePage(props: { shareId: string }) {
 	const parentPath = useMemo(() => dirname(currentPath), [currentPath]);
 	const defaultTextFileName = sessionUsername || "guest";
 	const shareWriteBusy = uploading || savingTextFile;
+	const currentDirectoryTitle =
+		share?.authorized && share.isDir
+			? currentPath === "/"
+				? share.name
+				: basename(currentPath)
+			: null;
 	const currentWriteActionLabel = isTextWriteMode
 		? savingTextFile
 			? "保存中..."
@@ -107,6 +115,8 @@ export function SharePage(props: { shareId: string }) {
 		canReadShare &&
 		Boolean(activeFilePreview) &&
 		(mobilePropertiesOpen || !share?.isDir);
+
+	useDocumentTitle(currentDirectoryTitle);
 
 	useEffect(() => {
 		if (!isMobile) {

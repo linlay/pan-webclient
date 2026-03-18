@@ -10,7 +10,9 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"pan-webclient/backend/internal/mounts"
@@ -21,6 +23,8 @@ var textExtensions = map[string]bool{
 	".xml": true, ".log": true, ".go": true, ".ts": true, ".tsx": true, ".js": true, ".jsx": true,
 	".css": true, ".html": true, ".sh": true, ".env": true, ".sql": true, ".java": true, ".py": true,
 }
+
+var moveRename = os.Rename
 
 type Entry struct {
 	MountID   string `json:"mountId"`
@@ -320,22 +324,98 @@ func SaveUploadedFile(resolver *MountResolver, mountID, relPath, filename string
 		return Entry{}, 0, err
 	}
 	targetName := filepath.Base(filename)
-	target := filepath.Join(abs, targetName)
-	dst, err := os.Create(target)
-	if err != nil {
-		return Entry{}, 0, err
+	var dst *os.File
+	for {
+		targetName, err = nextUploadedFilename(abs, targetName)
+		if err != nil {
+			return Entry{}, 0, err
+		}
+		target := filepath.Join(abs, targetName)
+		dst, err = os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		if os.IsExist(err) {
+			continue
+		}
+		if err != nil {
+			return Entry{}, 0, err
+		}
+		break
 	}
 	defer dst.Close()
 	written, err := io.Copy(dst, src)
 	if err != nil {
 		return Entry{}, written, err
 	}
+	target := filepath.Join(abs, targetName)
 	info, err := os.Stat(target)
 	if err != nil {
 		return Entry{}, written, err
 	}
 	targetRel := cleanRelPath(filepath.Join(clean, targetName))
 	return entryFromInfo(mountID, targetRel, targetName, info, isHiddenRelPath(targetRel)), written, nil
+}
+
+func MovePath(src, dst string) error {
+	if err := moveRename(src, dst); err == nil {
+		return nil
+	} else if !errors.Is(err, syscall.EXDEV) {
+		return err
+	}
+
+	if _, err := os.Stat(dst); err == nil {
+		return os.ErrExist
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if err := copyRecursively(src, dst); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(src); err != nil {
+		return err
+	}
+	return nil
+}
+
+func nextUploadedFilename(dir, originalName string) (string, error) {
+	if _, err := os.Stat(filepath.Join(dir, originalName)); err == nil {
+		stem, ext := splitUploadFilename(originalName)
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			return "", err
+		}
+		maxSuffix := 0
+		prefix := stem + "-"
+		for _, entry := range entries {
+			candidate := entry.Name()
+			if candidate == originalName {
+				continue
+			}
+			if ext != "" {
+				if !strings.HasSuffix(candidate, ext) {
+					continue
+				}
+				candidate = strings.TrimSuffix(candidate, ext)
+			}
+			if !strings.HasPrefix(candidate, prefix) {
+				continue
+			}
+			suffix, err := strconv.Atoi(strings.TrimPrefix(candidate, prefix))
+			if err == nil && suffix > maxSuffix {
+				maxSuffix = suffix
+			}
+		}
+		return fmt.Sprintf("%s-%d%s", stem, maxSuffix+1, ext), nil
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+	return originalName, nil
+}
+
+func splitUploadFilename(name string) (string, string) {
+	ext := filepath.Ext(name)
+	if ext == name {
+		return name, ""
+	}
+	return strings.TrimSuffix(name, ext), ext
 }
 
 func OpenFile(resolver *MountResolver, mountID, relPath string) (*os.File, os.FileInfo, error) {

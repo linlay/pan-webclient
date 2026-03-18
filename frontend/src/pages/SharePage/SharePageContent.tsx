@@ -66,7 +66,11 @@ export function SharePageContent(props: {
 					activeFilePreview={props.activeFilePreview}
 					currentPath={props.currentPath}
 					share={props.share}
-					onBack={props.share.isDir ? props.onDismissMobileProperties : undefined}
+					onBack={
+						props.share.isDir
+							? props.onDismissMobileProperties
+							: undefined
+					}
 				/>
 			);
 		}
@@ -75,7 +79,9 @@ export function SharePageContent(props: {
 			<div className="flex flex-col bg-[linear-gradient(180deg,rgba(248,250,252,0.9),rgba(241,245,249,0.88))] dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.98),rgba(2,6,23,0.98))]">
 				{props.share.isDir ? (
 					<div className="flex flex-col px-5 pb-5 pt-4">
-						{writePanel ? <div className="mb-4 shrink-0">{writePanel}</div> : null}
+						{writePanel ? (
+							<div className="mb-4 shrink-0">{writePanel}</div>
+						) : null}
 						<ShareDirectoryListCard
 							activePreviewPath={props.activePreviewPath}
 							canReadShare={props.canReadShare}
@@ -136,7 +142,10 @@ export function SharePageContent(props: {
 						<div className="flex h-full min-h-0 items-center justify-center p-6">
 							<div className="max-w-sm rounded-3xl border border-dashed border-slate-200 bg-slate-50/80 px-6 py-8 text-center dark:border-slate-700 dark:bg-slate-800/40">
 								<div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
-									<MaterialIcon name="description" className="text-2xl" />
+									<MaterialIcon
+										name="description"
+										className="text-2xl"
+									/>
 								</div>
 								<div className="mt-4 text-lg font-bold text-slate-900 dark:text-white">
 									目录不展示 Properties
@@ -251,7 +260,9 @@ function ShareDirectoryListCard(props: {
 								entry={entry}
 								key={`${entry.mountId}:${entry.path}`}
 								onOpen={props.onEntryOpen}
-								selected={props.activePreviewPath === entry.path}
+								selected={
+									props.activePreviewPath === entry.path
+								}
 							/>
 						))}
 					</div>
@@ -305,7 +316,9 @@ function ShareMobileDirectoryRow(props: {
 				</div>
 				<div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400">
 					<span>
-						{props.entry.isDir ? "目录" : formatBytes(props.entry.size)}
+						{props.entry.isDir
+							? "目录"
+							: formatBytes(props.entry.size)}
 					</span>
 					<span>·</span>
 					<span>{formatDateTime(props.entry.modTime)}</span>
@@ -360,7 +373,9 @@ function ShareDesktopDirectoryRow(props: {
 				</div>
 				<div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400">
 					<span>
-						{props.entry.isDir ? "目录" : formatBytes(props.entry.size)}
+						{props.entry.isDir
+							? "目录"
+							: formatBytes(props.entry.size)}
 					</span>
 					<span>·</span>
 					<span>{formatDateTime(props.entry.modTime)}</span>
@@ -454,17 +469,9 @@ function ShareTextComposer(props: {
 						Quick Note
 					</div>
 					<div className="mt-1 text-lg font-bold text-slate-900 dark:text-white">
-						快速保存 Markdown 到当前目录
+						快速保存.md文件到当前目录
 					</div>
-					<p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-						当前分享已固定为文本输入模式，这里填写的内容会保存成
-						`.md` 文件。
-					</p>
 				</div>
-			</div>
-
-			<div className="mt-5 rounded-2xl bg-white/80 px-4 py-4 text-sm text-slate-600 shadow-sm dark:bg-slate-900/60 dark:text-slate-300 overflow-hidden">
-				当前保存目录：{props.currentPath}
 			</div>
 
 			<div className="mt-5">
@@ -474,7 +481,9 @@ function ShareTextComposer(props: {
 					</span>
 					<input
 						className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-						onChange={(event) => props.onFileNameChange(event.target.value)}
+						onChange={(event) =>
+							props.onFileNameChange(event.target.value)
+						}
 						placeholder={`留空默认使用 ${props.defaultFileName}`}
 						type="text"
 						value={props.fileName}
@@ -490,7 +499,9 @@ function ShareTextComposer(props: {
 					className={`w-full resize-none rounded-[24px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white ${
 						props.isMobile ? "min-h-[180px]" : "min-h-[220px]"
 					}`}
-					onChange={(event) => props.onContentChange(event.target.value)}
+					onChange={(event) =>
+						props.onContentChange(event.target.value)
+					}
 					placeholder="输入要保存的 Markdown 内容。"
 					value={props.fileContent}
 				/>
@@ -541,14 +552,7 @@ function ShareLocalUploadPanel(props: {
 					<div className="mt-1 text-lg font-bold text-slate-900 dark:text-white">
 						上传本地文件到当前目录
 					</div>
-					<p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-						当前模式只保留本地文件上传，不显示文本输入区域。
-					</p>
 				</div>
-			</div>
-
-			<div className="mt-5 rounded-2xl bg-white/80 px-4 py-4 text-sm text-slate-600 shadow-sm dark:bg-slate-900/60 dark:text-slate-300">
-				当前上传目录：{props.currentPath}
 			</div>
 
 			<button

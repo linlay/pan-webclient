@@ -46,7 +46,7 @@ func MoveToTrash(resolver *fsops.MountResolver, mountID, relPath, trashRoot stri
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		return DeletedRecord{}, err
 	}
-	if err := os.Rename(abs, target); err != nil {
+	if err := fsops.MovePath(abs, target); err != nil {
 		return DeletedRecord{}, err
 	}
 	return DeletedRecord{

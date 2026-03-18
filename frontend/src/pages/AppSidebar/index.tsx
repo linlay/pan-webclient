@@ -62,7 +62,7 @@ export function AppSidebar(props: AppSidebarProps) {
 					<MaterialIcon name="cloud_done" />
 				</div>
 				<h2 className="text-lg font-bold tracking-tight">
-					Cloud Drive
+					Zenmind Pan
 				</h2>
 				{props.isMobile ? (
 					<button
@@ -95,7 +95,10 @@ export function AppSidebar(props: AppSidebarProps) {
 							onClick={props.onOpenShares}
 							type="button"
 						>
-							<MaterialIcon className="text-[20px]" name="share" />
+							<MaterialIcon
+								className="text-[20px]"
+								name="share"
+							/>
 							<span>My Shares</span>
 							{props.sharesLength > 0 ? (
 								<span className="ml-auto text-xs text-slate-400">
@@ -108,7 +111,10 @@ export function AppSidebar(props: AppSidebarProps) {
 							onClick={props.onOpenTasks}
 							type="button"
 						>
-							<MaterialIcon className="text-[20px]" name="schedule" />
+							<MaterialIcon
+								className="text-[20px]"
+								name="schedule"
+							/>
 							<span>Tasks</span>
 							{props.tasksLength > 0 ? (
 								<span className="ml-auto text-xs text-slate-400">
@@ -121,7 +127,10 @@ export function AppSidebar(props: AppSidebarProps) {
 							onClick={props.onOpenTrash}
 							type="button"
 						>
-							<MaterialIcon className="text-[20px]" name="delete" />
+							<MaterialIcon
+								className="text-[20px]"
+								name="delete"
+							/>
 							<span>Trash</span>
 							{props.trashItemsLength > 0 ? (
 								<span className="ml-auto text-xs text-slate-400">

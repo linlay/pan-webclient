@@ -9,6 +9,7 @@ import {
 import { api, rawFileUrl } from "@/api";
 import { isAppMode } from "@/api/routing";
 import { uploadSizeErrorMessage } from "@/api/uploadLimits";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
 	basename,
 	buildBreadcrumbs,
@@ -131,6 +132,9 @@ export function useAppController() {
 		() => buildBreadcrumbs(currentMount, currentPath),
 		[currentMount, currentPath],
 	);
+	const currentDirectoryTitle = user
+		? breadcrumbs[breadcrumbs.length - 1]?.label ?? null
+		: null;
 	const hasActiveTask = useMemo(
 		() =>
 			tasks.some(
@@ -190,6 +194,8 @@ export function useAppController() {
 			: inspectorMode === "shares"
 				? "我的分享"
 				: "任务";
+
+	useDocumentTitle(currentDirectoryTitle);
 
 	function clearSelectionInspector() {
 		setSelectedEntries([]);

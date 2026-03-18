@@ -642,7 +642,7 @@ func (a *api) restoreTrash(w http.ResponseWriter, r *http.Request) {
 			conflicts = append(conflicts, record.Name)
 			continue
 		}
-		if err := os.Rename(record.TrashPath, targetAbs); err != nil {
+		if err := fsops.MovePath(record.TrashPath, targetAbs); err != nil {
 			conflicts = append(conflicts, record.Name)
 			continue
 		}

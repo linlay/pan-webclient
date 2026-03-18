@@ -81,7 +81,7 @@ export function AppHeader(props: AppHeaderProps) {
 					{props.isMobile ? (
 						<span className="text-slate-900 dark:text-white font-bold truncate">
 							{props.breadcrumbs[props.breadcrumbs.length - 1]
-								?.label || "Cloud Drive"}
+								?.label || "Zenmind Pan"}
 						</span>
 					) : (
 						props.breadcrumbs.map((crumb, index) => (
@@ -90,7 +90,10 @@ export function AppHeader(props: AppHeaderProps) {
 								className="flex items-center"
 							>
 								{index > 0 ? (
-									<MaterialIcon className="text-xs mx-1" name="chevron_right" />
+									<MaterialIcon
+										className="text-xs mx-1"
+										name="chevron_right"
+									/>
 								) : null}
 								{index === props.breadcrumbs.length - 1 ? (
 									<span className="text-slate-900 dark:text-white font-bold">
