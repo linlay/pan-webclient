@@ -18,7 +18,8 @@ body,
 }
 
 body {
-	font-family: "PingFang SC", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+	font-family:
+		"PingFang SC", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 }
@@ -67,6 +68,8 @@ body.dark {
 
 // ─── Markdown preview ───
 .markdown-preview {
+	overflow: auto;
+
 	@apply rounded-2xl border border-slate-200 bg-slate-50 p-4 leading-relaxed;
 
 	.dark & {

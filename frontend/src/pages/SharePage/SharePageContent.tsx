@@ -1,3 +1,4 @@
+import { useState, type DragEvent, type ReactNode } from "react";
 import { PreviewPane } from "@/features/preview/PreviewPane";
 import { MaterialIcon } from "@/features/shared/Icons";
 import {
@@ -31,6 +32,7 @@ export function SharePageContent(props: {
 	onEntryOpen: (entry: FileEntry) => void;
 	onTextContentChange: (value: string) => void;
 	onTextFileNameChange: (value: string) => void;
+	onDropFiles: (files: FileList | null) => void;
 	onSaveText: () => void;
 	onPickLocalFile: () => void;
 }) {
@@ -51,12 +53,26 @@ export function SharePageContent(props: {
 			<ShareLocalUploadPanel
 				currentPath={props.currentPath}
 				isMobile={props.isMobile}
+				onDropFiles={props.onDropFiles}
 				onPickLocalFile={props.onPickLocalFile}
 				uploading={props.uploading}
 				uploadProgress={props.uploadProgress}
 			/>
 		)
 	) : null;
+	const writeOnlyShare = props.canUploadToShare && !props.canReadShare;
+
+	if (writeOnlyShare) {
+		return (
+			<ShareWriteOnlyWorkspace
+				currentPath={props.currentPath}
+				isMobile={props.isMobile}
+				isTextWriteMode={props.isTextWriteMode}
+				share={props.share}
+				writePanel={writePanel}
+			/>
+		);
+	}
 
 	if (props.isMobile) {
 		if (props.showMobilePropertiesPage) {
@@ -159,6 +175,47 @@ export function SharePageContent(props: {
 				</div>
 			</div>
 		</div>
+	);
+}
+
+function ShareWriteOnlyWorkspace(props: {
+	share: PublicShare;
+	currentPath: string;
+	isMobile: boolean;
+	isTextWriteMode: boolean;
+	writePanel: ReactNode;
+}) {
+	const destinationLabel =
+		props.currentPath === "/" ? props.share.name : props.currentPath;
+
+	return (
+		<div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[linear-gradient(180deg,rgba(248,250,252,0.96),rgba(241,245,249,0.9))] dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.98),rgba(2,6,23,0.98))]">
+			<div className="pointer-events-none absolute left-[-6rem] top-0 h-60 w-60 rounded-full bg-sky-200/45 blur-3xl dark:bg-sky-500/10" />
+			<div className="pointer-events-none absolute bottom-[-5rem] right-[-4rem] h-72 w-72 rounded-full bg-orange-100/55 blur-3xl dark:bg-orange-500/10" />
+			<div
+				className={
+					props.isMobile
+						? "relative px-5 pb-5 pt-4"
+						: "relative min-h-0 flex-1 overflow-y-auto px-6 py-6 lg:px-8"
+				}
+			>
+				<div
+					className={`mx-auto grid w-full gap-4 ${
+						props.isMobile ? "max-w-none" : "max-w-6xl"
+					}`}
+				>
+					<div>{props.writePanel}</div>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function ShareWritePill(props: { children: ReactNode }) {
+	return (
+		<span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-600 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300">
+			{props.children}
+		</span>
 	);
 }
 
@@ -461,9 +518,6 @@ function ShareTextComposer(props: {
 			}`}
 		>
 			<div className="flex items-start gap-3">
-				<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-500">
-					<MaterialIcon name="edit_note" className="text-2xl" />
-				</div>
 				<div className="min-w-0">
 					<div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-sky-500">
 						Quick Note
@@ -531,44 +585,117 @@ function ShareTextComposer(props: {
 function ShareLocalUploadPanel(props: {
 	currentPath: string;
 	isMobile?: boolean;
+	onDropFiles: (files: FileList | null) => void;
 	onPickLocalFile: () => void;
 	uploading: boolean;
 	uploadProgress: { loaded: number; total: number };
 }) {
+	const [dragActive, setDragActive] = useState(false);
+	const targetLabel =
+		props.currentPath === "/" ? "当前目录" : props.currentPath;
+
+	function handleDragOver(event: DragEvent<HTMLDivElement>) {
+		event.preventDefault();
+		if (props.uploading) return;
+		event.dataTransfer.dropEffect = "copy";
+		setDragActive(true);
+	}
+
+	function handleDragLeave(event: DragEvent<HTMLDivElement>) {
+		const nextTarget = event.relatedTarget as Node | null;
+		if (nextTarget && event.currentTarget.contains(nextTarget)) {
+			return;
+		}
+		setDragActive(false);
+	}
+
+	function handleDrop(event: DragEvent<HTMLDivElement>) {
+		event.preventDefault();
+		setDragActive(false);
+		if (props.uploading) return;
+		props.onDropFiles(event.dataTransfer.files);
+	}
+
 	return (
 		<div
-			className={`w-full rounded-3xl border border-sky-200 bg-sky-50/80 dark:border-sky-500/20 dark:bg-sky-500/10 ${
-				props.isMobile ? "px-4 py-4" : "px-6 py-7"
+			className={`w-full rounded-[34px] border border-sky-200 bg-[linear-gradient(180deg,rgba(239,248,255,0.98),rgba(255,255,255,0.98))] shadow-[0_24px_48px_rgba(14,165,233,0.1)] dark:border-sky-500/20 dark:bg-[linear-gradient(180deg,rgba(14,165,233,0.14),rgba(15,23,42,0.94))] ${
+				props.isMobile ? "px-5 py-5" : "min-h-[460px] px-7 py-7"
 			}`}
 		>
-			<div className="flex items-start gap-3">
-				<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-500">
-					<MaterialIcon name="upload" className="text-2xl" />
-				</div>
+			<div className={`flex items-start`}>
 				<div className="min-w-0">
-					<div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-sky-500">
+					<div className="text-[11px] font-semibold uppercase tracking-[0.34em] text-sky-500">
 						Local File
 					</div>
 					<div className="mt-1 text-lg font-bold text-slate-900 dark:text-white">
 						上传本地文件到当前目录
 					</div>
+					<div className="mt-4 flex flex-wrap gap-2">
+						<ShareWritePill>{targetLabel}</ShareWritePill>
+						<ShareWritePill>支持多文件</ShareWritePill>
+						<ShareWritePill>上传后自动保存</ShareWritePill>
+					</div>
 				</div>
 			</div>
 
-			<button
-				className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-				disabled={props.uploading}
-				onClick={props.onPickLocalFile}
-				type="button"
+			<div
+				className={`mt-7 rounded-[30px] border border-dashed px-5 py-8 text-center transition-all sm:px-7 sm:py-10 ${
+					dragActive
+						? "border-sky-400 bg-sky-100/75 shadow-[0_20px_35px_rgba(56,189,248,0.18)] dark:border-sky-300 dark:bg-sky-500/15"
+						: "border-sky-200 bg-white/78 dark:border-sky-500/20 dark:bg-slate-950/20"
+				}`}
+				onDragLeave={handleDragLeave}
+				onDragOver={handleDragOver}
+				onDrop={handleDrop}
 			>
-				<MaterialIcon
-					name={props.uploading ? "sync" : "upload"}
-					className={props.uploading ? "animate-spin" : ""}
-				/>
-				{props.uploading
-					? formatUploadProgress(props.uploadProgress)
-					: "选择本地文件上传"}
-			</button>
+				<div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[28px] bg-sky-100 text-sky-500 dark:bg-sky-500/15 dark:text-sky-300">
+					<MaterialIcon
+						name={
+							props.uploading
+								? "sync"
+								: dragActive
+									? "backup"
+									: "upload"
+						}
+						className={
+							props.uploading
+								? "text-[2.2rem] animate-spin"
+								: "text-[2.2rem]"
+						}
+					/>
+				</div>
+				<div className="mt-5 text-[1.45rem] font-bold text-slate-900 dark:text-white">
+					{dragActive
+						? "松开鼠标，立即上传"
+						: props.uploading
+							? formatUploadProgress(props.uploadProgress)
+							: "拖拽文件到这里"}
+				</div>
+				<p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500 dark:text-slate-300">
+					也可以点击下方按钮选择本地文件。桌面端支持拖拽上传，移动端保持轻量的一键选择体验。
+				</p>
+				<button
+					className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-[24px] bg-[#dd7a58] px-4 py-3.5 text-sm font-semibold text-white shadow-[0_18px_30px_rgba(221,122,88,0.28)] transition-colors hover:bg-[#cf6945] disabled:cursor-not-allowed disabled:opacity-60"
+					disabled={props.uploading}
+					onClick={props.onPickLocalFile}
+					type="button"
+				>
+					<MaterialIcon
+						name={props.uploading ? "sync" : "upload"}
+						className={props.uploading ? "animate-spin" : ""}
+					/>
+					{props.uploading
+						? formatUploadProgress(props.uploadProgress)
+						: "选择本地文件上传"}
+				</button>
+				<div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-400 dark:text-slate-500">
+					<span>拖拽上传</span>
+					<span>·</span>
+					<span>支持批量选择</span>
+					<span>·</span>
+					<span>上传完成后自动提示</span>
+				</div>
+			</div>
 		</div>
 	);
 }

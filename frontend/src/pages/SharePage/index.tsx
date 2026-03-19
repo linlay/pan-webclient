@@ -230,7 +230,6 @@ export function SharePage(props: { shareId: string }) {
 				uploadFiles,
 				(progress) => setUploadProgress(progress),
 			);
-			await openDirectory(currentPath);
 			setNotice(
 				uploaded.length > 1
 					? `已上传 ${uploaded.length} 个文件`
@@ -264,7 +263,6 @@ export function SharePage(props: { shareId: string }) {
 				currentPath,
 				[textFile],
 			);
-			await openDirectory(currentPath);
 			setTextFileName("");
 			setTextFileContent("");
 			setNotice(`已保存 ${uploaded[0]?.name ?? filename}`);
@@ -398,6 +396,9 @@ export function SharePage(props: { shareId: string }) {
 									}
 						}
 						onPickLocalFile={() => uploadInputRef.current?.click()}
+						onDropFiles={(files) => {
+							void handleShareUpload(files);
+						}}
 						onSaveText={() => void handleCreateShareTextFile()}
 						onTextContentChange={setTextFileContent}
 						onTextFileNameChange={setTextFileName}
