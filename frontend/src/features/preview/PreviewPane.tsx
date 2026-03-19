@@ -154,124 +154,167 @@ export function PreviewPane(props: {
 		(props.preview.streamUrl
 			? resolveExternalUrl(props.preview.streamUrl)
 			: null) ?? rawFileUrl(props.preview.mountId, props.preview.path);
+	const fileMetaItems = [
+		`Last modified ${formatDateTime(props.preview.modTime)}`,
+		describePreviewKind(props.preview.kind, props.preview.mime),
+		formatBytes(props.preview.size),
+	];
 
 	return (
-		<div className="flex h-full min-h-0 flex-col overflow-y-auto p-4 sm:p-6">
-			<div className="mb-6 flex items-center justify-between">
-				<h3 className="text-lg font-bold">Properties</h3>
-			</div>
-
-			{/* Preview icon */}
-			<div className="mb-8 flex flex-col items-center gap-4">
-				<div
-					className={`relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl ${previewBgColor(props.preview)} group sm:h-32 sm:w-32`}
-				>
-					{props.preview.kind === "image" ? (
-						<>
+		<div className="flex h-full min-h-0 flex-col p-4 sm:p-6">
+			<div className="shrink-0 rounded-2xl border border-slate-200 bg-white/80 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/70">
+				<div className="flex items-start gap-4">
+					<div
+						className={`relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl ${previewBgColor(props.preview)} group`}
+					>
+						{props.preview.kind === "image" ? (
 							<img
 								alt={props.preview.name}
 								src={streamUrl}
-								className="w-full h-full object-cover rounded-2xl cursor-pointer transition-transform group-hover:scale-105"
-								onClick={() => {
-									if (props.onImagePreview) {
-										props.onImagePreview(streamUrl);
-									}
-								}}
+								className="h-full w-full rounded-2xl object-cover"
 							/>
-							<div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none rounded-2xl">
-								<MaterialIcon
-									name="zoom_in"
-									className="text-white text-3xl drop-shadow-md"
-								/>
-							</div>
-						</>
-					) : (
-						<MaterialIcon
-							name={previewIconName(props.preview)}
-							className={`${previewTextColor(props.preview)} !text-6xl ${props.preview.kind === "directory" ? "filled-icon" : ""}`}
-						/>
-					)}
-				</div>
-				<h4 className="text-center text-base font-bold sm:text-lg">
-					{props.preview.name}
-				</h4>
-				<p className="text-xs text-slate-500">
-					Last modified {formatDateTime(props.preview.modTime)}
-				</p>
-			</div>
-
-			{/* Metadata */}
-			<div className="mb-8 space-y-4">
-				<div className="flex justify-between text-sm">
-					<span className="text-slate-500 font-medium">Type:</span>
-					<span className="font-medium">
-						{describePreviewKind(
-							props.preview.kind,
-							props.preview.mime,
+						) : (
+							<MaterialIcon
+								name={previewIconName(props.preview)}
+								className={`${previewTextColor(props.preview)} !text-3xl ${props.preview.kind === "directory" ? "filled-icon" : ""}`}
+							/>
 						)}
-					</span>
-				</div>
-				<div className="flex justify-between text-sm">
-					<span className="text-slate-500 font-medium">Size:</span>
-					<span className="font-medium">
-						{formatBytes(props.preview.size)}
-					</span>
-				</div>
-				<div className="flex justify-between text-sm">
-					<span className="text-slate-500 font-medium">
-						Location:
-					</span>
-					<span className="font-medium truncate ml-4">
-						{props.preview.path}
-					</span>
+					</div>
+					<div className="min-w-0 flex-1">
+						<div className="flex items-start justify-between gap-3">
+							<div className="min-w-0 flex-1">
+								<div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+									<h3 className="min-w-0 truncate text-base font-bold text-slate-900 dark:text-white sm:text-lg">
+										{props.preview.name}
+									</h3>
+									{fileMetaItems.map((item, index) => (
+										<span
+											className="contents"
+											key={`${item}-${index}`}
+										>
+											<span className="text-slate-300 dark:text-slate-600">
+												·
+											</span>
+											<span className="text-xs text-slate-500 dark:text-slate-400">
+												{item}
+											</span>
+										</span>
+									))}
+								</div>
+							</div>
+							{props.canEdit ? (
+								<button
+									className="shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-white shadow-lg shadow-primary/20 transition-all hover:bg-primary/90"
+									onClick={props.onEnterEdit}
+									type="button"
+								>
+									Edit File
+								</button>
+							) : null}
+						</div>
+					</div>
 				</div>
 			</div>
 
-			{/* Content preview */}
-			{props.preview.kind === "pdf" ? (
-				<iframe
-					src={streamUrl}
-					title={props.preview.name}
-					className="mb-4 h-64 w-full rounded-xl border border-slate-200 dark:border-slate-700 sm:h-72"
-				/>
-			) : null}
-			{props.preview.kind === "audio" ? (
-				<audio controls src={streamUrl} className="w-full mb-4" />
-			) : null}
-			{props.preview.kind === "video" ? (
-				<video
-					controls
-					src={streamUrl}
-					className="mb-4 w-full rounded-xl border border-slate-200 dark:border-slate-700"
-				/>
-			) : null}
-			{props.preview.kind === "text" ? (
-				<pre className="mb-4 max-h-[320px] overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-700 dark:bg-slate-800/50 sm:max-h-[360px]">
-					{props.preview.content}
-				</pre>
-			) : null}
-			{props.preview.kind === "markdown" ? (
+			<div className="mt-4 min-h-0 flex-1">
+				{renderPreviewContent(
+					props.preview,
+					streamUrl,
+					props.onImagePreview,
+				)}
+			</div>
+		</div>
+	);
+}
+
+function renderPreviewContent(
+	preview: PreviewMeta,
+	streamUrl: string,
+	onImagePreview?: (url: string) => void,
+) {
+	if (preview.kind === "image") {
+		return (
+			<div className="flex h-full min-h-[260px] items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/70">
+				<button
+					className="group flex h-full w-full items-center justify-center p-4"
+					onClick={() => onImagePreview?.(streamUrl)}
+					type="button"
+				>
+					<img
+						alt={preview.name}
+						src={streamUrl}
+						className="max-h-full max-w-full rounded-2xl object-contain transition-transform group-hover:scale-[1.01]"
+					/>
+				</button>
+			</div>
+		);
+	}
+	if (preview.kind === "pdf") {
+		return (
+			<iframe
+				src={streamUrl}
+				title={preview.name}
+				className="h-full min-h-[320px] w-full rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+			/>
+		);
+	}
+	if (preview.kind === "video") {
+		return (
+			<video
+				controls
+				src={streamUrl}
+				className="h-full min-h-[320px] w-full rounded-2xl border border-slate-200 bg-black object-contain dark:border-slate-700"
+			/>
+		);
+	}
+	if (preview.kind === "audio") {
+		return (
+			<div className="flex h-full min-h-[240px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 p-6 dark:border-slate-700 dark:bg-slate-900/60">
+				<div className="w-full max-w-xl">
+					<div className="mb-4 flex items-center justify-center">
+						<div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+							<MaterialIcon name="music_note" className="!text-3xl" />
+						</div>
+					</div>
+					<audio controls src={streamUrl} className="w-full" />
+				</div>
+			</div>
+		);
+	}
+	if (preview.kind === "text") {
+		return (
+			<pre className="h-full min-h-[320px] overflow-auto rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-700 dark:bg-slate-800/50">
+				{preview.content}
+			</pre>
+		);
+	}
+	if (preview.kind === "markdown") {
+		return (
+			<div className="h-full min-h-[320px] overflow-auto rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900/60">
 				<article
-					className="markdown-preview mb-4"
+					className="markdown-preview"
 					dangerouslySetInnerHTML={{
-						__html: renderMarkdown(props.preview.content ?? ""),
+						__html: renderMarkdown(preview.content ?? ""),
 					}}
 				/>
-			) : null}
-
-			{/* Actions */}
-			<div className="mt-6 space-y-2 sm:mt-auto">
-				{props.canEdit ? (
-					<button
-						className="w-full py-2 bg-primary text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all"
-						onClick={props.onEnterEdit}
-						type="button"
-					>
-						Edit File
-					</button>
-				) : (
-					<></>
-				)}
+			</div>
+		);
+	}
+	return (
+		<div className="flex h-full min-h-[260px] items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center dark:border-slate-700 dark:bg-slate-900/40">
+			<div>
+				<div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+					<MaterialIcon
+						name={previewIconName(preview)}
+						className="!text-3xl"
+					/>
+				</div>
+				<div className="mt-4 text-base font-bold text-slate-900 dark:text-white">
+					当前文件不支持内嵌预览
+				</div>
+				<p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+					可以使用下载、打开或其他文件操作继续处理。
+				</p>
 			</div>
 		</div>
 	);

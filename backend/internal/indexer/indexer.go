@@ -65,6 +65,7 @@ type ShareRecord struct {
 	Access         string `json:"access"`
 	Permission     string `json:"permission,omitempty"`
 	WriteMode      string `json:"writeMode,omitempty"`
+	Description    string `json:"description,omitempty"`
 	PasswordDigest string `json:"passwordDigest,omitempty"`
 	PasswordCipher string `json:"passwordCipher,omitempty"`
 	ExpiresAt      int64  `json:"expiresAt,omitempty"`

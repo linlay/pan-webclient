@@ -13,6 +13,7 @@ export function SharePageContent(props: {
 	share: PublicShare;
 	isMobile: boolean;
 	showMobilePropertiesPage: boolean;
+	downloadHref: string;
 	activeFilePreview: PreviewMeta | null;
 	activeFileEntry: FileEntry | null;
 	activePreviewPath: string | null;
@@ -22,6 +23,7 @@ export function SharePageContent(props: {
 	canUploadToShare: boolean;
 	isTextWriteMode: boolean;
 	defaultTextFileName: string;
+	sessionUploadedEntries: FileEntry[];
 	textFileName: string;
 	textFileContent: string;
 	savingTextFile: boolean;
@@ -44,6 +46,7 @@ export function SharePageContent(props: {
 				fileName={props.textFileName}
 				fileContent={props.textFileContent}
 				isMobile={props.isMobile}
+				shareDescription={props.share.description}
 				onContentChange={props.onTextContentChange}
 				onFileNameChange={props.onTextFileNameChange}
 				onSave={props.onSaveText}
@@ -53,6 +56,7 @@ export function SharePageContent(props: {
 			<ShareLocalUploadPanel
 				currentPath={props.currentPath}
 				isMobile={props.isMobile}
+				shareDescription={props.share.description}
 				onDropFiles={props.onDropFiles}
 				onPickLocalFile={props.onPickLocalFile}
 				uploading={props.uploading}
@@ -68,6 +72,7 @@ export function SharePageContent(props: {
 				currentPath={props.currentPath}
 				isMobile={props.isMobile}
 				isTextWriteMode={props.isTextWriteMode}
+				sessionUploadedEntries={props.sessionUploadedEntries}
 				share={props.share}
 				writePanel={writePanel}
 			/>
@@ -81,6 +86,7 @@ export function SharePageContent(props: {
 					activeFileEntry={props.activeFileEntry}
 					activeFilePreview={props.activeFilePreview}
 					currentPath={props.currentPath}
+					downloadHref={props.downloadHref}
 					share={props.share}
 					onBack={
 						props.share.isDir
@@ -183,10 +189,10 @@ function ShareWriteOnlyWorkspace(props: {
 	currentPath: string;
 	isMobile: boolean;
 	isTextWriteMode: boolean;
+	sessionUploadedEntries: FileEntry[];
 	writePanel: ReactNode;
 }) {
-	const destinationLabel =
-		props.currentPath === "/" ? props.share.name : props.currentPath;
+	const hasUploads = props.sessionUploadedEntries.length > 0;
 
 	return (
 		<div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[linear-gradient(180deg,rgba(248,250,252,0.96),rgba(241,245,249,0.9))] dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.98),rgba(2,6,23,0.98))]">
@@ -195,17 +201,126 @@ function ShareWriteOnlyWorkspace(props: {
 			<div
 				className={
 					props.isMobile
-						? "relative px-5 pb-5 pt-4"
+						? "relative flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-5 pt-4"
 						: "relative min-h-0 flex-1 overflow-y-auto px-6 py-6 lg:px-8"
 				}
 			>
 				<div
 					className={`mx-auto grid w-full gap-4 ${
-						props.isMobile ? "max-w-none" : "max-w-6xl"
-					}`}
+						props.isMobile
+							? "min-h-full max-w-none flex-1 grid-cols-1"
+							: hasUploads
+								? "max-w-6xl lg:grid-cols-[minmax(0,1.18fr)_360px] lg:gap-6"
+								: ""
+					} ${props.isTextWriteMode ? "min-h-full items-stretch" : ""}`}
 				>
-					<div>{props.writePanel}</div>
+					<div
+						className={
+							props.isTextWriteMode
+								? props.isMobile
+									? "flex min-h-full flex-1 flex-col"
+									: "flex min-h-full min-h-[560px] flex-1 flex-col"
+								: ""
+						}
+					>
+						{props.writePanel}
+					</div>
+					{hasUploads ? (
+						<div className="flex flex-col gap-4 lg:gap-6">
+							<ShareWriteUploadedListCard
+								entries={props.sessionUploadedEntries}
+							/>
+						</div>
+					) : null}
 				</div>
+			</div>
+		</div>
+	);
+}
+
+function ShareWriteDescriptionCard(props: {
+	title: string | ReactNode;
+	description: string;
+}) {
+	const [expanded, setExpanded] = useState(true);
+
+	return (
+		<div className="overflow-hidden">
+			<button
+				className="flex w-full items-center justify-between gap-3 px-1 py-1 text-left"
+				onClick={() => setExpanded((prev) => !prev)}
+				type="button"
+			>
+				<div className="mt-0.5 text-sm font-medium text-slate-500 dark:text-slate-400">
+					{props.title}
+				</div>
+				<MaterialIcon
+					className={`text-slate-300 transition-transform dark:text-slate-600 ${
+						expanded ? "rotate-180" : ""
+					}`}
+					name="expand_more"
+				/>
+			</button>
+			{expanded ? (
+				<div className="px-1 pb-1 pt-2">
+					<div className="text-sm leading-7 text-slate-400 dark:text-slate-500">
+						<div className="whitespace-pre-wrap break-words">
+							{props.description}
+						</div>
+					</div>
+				</div>
+			) : null}
+		</div>
+	);
+}
+
+function ShareWriteUploadedListCard(props: { entries: FileEntry[] }) {
+	return (
+		<div className="overflow-hidden rounded-[30px] border border-slate-200 bg-white/90 shadow-[0_18px_38px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-900/80">
+			<div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/90 px-5 py-4 dark:border-slate-800 dark:bg-slate-800/70">
+				<div>
+					<div className="mt-1 text-base font-bold text-slate-900 dark:text-white">
+						上传列表
+					</div>
+				</div>
+				<div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500 dark:bg-slate-700/70 dark:text-slate-300">
+					{props.entries.length} 条
+				</div>
+			</div>
+			<div className="p-3">
+				{props.entries.length === 0 ? (
+					<div className="rounded-[24px] bg-slate-50 px-4 py-10 text-center text-sm text-slate-400 dark:bg-slate-800/70 dark:text-slate-500">
+						当前会话还没有上传成功的文件
+					</div>
+				) : (
+					<div className="space-y-2">
+						{props.entries.map((entry, index) => (
+							<div
+								className="flex items-center gap-3 rounded-[22px] bg-slate-50 px-4 py-3 dark:bg-slate-800/70"
+								key={`${entry.path}:${entry.modTime}:${index}`}
+							>
+								<div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-slate-500 shadow-sm dark:bg-slate-900 dark:text-slate-300">
+									<MaterialIcon
+										name="draft"
+										className="text-lg"
+									/>
+								</div>
+								<div className="min-w-0 flex-1">
+									<div className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+										{entry.name}
+									</div>
+									<div className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+										{formatBytes(entry.size)}
+									</div>
+								</div>
+								<MaterialIcon
+									className="text-slate-300 dark:text-slate-500"
+									name="check_circle"
+								/>
+							</div>
+						))}
+					</div>
+				)}
 			</div>
 		</div>
 	);
@@ -222,6 +337,7 @@ function ShareWritePill(props: { children: ReactNode }) {
 function ShareMobileFileDetailsPanel(props: {
 	share: PublicShare;
 	currentPath: string;
+	downloadHref: string;
 	activeFilePreview: PreviewMeta | null;
 	activeFileEntry: FileEntry | null;
 	onBack?: () => void;
@@ -246,6 +362,12 @@ function ShareMobileFileDetailsPanel(props: {
 						{props.activeFilePreview?.name ?? props.share.name}
 					</div>
 				</div>
+				<a
+					className="ml-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+					href={props.downloadHref}
+				>
+					<MaterialIcon name="download" className="text-lg" />
+				</a>
 			</div>
 			<div className="min-h-0 flex-1 overflow-hidden">
 				<PreviewPane
@@ -506,6 +628,7 @@ function ShareTextComposer(props: {
 	fileName: string;
 	fileContent: string;
 	isMobile?: boolean;
+	shareDescription?: string;
 	onContentChange: (value: string) => void;
 	onFileNameChange: (value: string) => void;
 	onSave: () => void;
@@ -513,21 +636,29 @@ function ShareTextComposer(props: {
 }) {
 	return (
 		<div
-			className={`w-full rounded-3xl border border-sky-200 bg-sky-50/80 dark:border-sky-500/20 dark:bg-sky-500/10 ${
-				props.isMobile ? "px-4 py-4" : "px-6 py-7"
+			className={`flex w-full flex-col ${
+				props.isMobile ? "min-h-full flex-1" : "h-full min-h-0"
 			}`}
 		>
 			<div className="flex items-start gap-3">
-				<div className="min-w-0">
+				<div className="w-full">
 					<div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-sky-500">
 						Quick Note
 					</div>
-					<div className="mt-1 text-lg font-bold text-slate-900 dark:text-white">
-						快速保存.md文件到当前目录
-					</div>
+					{props.shareDescription?.trim() ? (
+						<div>
+							<ShareWriteDescriptionCard
+								title={
+									<div className="mt-1 text-lg font-bold text-slate-900 dark:text-white">
+										快速保存.md文件到当前目录
+									</div>
+								}
+								description={props.shareDescription}
+							/>
+						</div>
+					) : null}
 				</div>
 			</div>
-
 			<div className="mt-5">
 				<label className="block">
 					<span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
@@ -545,13 +676,13 @@ function ShareTextComposer(props: {
 				</label>
 			</div>
 
-			<label className="mt-4 block">
+			<label className="mt-4 flex min-h-0 flex-1 flex-col">
 				<span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
 					主体信息
 				</span>
 				<textarea
-					className={`w-full resize-none rounded-[24px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white ${
-						props.isMobile ? "min-h-[180px]" : "min-h-[220px]"
+					className={`w-full flex-1 resize-none rounded-[24px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white ${
+						props.isMobile ? "min-h-[200px]" : "min-h-[280px]"
 					}`}
 					onChange={(event) =>
 						props.onContentChange(event.target.value)
@@ -560,12 +691,6 @@ function ShareTextComposer(props: {
 					value={props.fileContent}
 				/>
 			</label>
-
-			<div className="mt-3 text-xs text-slate-400 dark:text-slate-500">
-				最终文件名：
-				{buildShareTextFilename(props.fileName, props.defaultFileName)}
-			</div>
-
 			<button
 				className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
 				disabled={props.saving}
@@ -576,7 +701,9 @@ function ShareTextComposer(props: {
 					name={props.saving ? "sync" : "save"}
 					className={props.saving ? "animate-spin" : ""}
 				/>
-				{props.saving ? "保存中..." : "保存 Markdown 到当前目录"}
+				{props.saving
+					? "保存中..."
+					: `保存 ${buildShareTextFilename(props.fileName, props.defaultFileName)} 到当前目录`}
 			</button>
 		</div>
 	);
@@ -585,6 +712,7 @@ function ShareTextComposer(props: {
 function ShareLocalUploadPanel(props: {
 	currentPath: string;
 	isMobile?: boolean;
+	shareDescription?: string;
 	onDropFiles: (files: FileList | null) => void;
 	onPickLocalFile: () => void;
 	uploading: boolean;
@@ -623,13 +751,23 @@ function ShareLocalUploadPanel(props: {
 			}`}
 		>
 			<div className={`flex items-start`}>
-				<div className="min-w-0">
+				<div className="w-full">
 					<div className="text-[11px] font-semibold uppercase tracking-[0.34em] text-sky-500">
 						Local File
 					</div>
-					<div className="mt-1 text-lg font-bold text-slate-900 dark:text-white">
-						上传本地文件到当前目录
-					</div>
+
+					{props.shareDescription?.trim() ? (
+						<div>
+							<ShareWriteDescriptionCard
+								title={
+									<div className="mt-1 text-lg font-bold text-slate-900 dark:text-white">
+										上传本地文件到当前目录
+									</div>
+								}
+								description={props.shareDescription}
+							/>
+						</div>
+					) : null}
 					<div className="mt-4 flex flex-wrap gap-2">
 						<ShareWritePill>{targetLabel}</ShareWritePill>
 						<ShareWritePill>支持多文件</ShareWritePill>
@@ -672,7 +810,7 @@ function ShareLocalUploadPanel(props: {
 							: "拖拽文件到这里"}
 				</div>
 				<p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500 dark:text-slate-300">
-					也可以点击下方按钮选择本地文件。桌面端支持拖拽上传，移动端保持轻量的一键选择体验。
+					也可以点击下方按钮选择本地文件。
 				</p>
 				<button
 					className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-[24px] bg-[#dd7a58] px-4 py-3.5 text-sm font-semibold text-white shadow-[0_18px_30px_rgba(221,122,88,0.28)] transition-colors hover:bg-[#cf6945] disabled:cursor-not-allowed disabled:opacity-60"

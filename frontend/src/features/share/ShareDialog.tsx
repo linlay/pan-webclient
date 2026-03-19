@@ -37,6 +37,7 @@ export function ShareDialog(props: {
 	const [access, setAccess] = useState<ShareAccess>("public");
 	const [permission, setPermission] = useState<SharePermission>("read");
 	const [writeMode, setWriteMode] = useState<ShareWriteMode>("local");
+	const [description, setDescription] = useState("");
 	const [expiryPreset, setExpiryPreset] =
 		useState<ShareExpiryPreset>("30d");
 	const [customDate, setCustomDate] = useState(defaultShareCustomDate);
@@ -49,6 +50,7 @@ export function ShareDialog(props: {
 		setAccess("public");
 		setPermission("read");
 		setWriteMode("local");
+		setDescription("");
 		setExpiryPreset("30d");
 		setCustomDate(defaultShareCustomDate());
 		setSubmitting(false);
@@ -87,6 +89,7 @@ export function ShareDialog(props: {
 				access,
 				permission,
 				writeMode,
+				permission === "write" ? description : "",
 				expiresAt,
 			);
 			setResult(next);
@@ -369,67 +372,95 @@ export function ShareDialog(props: {
 						)}
 
 						{props.entry.isDir && permission === "write" ? (
-							<div>
-								<div className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">
-									写入方式
-								</div>
-								<div className="grid gap-3 md:grid-cols-2">
-									<button
-										className={`rounded-2xl border px-4 py-4 text-left transition-all ${
-											writeMode === "local"
-												? "border-primary bg-primary/5 shadow-sm"
-												: "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600"
-										}`}
-										onClick={() => {
-											setWriteMode("local");
-											setError("");
-										}}
-										type="button"
-									>
-										<div className="flex items-center gap-3">
-											<div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-500">
-												<MaterialIcon name="upload" className="text-xl" />
-											</div>
-											<div>
-												<div className="font-semibold text-slate-900 dark:text-white">
-													本地文件
+							<div className="space-y-4">
+								<div>
+									<div className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">
+										写入方式
+									</div>
+									<div className="grid gap-3 md:grid-cols-2">
+										<button
+											className={`rounded-2xl border px-4 py-4 text-left transition-all ${
+												writeMode === "local"
+													? "border-primary bg-primary/5 shadow-sm"
+													: "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600"
+											}`}
+											onClick={() => {
+												setWriteMode("local");
+												setError("");
+											}}
+											type="button"
+										>
+											<div className="flex items-center gap-3">
+												<div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-500">
+													<MaterialIcon name="upload" className="text-xl" />
 												</div>
-												<div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-													访问者只能选择本地文件上传
+												<div>
+													<div className="font-semibold text-slate-900 dark:text-white">
+														本地文件
+													</div>
+													<div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+														访问者只能选择本地文件上传
+													</div>
 												</div>
 											</div>
-										</div>
-									</button>
+										</button>
 
-									<button
-										className={`rounded-2xl border px-4 py-4 text-left transition-all ${
-											writeMode === "text"
-												? "border-primary bg-primary/5 shadow-sm"
-												: "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600"
-										}`}
-										onClick={() => {
-											setWriteMode("text");
-											setError("");
-										}}
-										type="button"
-									>
-										<div className="flex items-center gap-3">
-											<div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500">
-												<MaterialIcon
-													name="edit_note"
-													className="text-xl"
-												/>
+										<button
+											className={`rounded-2xl border px-4 py-4 text-left transition-all ${
+												writeMode === "text"
+													? "border-primary bg-primary/5 shadow-sm"
+													: "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600"
+											}`}
+											onClick={() => {
+												setWriteMode("text");
+												setError("");
+											}}
+											type="button"
+										>
+											<div className="flex items-center gap-3">
+												<div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500">
+													<MaterialIcon
+														name="edit_note"
+														className="text-xl"
+													/>
+												</div>
+												<div>
+													<div className="font-semibold text-slate-900 dark:text-white">
+														文本输入
+													</div>
+													<div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+														访问者直接填写内容，保存为 `.md`
+													</div>
+												</div>
 											</div>
-											<div>
-												<div className="font-semibold text-slate-900 dark:text-white">
-													文本输入
-												</div>
-												<div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-													访问者直接填写内容，保存为 `.md`
-												</div>
+										</button>
+									</div>
+								</div>
+
+								<div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-800/40">
+									<div className="flex items-center justify-between gap-3">
+										<div>
+											<div className="text-sm font-semibold text-slate-900 dark:text-white">
+												描述说明
+											</div>
+											<div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+												可选。用于在写入分享页展示给访问者，可折叠查看。
 											</div>
 										</div>
-									</button>
+										<div className="shrink-0 text-xs text-slate-400 dark:text-slate-500">
+											{description.trim().length}/300
+										</div>
+									</div>
+									<textarea
+										className="mt-3 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+										maxLength={300}
+										onChange={(event) =>
+											setDescription(event.target.value)
+										}
+										placeholder="例如：请上传报价单，并在文件名中附带公司名。"
+										rows={4}
+										value={description}
+									/>
 								</div>
 							</div>
 						) : null}

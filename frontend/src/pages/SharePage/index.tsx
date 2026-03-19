@@ -29,6 +29,9 @@ import {
 export function SharePage(props: { shareId: string }) {
 	const [share, setShare] = useState<PublicShare | null>(null);
 	const [entries, setEntries] = useState<FileEntry[]>([]);
+	const [sessionUploadedEntries, setSessionUploadedEntries] = useState<
+		FileEntry[]
+	>([]);
 	const [currentPath, setCurrentPath] = useState("/");
 	const [activePreview, setActivePreview] = useState<PreviewMeta | null>(
 		null,
@@ -58,6 +61,10 @@ export function SharePage(props: { shareId: string }) {
 	}, [props.shareId]);
 
 	useEffect(() => {
+		setSessionUploadedEntries([]);
+	}, [props.shareId]);
+
+	useEffect(() => {
 		let cancelled = false;
 		void api
 			.sessionMe()
@@ -77,6 +84,28 @@ export function SharePage(props: { shareId: string }) {
 		const timer = window.setTimeout(() => setNotice(null), 1800);
 		return () => window.clearTimeout(timer);
 	}, [notice]);
+
+	function buildFallbackUploadedEntries(files: File[]): FileEntry[] {
+		const currentTime = Math.floor(Date.now() / 1000);
+		return files.map((file) => {
+			const extension = file.name.includes(".")
+				? (file.name.split(".").pop()?.toLowerCase() ?? "")
+				: "";
+			return {
+				extension,
+				isDir: false,
+				mime: file.type,
+				modTime: currentTime,
+				mountId: "",
+				name: file.name,
+				path:
+					currentPath === "/"
+						? `/${file.name}`
+						: `${currentPath}/${file.name}`,
+				size: file.size,
+			};
+		});
+	}
 
 	const currentDownloadPath =
 		activePreview?.kind === "directory"
@@ -115,6 +144,7 @@ export function SharePage(props: { shareId: string }) {
 		canReadShare &&
 		Boolean(activeFilePreview) &&
 		(mobilePropertiesOpen || !share?.isDir);
+	const hideMobileReadonlyHeader = showMobilePropertiesPage && canReadShare;
 
 	useDocumentTitle(currentDirectoryTitle);
 
@@ -230,6 +260,12 @@ export function SharePage(props: { shareId: string }) {
 				uploadFiles,
 				(progress) => setUploadProgress(progress),
 			);
+			setSessionUploadedEntries((prev) => [
+				...(uploaded.length > 0
+					? uploaded
+					: buildFallbackUploadedEntries(uploadFiles)),
+				...prev,
+			]);
 			setNotice(
 				uploaded.length > 1
 					? `已上传 ${uploaded.length} 个文件`
@@ -263,6 +299,12 @@ export function SharePage(props: { shareId: string }) {
 				currentPath,
 				[textFile],
 			);
+			setSessionUploadedEntries((prev) => [
+				...(uploaded.length > 0
+					? uploaded
+					: buildFallbackUploadedEntries([textFile])),
+				...prev,
+			]);
 			setTextFileName("");
 			setTextFileContent("");
 			setNotice(`已保存 ${uploaded[0]?.name ?? filename}`);
@@ -331,37 +373,45 @@ export function SharePage(props: { shareId: string }) {
 				<input
 					className="hidden"
 					multiple
-					onChange={(event) => void handleShareUpload(event.target.files)}
+					onChange={(event) =>
+						void handleShareUpload(event.target.files)
+					}
 					ref={uploadInputRef}
 					type="file"
 				/>
 				<div
 					className={`flex flex-col rounded-[28px] border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 sm:rounded-[32px] ${
-						isMobile ? "" : "min-h-0 flex-1 overflow-hidden"
+						isMobile
+							? hideMobileReadonlyHeader
+								? "min-h-0 flex-1 overflow-hidden"
+								: "flex-1"
+							: "min-h-0 flex-1 overflow-hidden"
 					}`}
 				>
-					<SharePageHeader
-						activePreview={activePreview}
-						canReadShare={canReadShare}
-						currentDownloadPath={currentDownloadPath}
-						currentWriteActionLabel={currentWriteActionLabel}
-						isMobile={isMobile}
-						isTextWriteMode={isTextWriteMode}
-						onCopyLink={() => void handleCopyLink()}
-						onOpenSaveDialog={() => setSaveDialogOpen(true)}
-						onPrimaryWriteAction={() => {
-							if (isTextWriteMode) {
-								void handleCreateShareTextFile();
-								return;
-							}
-							uploadInputRef.current?.click();
-						}}
-						savingTextFile={savingTextFile}
-						share={share}
-						shareId={props.shareId}
-						shareWriteBusy={shareWriteBusy}
-						uploading={uploading}
-					/>
+					{hideMobileReadonlyHeader ? null : (
+						<SharePageHeader
+							activePreview={activePreview}
+							canReadShare={canReadShare}
+							currentDownloadPath={currentDownloadPath}
+							currentWriteActionLabel={currentWriteActionLabel}
+							isMobile={isMobile}
+							isTextWriteMode={isTextWriteMode}
+							onCopyLink={() => void handleCopyLink()}
+							onOpenSaveDialog={() => setSaveDialogOpen(true)}
+							onPrimaryWriteAction={() => {
+								if (isTextWriteMode) {
+									void handleCreateShareTextFile();
+									return;
+								}
+								uploadInputRef.current?.click();
+							}}
+							savingTextFile={savingTextFile}
+							share={share}
+							shareId={props.shareId}
+							shareWriteBusy={shareWriteBusy}
+							uploading={uploading}
+						/>
+					)}
 
 					{error ? (
 						<div className="shrink-0 px-4 pt-4 sm:px-6 sm:pt-5">
@@ -379,6 +429,10 @@ export function SharePage(props: { shareId: string }) {
 						canUploadToShare={canUploadToShare}
 						currentPath={currentPath}
 						defaultTextFileName={defaultTextFileName}
+						downloadHref={api.publicShareDownloadUrl(
+							props.shareId,
+							currentDownloadPath,
+						)}
 						entries={entries}
 						isMobile={isMobile}
 						isTextWriteMode={isTextWriteMode}
@@ -403,6 +457,7 @@ export function SharePage(props: { shareId: string }) {
 						onTextContentChange={setTextFileContent}
 						onTextFileNameChange={setTextFileName}
 						savingTextFile={savingTextFile}
+						sessionUploadedEntries={sessionUploadedEntries}
 						share={share}
 						showMobilePropertiesPage={showMobilePropertiesPage}
 						textFileContent={textFileContent}

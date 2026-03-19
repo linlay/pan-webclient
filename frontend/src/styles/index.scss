@@ -70,12 +70,6 @@ body.dark {
 .markdown-preview {
 	overflow: auto;
 
-	@apply rounded-2xl border border-slate-200 bg-slate-50 p-4 leading-relaxed;
-
-	.dark & {
-		@apply border-slate-700 bg-slate-800/50;
-	}
-
 	h1,
 	h2,
 	h3,

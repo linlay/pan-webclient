@@ -153,6 +153,7 @@
 | `access` | `"public" \| "password"` | 分享访问方式 |
 | `permission` | `"read" \| "write"` | 只读或可写 |
 | `writeMode` | `"local" \| "text"` | 写入分享的前端交互模式 |
+| `description` | `string` | 写入分享的可选描述，仅配置时返回 |
 | `expiresAt` | `number` | 过期时间 Unix 时间戳，`0` 表示不过期 |
 | `password` | `string` | 密码分享的 4 位密码，仅创建成功时返回 |
 | `urlPath` | `string` | 分享页面路径 |
@@ -169,6 +170,7 @@
 | `access` | `"public" \| "password"` | 分享访问方式 |
 | `permission` | `"read" \| "write"` | 分享权限 |
 | `writeMode` | `"local" \| "text"` | 可写分享模式 |
+| `description` | `string` | 写入分享的可选描述，仅配置时返回 |
 | `password` | `string` | 密码分享的明文密码，仅列表接口返回 |
 | `expiresAt` | `number` | 过期时间 Unix 时间戳 |
 | `createdAt` | `number` | 创建时间 Unix 时间戳 |
@@ -186,6 +188,7 @@
 | `access` | `"public" \| "password"` | 分享访问方式 |
 | `permission` | `"read" \| "write"` | 分享权限 |
 | `writeMode` | `"local" \| "text"` | 可写分享模式 |
+| `description` | `string` | 写入分享的可选描述；密码分享未授权时不会返回 |
 | `requiresPassword` | `boolean` | 是否需要分享密码 |
 | `authorized` | `boolean` | 当前请求是否已通过分享访问校验 |
 | `expiresAt` | `number` | 过期时间 Unix 时间戳 |
@@ -573,6 +576,7 @@
 | `access` | `"public" \| "password"` | 是 | 公开分享或密码分享 |
 | `permission` | `"read" \| "write"` | 否 | 默认 `read`；`write` 仅目录支持 |
 | `writeMode` | `"local" \| "text"` | 否 | 仅 `write` 分享生效 |
+| `description` | `string` | 否 | 仅 `write` 分享生效；最多 300 个字符 |
 | `expiresAt` | `number` | 否 | 过期时间 Unix 时间戳，`0` 表示不过期 |
 
 - 成功返回: `200 OK`，返回 `ShareCreateResult`

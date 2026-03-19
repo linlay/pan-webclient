@@ -141,6 +141,7 @@ export const api = {
     access: "public" | "password",
     permission: SharePermission,
     writeMode: ShareWriteMode,
+    description: string,
     expiresAt: number,
   ) =>
     request<ShareCreateResult>("/api/shares", {
@@ -151,6 +152,7 @@ export const api = {
         access,
         permission,
         writeMode,
+        description,
         expiresAt,
       }),
     }),

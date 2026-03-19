@@ -989,20 +989,22 @@ func TestWriteShareAllowsUploadButBlocksReadOperations(t *testing.T) {
 	ownerCookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
 
 	createBody, _ := json.Marshal(map[string]any{
-		"mountId":    "root",
-		"path":       "/drop",
-		"access":     "public",
-		"permission": "write",
-		"expiresAt":  0,
+		"mountId":     "root",
+		"path":        "/drop",
+		"access":      "public",
+		"permission":  "write",
+		"description": "请上传报价单，并在文件名中注明公司名。",
+		"expiresAt":   0,
 	})
 	createRec := authedRequest(handler, ownerCookie, http.MethodPost, "/api/shares", createBody)
 	if createRec.Code != http.StatusOK {
 		t.Fatalf("expected create share 200, got %d: %s", createRec.Code, createRec.Body.String())
 	}
 	var created struct {
-		ID         string `json:"id"`
-		Permission string `json:"permission"`
-		WriteMode  string `json:"writeMode"`
+		ID          string `json:"id"`
+		Permission  string `json:"permission"`
+		WriteMode   string `json:"writeMode"`
+		Description string `json:"description"`
 	}
 	if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
 		t.Fatal(err)
@@ -1010,15 +1012,19 @@ func TestWriteShareAllowsUploadButBlocksReadOperations(t *testing.T) {
 	if created.Permission != "write" || created.WriteMode != "local" {
 		t.Fatalf("expected write permission, got %+v", created)
 	}
+	if created.Description != "请上传报价单，并在文件名中注明公司名。" {
+		t.Fatalf("expected write description, got %+v", created)
+	}
 
 	metaRec := requestWithCookies(handler, nil, http.MethodGet, "/api/public/shares/"+created.ID, nil)
 	if metaRec.Code != http.StatusOK {
 		t.Fatalf("expected public share meta 200, got %d: %s", metaRec.Code, metaRec.Body.String())
 	}
 	var meta struct {
-		Permission string `json:"permission"`
-		WriteMode  string `json:"writeMode"`
-		Preview    struct {
+		Permission  string `json:"permission"`
+		WriteMode   string `json:"writeMode"`
+		Description string `json:"description"`
+		Preview     struct {
 			Kind string `json:"kind"`
 		} `json:"preview"`
 	}
@@ -1027,6 +1033,9 @@ func TestWriteShareAllowsUploadButBlocksReadOperations(t *testing.T) {
 	}
 	if meta.Permission != "write" || meta.WriteMode != "local" || meta.Preview.Kind != "directory" {
 		t.Fatalf("unexpected write share meta: %+v", meta)
+	}
+	if meta.Description != "请上传报价单，并在文件名中注明公司名。" {
+		t.Fatalf("unexpected write share description: %+v", meta)
 	}
 
 	uploadRec := multipartRequestWithCookies(
@@ -1216,20 +1225,22 @@ func TestWriteShareReturnsConfiguredTextMode(t *testing.T) {
 	ownerCookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
 
 	createBody, _ := json.Marshal(map[string]any{
-		"mountId":    "root",
-		"path":       "/drop",
-		"access":     "public",
-		"permission": "write",
-		"writeMode":  "text",
-		"expiresAt":  0,
+		"mountId":     "root",
+		"path":        "/drop",
+		"access":      "public",
+		"permission":  "write",
+		"writeMode":   "text",
+		"description": "请填写一段 Markdown 说明。",
+		"expiresAt":   0,
 	})
 	createRec := authedRequest(handler, ownerCookie, http.MethodPost, "/api/shares", createBody)
 	if createRec.Code != http.StatusOK {
 		t.Fatalf("expected create share 200, got %d: %s", createRec.Code, createRec.Body.String())
 	}
 	var created struct {
-		ID        string `json:"id"`
-		WriteMode string `json:"writeMode"`
+		ID          string `json:"id"`
+		WriteMode   string `json:"writeMode"`
+		Description string `json:"description"`
 	}
 	if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
 		t.Fatal(err)
@@ -1237,20 +1248,27 @@ func TestWriteShareReturnsConfiguredTextMode(t *testing.T) {
 	if created.WriteMode != "text" {
 		t.Fatalf("expected text write mode, got %+v", created)
 	}
+	if created.Description != "请填写一段 Markdown 说明。" {
+		t.Fatalf("expected description in create response, got %+v", created)
+	}
 
 	metaRec := requestWithCookies(handler, nil, http.MethodGet, "/api/public/shares/"+created.ID, nil)
 	if metaRec.Code != http.StatusOK {
 		t.Fatalf("expected public share meta 200, got %d: %s", metaRec.Code, metaRec.Body.String())
 	}
 	var meta struct {
-		Permission string `json:"permission"`
-		WriteMode  string `json:"writeMode"`
+		Permission  string `json:"permission"`
+		WriteMode   string `json:"writeMode"`
+		Description string `json:"description"`
 	}
 	if err := json.Unmarshal(metaRec.Body.Bytes(), &meta); err != nil {
 		t.Fatal(err)
 	}
 	if meta.Permission != "write" || meta.WriteMode != "text" {
 		t.Fatalf("unexpected write share meta: %+v", meta)
+	}
+	if meta.Description != "请填写一段 Markdown 说明。" {
+		t.Fatalf("unexpected description in share meta: %+v", meta)
 	}
 }
 

@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"pan-webclient/backend/internal/fsops"
 	"pan-webclient/backend/internal/indexer"
@@ -32,6 +33,7 @@ const (
 	sharePermissionWrite = "write"
 	shareWriteModeLocal  = "local"
 	shareWriteModeText   = "text"
+	maxShareDescription  = 300
 	maxShareLifetime     = 365 * 24 * time.Hour
 	shareSessionTTL      = 24 * time.Hour
 	shareShortCodeLen    = 8
@@ -45,41 +47,44 @@ var (
 )
 
 type shareCreateRequest struct {
-	MountID    string `json:"mountId"`
-	Path       string `json:"path"`
-	Access     string `json:"access"`
-	Permission string `json:"permission"`
-	WriteMode  string `json:"writeMode"`
-	ExpiresAt  int64  `json:"expiresAt"`
+	MountID     string `json:"mountId"`
+	Path        string `json:"path"`
+	Access      string `json:"access"`
+	Permission  string `json:"permission"`
+	WriteMode   string `json:"writeMode"`
+	Description string `json:"description"`
+	ExpiresAt   int64  `json:"expiresAt"`
 }
 
 type shareCreateResponse struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	IsDir      bool   `json:"isDir"`
-	Access     string `json:"access"`
-	Permission string `json:"permission"`
-	WriteMode  string `json:"writeMode"`
-	ExpiresAt  int64  `json:"expiresAt"`
-	Password   string `json:"password,omitempty"`
-	URLPath    string `json:"urlPath"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	IsDir       bool   `json:"isDir"`
+	Access      string `json:"access"`
+	Permission  string `json:"permission"`
+	WriteMode   string `json:"writeMode"`
+	Description string `json:"description,omitempty"`
+	ExpiresAt   int64  `json:"expiresAt"`
+	Password    string `json:"password,omitempty"`
+	URLPath     string `json:"urlPath"`
 }
 
 type managedShareResponse struct {
-	ID         string `json:"id"`
-	MountID    string `json:"mountId"`
-	Path       string `json:"path"`
-	Name       string `json:"name"`
-	IsDir      bool   `json:"isDir"`
-	Access     string `json:"access"`
-	Permission string `json:"permission"`
-	WriteMode  string `json:"writeMode"`
-	Password   string `json:"password,omitempty"`
-	ExpiresAt  int64  `json:"expiresAt"`
-	CreatedAt  int64  `json:"createdAt"`
-	UpdatedAt  int64  `json:"updatedAt"`
-	Expired    bool   `json:"expired"`
-	URLPath    string `json:"urlPath"`
+	ID          string `json:"id"`
+	MountID     string `json:"mountId"`
+	Path        string `json:"path"`
+	Name        string `json:"name"`
+	IsDir       bool   `json:"isDir"`
+	Access      string `json:"access"`
+	Permission  string `json:"permission"`
+	WriteMode   string `json:"writeMode"`
+	Description string `json:"description,omitempty"`
+	Password    string `json:"password,omitempty"`
+	ExpiresAt   int64  `json:"expiresAt"`
+	CreatedAt   int64  `json:"createdAt"`
+	UpdatedAt   int64  `json:"updatedAt"`
+	Expired     bool   `json:"expired"`
+	URLPath     string `json:"urlPath"`
 }
 
 type shareSaveRequest struct {
@@ -95,6 +100,7 @@ type publicShareResponse struct {
 	Access           string        `json:"access"`
 	Permission       string        `json:"permission"`
 	WriteMode        string        `json:"writeMode"`
+	Description      string        `json:"description,omitempty"`
 	RequiresPassword bool          `json:"requiresPassword"`
 	Authorized       bool          `json:"authorized"`
 	ExpiresAt        int64         `json:"expiresAt"`
@@ -122,15 +128,16 @@ func (a *api) shares(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, shareCreateResponse{
-		ID:         record.ID,
-		Name:       record.Name,
-		IsDir:      record.IsDir,
-		Access:     record.Access,
-		Permission: record.Permission,
-		WriteMode:  record.WriteMode,
-		ExpiresAt:  record.ExpiresAt,
-		Password:   password,
-		URLPath:    shareURLPath(record.ID),
+		ID:          record.ID,
+		Name:        record.Name,
+		IsDir:       record.IsDir,
+		Access:      record.Access,
+		Permission:  record.Permission,
+		WriteMode:   record.WriteMode,
+		Description: record.Description,
+		ExpiresAt:   record.ExpiresAt,
+		Password:    password,
+		URLPath:     shareURLPath(record.ID),
 	})
 }
 
@@ -173,20 +180,21 @@ func (a *api) listShares(w http.ResponseWriter, _ *http.Request) {
 			}
 		}
 		items = append(items, managedShareResponse{
-			ID:         record.ID,
-			MountID:    record.MountID,
-			Path:       record.Path,
-			Name:       record.Name,
-			IsDir:      record.IsDir,
-			Access:     record.Access,
-			Permission: permission,
-			WriteMode:  shareWriteMode(record),
-			Password:   password,
-			ExpiresAt:  record.ExpiresAt,
-			CreatedAt:  record.CreatedAt,
-			UpdatedAt:  record.UpdatedAt,
-			Expired:    record.ExpiresAt > 0 && now >= record.ExpiresAt,
-			URLPath:    shareURLPath(record.ID),
+			ID:          record.ID,
+			MountID:     record.MountID,
+			Path:        record.Path,
+			Name:        record.Name,
+			IsDir:       record.IsDir,
+			Access:      record.Access,
+			Permission:  permission,
+			WriteMode:   shareWriteMode(record),
+			Description: record.Description,
+			Password:    password,
+			ExpiresAt:   record.ExpiresAt,
+			CreatedAt:   record.CreatedAt,
+			UpdatedAt:   record.UpdatedAt,
+			Expired:     record.ExpiresAt > 0 && now >= record.ExpiresAt,
+			URLPath:     shareURLPath(record.ID),
 		})
 	}
 	writeJSON(w, http.StatusOK, items)
@@ -213,6 +221,10 @@ func (a *api) createShare(req shareCreateRequest) (indexer.ShareRecord, string, 
 	if err != nil {
 		return indexer.ShareRecord{}, "", err
 	}
+	description, err := normalizeShareDescription(req.Description, permission)
+	if err != nil {
+		return indexer.ShareRecord{}, "", err
+	}
 	expiresAt, err := normalizeShareExpiry(req.ExpiresAt)
 	if err != nil {
 		return indexer.ShareRecord{}, "", err
@@ -223,17 +235,18 @@ func (a *api) createShare(req shareCreateRequest) (indexer.ShareRecord, string, 
 	}
 	now := time.Now().Unix()
 	record := indexer.ShareRecord{
-		ID:         id,
-		MountID:    req.MountID,
-		Path:       clean,
-		Name:       info.Name(),
-		IsDir:      info.IsDir(),
-		Access:     access,
-		Permission: permission,
-		WriteMode:  writeMode,
-		ExpiresAt:  expiresAt,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		ID:          id,
+		MountID:     req.MountID,
+		Path:        clean,
+		Name:        info.Name(),
+		IsDir:       info.IsDir(),
+		Access:      access,
+		Permission:  permission,
+		WriteMode:   writeMode,
+		Description: description,
+		ExpiresAt:   expiresAt,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 	password := ""
 	if access == shareAccessPassword {
@@ -304,12 +317,14 @@ func (a *api) publicShare(w http.ResponseWriter, r *http.Request, record indexer
 		Access:           record.Access,
 		Permission:       record.Permission,
 		WriteMode:        shareWriteMode(record),
+		Description:      record.Description,
 		RequiresPassword: record.Access == shareAccessPassword,
 		Authorized:       authorized,
 		ExpiresAt:        record.ExpiresAt,
 	}
 	if record.Access == shareAccessPassword && !authorized {
 		resp.Name = "受保护的分享"
+		resp.Description = ""
 		writeJSON(w, http.StatusOK, resp)
 		return
 	}
@@ -852,6 +867,20 @@ func normalizeShareWriteMode(writeMode string, permission string) (string, error
 	default:
 		return "", errors.New("invalid share write mode")
 	}
+}
+
+func normalizeShareDescription(description string, permission string) (string, error) {
+	if permission != sharePermissionWrite {
+		return "", nil
+	}
+	trimmed := strings.TrimSpace(description)
+	if trimmed == "" {
+		return "", nil
+	}
+	if utf8.RuneCountInString(trimmed) > maxShareDescription {
+		return "", fmt.Errorf("share description cannot exceed %d characters", maxShareDescription)
+	}
+	return trimmed, nil
 }
 
 func sharePermission(record indexer.ShareRecord) string {

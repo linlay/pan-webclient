@@ -42,16 +42,45 @@ export function SharePageHeader(props: {
 						: "flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between"
 				}
 			>
-				<div className="min-w-0">
-					<div className="flex justify-between items-center text-sm text-slate-500 dark:text-slate-400">
+				<div
+					className={`min-w-0 flex flex-1 ${
+						props.isMobile
+							? "flex-col gap-2.5"
+							: "flex-row items-center justify-between gap-4"
+					}`}
+				>
+					<h1
+						className={`min-w-0 truncate font-bold text-slate-900 dark:text-white ${
+							!props.isMobile ? "flex-1" : ""
+						} ${
+							props.isMobile
+								? "text-[1.5rem] leading-none"
+								: "text-2xl sm:text-3xl"
+						}`}
+					>
+						{props.share.name}
+					</h1>
+					<div className="flex shrink-0 gap-4 items-center justify-between text-sm text-slate-500 dark:text-slate-400">
 						<div
-							className={`font-semibold uppercase text-sky-500 ${
+							className={`text-sm text-slate-500 dark:text-slate-400 ${
 								props.isMobile
-									? "text-[11px] tracking-[0.42em]"
-									: "text-xs tracking-[0.25em]"
+									? "rounded-2xl border border-white/70 bg-white/70 px-3.5 py-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800/70"
+									: ""
 							}`}
 						>
-							Shared Link
+							<div className="flex items-center gap-2">
+								<MaterialIcon
+									name="schedule"
+									className="text-slate-400"
+								/>
+								<span>
+									{props.share.expiresAt
+										? `到期于 ${new Date(
+												props.share.expiresAt * 1000,
+											).toLocaleString()}`
+										: "永久有效"}
+								</span>
+							</div>
 						</div>
 						<ShareHeaderTag isMobile={props.isMobile}>
 							{props.share.permission === "write"
@@ -59,16 +88,6 @@ export function SharePageHeader(props: {
 								: "只读"}
 						</ShareHeaderTag>
 					</div>
-
-					<h1
-						className={`truncate font-bold text-slate-900 dark:text-white ${
-							props.isMobile
-								? "mt-3 text-[1.5rem] leading-none"
-								: "mt-2 text-2xl sm:text-3xl"
-						}`}
-					>
-						{props.share.name}
-					</h1>
 					{/* <div
 						className={`flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400 ${
 							props.isMobile ? "mt-4" : "mt-3"
@@ -80,27 +99,6 @@ export function SharePageHeader(props: {
 								: "只读分享"}
 						</ShareHeaderTag>
 					</div> */}
-					<div
-						className={`text-sm text-slate-500 dark:text-slate-400 ${
-							props.isMobile
-								? "mt-4 rounded-2xl border border-white/70 bg-white/70 px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800/70"
-								: "mt-3"
-						}`}
-					>
-						<div className="flex items-center gap-2">
-							<MaterialIcon
-								name="schedule"
-								className="text-slate-400"
-							/>
-							<span>
-								{props.share.expiresAt
-									? `到期于 ${new Date(
-											props.share.expiresAt * 1000,
-										).toLocaleString()}`
-									: "永久有效"}
-							</span>
-						</div>
-					</div>
 				</div>
 
 				{props.canReadShare ? (

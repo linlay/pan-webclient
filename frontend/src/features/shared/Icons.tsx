@@ -12,7 +12,8 @@ type MaterialIconProps = {
 };
 
 export function MaterialIcon(props: MaterialIconProps) {
-	const className = `inline-block align-middle shrink-0 ${props.size ?? ""} ${props.className ?? ""}`.trim();
+	const className =
+		`inline-block align-middle shrink-0 ${props.size ?? ""} ${props.className ?? ""}`.trim();
 	const common = { className, "aria-hidden": true } as const;
 
 	switch (props.name) {
@@ -386,9 +387,27 @@ export function IconList(props: IconProps) {
 			<path d="M7.25 6.5h8" />
 			<path d="M7.25 10h8" />
 			<path d="M7.25 13.5h8" />
-			<circle cx="4.75" cy="6.5" r="0.75" fill="currentColor" stroke="none" />
-			<circle cx="4.75" cy="10" r="0.75" fill="currentColor" stroke="none" />
-			<circle cx="4.75" cy="13.5" r="0.75" fill="currentColor" stroke="none" />
+			<circle
+				cx="4.75"
+				cy="6.5"
+				r="0.75"
+				fill="currentColor"
+				stroke="none"
+			/>
+			<circle
+				cx="4.75"
+				cy="10"
+				r="0.75"
+				fill="currentColor"
+				stroke="none"
+			/>
+			<circle
+				cx="4.75"
+				cy="13.5"
+				r="0.75"
+				fill="currentColor"
+				stroke="none"
+			/>
 		</IconBase>
 	);
 }
@@ -492,8 +511,20 @@ export function IconDrive(props: IconProps) {
 		<IconBase {...props}>
 			<rect x="4.5" y="5" width="11" height="4" rx="1" />
 			<rect x="4.5" y="11" width="11" height="4" rx="1" />
-			<circle cx="13.25" cy="7" r="0.6" fill="currentColor" stroke="none" />
-			<circle cx="13.25" cy="13" r="0.6" fill="currentColor" stroke="none" />
+			<circle
+				cx="13.25"
+				cy="7"
+				r="0.6"
+				fill="currentColor"
+				stroke="none"
+			/>
+			<circle
+				cx="13.25"
+				cy="13"
+				r="0.6"
+				fill="currentColor"
+				stroke="none"
+			/>
 		</IconBase>
 	);
 }
@@ -543,7 +574,13 @@ export function IconAlertCircle(props: IconProps) {
 		<IconBase {...props}>
 			<circle cx="10" cy="10" r="5.75" />
 			<path d="M10 7.25v3.5" />
-			<circle cx="10" cy="13.2" r="0.7" fill="currentColor" stroke="none" />
+			<circle
+				cx="10"
+				cy="13.2"
+				r="0.7"
+				fill="currentColor"
+				stroke="none"
+			/>
 		</IconBase>
 	);
 }
@@ -592,13 +629,13 @@ function IconBase({ size = 18, children, ...props }: IconProps) {
 		<svg
 			aria-hidden="true"
 			fill="none"
-			height={typeof size === "number" ? size : "1em"}
+			height={typeof size === "number" ? size : "2em"}
 			stroke="currentColor"
 			strokeLinecap="round"
 			strokeLinejoin="round"
 			strokeWidth="1.6"
 			viewBox="0 0 20 20"
-			width={typeof size === "number" ? size : "1em"}
+			width={typeof size === "number" ? size : "2em"}
 			{...props}
 		>
 			{children}

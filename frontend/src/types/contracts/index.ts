@@ -116,6 +116,7 @@ export interface ShareCreateResult {
   access: ShareAccess;
   permission: SharePermission;
   writeMode: ShareWriteMode;
+  description?: string;
   expiresAt: number;
   password?: string;
   urlPath: string;
@@ -130,6 +131,7 @@ export interface ManagedShare {
   access: ShareAccess;
   permission: SharePermission;
   writeMode: ShareWriteMode;
+  description?: string;
   password?: string;
   expiresAt: number;
   createdAt: number;
@@ -145,6 +147,7 @@ export interface PublicShare {
   access: ShareAccess;
   permission: SharePermission;
   writeMode: ShareWriteMode;
+  description?: string;
   requiresPassword: boolean;
   authorized: boolean;
   expiresAt: number;
