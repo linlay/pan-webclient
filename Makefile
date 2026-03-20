@@ -5,9 +5,7 @@ COMPOSE_FILES := -f docker-compose.yml -f $(COMPOSE_MOUNTS_FILE)
 DEV_COMPOSE_FILES := -f docker-compose.yml -f docker-compose.dev.yml -f $(COMPOSE_MOUNTS_FILE)
 ENV_NGINX_PORT := $(shell sed -n 's/^NGINX_PORT=//p' .env 2>/dev/null | tail -n 1)
 ENV_API_PORT := $(shell sed -n 's/^API_PORT=//p' .env 2>/dev/null | tail -n 1)
-ENV_WEB_PORT := $(shell sed -n 's/^WEB_PORT=//p' .env 2>/dev/null | tail -n 1)
-ENV_PUBLIC_PORT := $(shell sed -n 's/^PUBLIC_PORT=//p' .env 2>/dev/null | tail -n 1)
-NGINX_PORT_VALUE := $(or $(NGINX_PORT),$(ENV_NGINX_PORT),$(ENV_WEB_PORT),$(ENV_PUBLIC_PORT),11946)
+NGINX_PORT_VALUE := $(or $(NGINX_PORT),$(ENV_NGINX_PORT),11946)
 API_PORT_VALUE := $(or $(API_PORT),$(ENV_API_PORT),8080)
 
 .PHONY: build build-backend build-frontend compose-mounts run stop docker-up docker-down apppan-smoke clean

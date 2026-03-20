@@ -489,10 +489,13 @@ func (a *api) uploads(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	task.Status = "success"
-	task.Detail = fmt.Sprintf("Uploaded %d files", uploaded)
 	if uploaded == len(files) {
+		task.Status = "success"
+		task.Detail = fmt.Sprintf("Uploaded %d/%d files", uploaded, len(files))
 		task.CompletedBytes = task.TotalBytes
+	} else {
+		task.Status = "partial"
+		task.Detail = fmt.Sprintf("Uploaded %d/%d files", uploaded, len(files))
 	}
 	task.UpdatedAt = time.Now().Unix()
 	_ = a.taskManager.Put(task, "")

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"pan-webclient/backend/internal/config"
 	"pan-webclient/backend/internal/indexer"
@@ -125,6 +127,21 @@ func TestNewAcceptsAvailableHtpasswd(t *testing.T) {
 	}
 	if server == nil {
 		t.Fatal("expected server")
+	}
+	if server.httpServer.ReadHeaderTimeout != 10*time.Second {
+		t.Fatalf("ReadHeaderTimeout = %v, want %v", server.httpServer.ReadHeaderTimeout, 10*time.Second)
+	}
+	if server.httpServer.ReadTimeout != 5*time.Minute {
+		t.Fatalf("ReadTimeout = %v, want %v", server.httpServer.ReadTimeout, 5*time.Minute)
+	}
+	if server.httpServer.WriteTimeout != 10*time.Minute {
+		t.Fatalf("WriteTimeout = %v, want %v", server.httpServer.WriteTimeout, 10*time.Minute)
+	}
+	if server.httpServer.IdleTimeout != 120*time.Second {
+		t.Fatalf("IdleTimeout = %v, want %v", server.httpServer.IdleTimeout, 120*time.Second)
+	}
+	if err := server.Shutdown(context.Background()); err != nil {
+		t.Fatalf("Shutdown() error = %v", err)
 	}
 }
 

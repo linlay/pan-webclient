@@ -2,6 +2,7 @@ package transfer
 
 import (
 	"archive/zip"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -30,10 +31,14 @@ type Task struct {
 
 type Manager struct {
 	store *indexer.Store
+	ctx   context.Context
 }
 
-func NewManager(store *indexer.Store) *Manager {
-	return &Manager{store: store}
+func NewManager(ctx context.Context, store *indexer.Store) *Manager {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return &Manager{store: store, ctx: ctx}
 }
 
 func (m *Manager) Put(task Task, artifactPath string) error {
@@ -142,8 +147,8 @@ func (m *Manager) StartZipTask(resolver *fsops.MountResolver, mountID string, it
 
 		tasksDir := m.store.TasksDir()
 		_ = os.MkdirAll(tasksDir, 0o755)
-		filename := sanitizeArchiveName(archiveName)
-		artifactPath := filepath.Join(tasksDir, task.ID+"-"+filename)
+			filename := SanitizeArchiveName(archiveName, "bundle.zip")
+			artifactPath := filepath.Join(tasksDir, task.ID+"-"+filename)
 		lastPersist := time.Now()
 		persistProgress := func(force bool) {
 			if !force && time.Since(lastPersist) < 250*time.Millisecond {
@@ -153,10 +158,10 @@ func (m *Manager) StartZipTask(resolver *fsops.MountResolver, mountID string, it
 			_ = m.Put(task, artifactPath)
 			lastPersist = time.Now()
 		}
-		if err := buildZip(resolver, mountID, items, artifactPath, func(delta int64) {
-			task.CompletedBytes += delta
-			persistProgress(false)
-		}); err != nil {
+			if err := buildZip(m.ctx, resolver, mountID, items, artifactPath, func(delta int64) {
+				task.CompletedBytes += delta
+				persistProgress(false)
+			}); err != nil {
 			task.Status = "failed"
 			task.Detail = err.Error()
 			task.UpdatedAt = time.Now().Unix()
@@ -173,25 +178,31 @@ func (m *Manager) StartZipTask(resolver *fsops.MountResolver, mountID string, it
 	return task, nil
 }
 
-func StreamZipArchive(dst io.Writer, resolver *fsops.MountResolver, mountID string, items []string) error {
-	return writeZipArchive(dst, resolver, mountID, items, nil)
+func StreamZipArchive(ctx context.Context, dst io.Writer, resolver *fsops.MountResolver, mountID string, items []string) error {
+	return writeZipArchive(ctx, dst, resolver, mountID, items, nil)
 }
 
-func buildZip(resolver *fsops.MountResolver, mountID string, items []string, artifactPath string, onProgress func(int64)) error {
+func buildZip(ctx context.Context, resolver *fsops.MountResolver, mountID string, items []string, artifactPath string, onProgress func(int64)) error {
 	dst, err := os.Create(artifactPath)
 	if err != nil {
 		return err
 	}
 	defer dst.Close()
 
-	return writeZipArchive(dst, resolver, mountID, items, onProgress)
+	return writeZipArchive(ctx, dst, resolver, mountID, items, onProgress)
 }
 
-func writeZipArchive(dst io.Writer, resolver *fsops.MountResolver, mountID string, items []string, onProgress func(int64)) error {
+func writeZipArchive(ctx context.Context, dst io.Writer, resolver *fsops.MountResolver, mountID string, items []string, onProgress func(int64)) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	zw := zip.NewWriter(dst)
 	defer zw.Close()
 
 	for _, item := range items {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		_, abs, _, err := resolver.Resolve(mountID, item)
 		if err != nil {
 			return err
@@ -202,6 +213,9 @@ func writeZipArchive(dst io.Writer, resolver *fsops.MountResolver, mountID strin
 		}
 		if info.IsDir() {
 			if err := filepath.Walk(abs, func(path string, info os.FileInfo, err error) error {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
 				if err != nil || info.IsDir() {
 					return err
 				}
@@ -299,10 +313,10 @@ func directoryFileBytes(root string) (int64, error) {
 	return total, err
 }
 
-func sanitizeArchiveName(name string) string {
+func SanitizeArchiveName(name, defaultName string) string {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return "bundle.zip"
+		name = defaultName
 	}
 	name = filepath.Base(name)
 	if !strings.HasSuffix(strings.ToLower(name), ".zip") {

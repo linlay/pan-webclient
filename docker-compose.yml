@@ -1,5 +1,6 @@
 services:
   api:
+    container_name: pan-webclient-api
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -15,6 +16,7 @@ services:
       - "${API_PORT:-8080}"
 
   frontend:
+    container_name: pan-webclient-frontend
     build:
       context: .
       dockerfile: frontend/Dockerfile

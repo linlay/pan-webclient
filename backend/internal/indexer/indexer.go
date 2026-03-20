@@ -320,8 +320,8 @@ func SearchMounts(items []mounts.Mount, query string, limit int, showHidden bool
 			if err != nil {
 				return nil
 			}
-			relPath := cleanRelPath(rel)
-			hidden := isHiddenRelPath(relPath)
+			relPath := fsops.CleanRelPath(rel)
+			hidden := fsops.IsHiddenRelPath(relPath)
 			if hidden && !showHidden {
 				if d.IsDir() {
 					return filepath.SkipDir
@@ -344,7 +344,7 @@ func SearchMounts(items []mounts.Mount, query string, limit int, showHidden bool
 				IsDir:   info.IsDir(),
 				Size:    info.Size(),
 				ModTime: info.ModTime().Unix(),
-				Mime:    mimeTypeForInfo(name, info),
+				Mime:    fsops.MimeTypeForInfo(name, info),
 			})
 			if limit > 0 && len(hits) >= limit {
 				return fs.SkipAll
@@ -410,39 +410,4 @@ func readJSONFile(path string, dst any) error {
 		return fmt.Errorf("decode %s: %w", path, err)
 	}
 	return nil
-}
-
-func cleanRelPath(path string) string {
-	if path == "" || path == "." {
-		return "/"
-	}
-	clean := filepath.ToSlash(filepath.Clean("/" + path))
-	if clean == "." {
-		return "/"
-	}
-	return clean
-}
-
-func isHiddenRelPath(path string) bool {
-	for _, part := range strings.Split(path, "/") {
-		if strings.HasPrefix(part, ".") && part != "." && part != ".." {
-			return true
-		}
-	}
-	return false
-}
-
-func mimeTypeForInfo(name string, info os.FileInfo) string {
-	entry := fsops.Entry{Name: name, IsDir: info.IsDir()}
-	if entry.IsDir {
-		return "inode/directory"
-	}
-	return fsops.DetectMime(name, nil)
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

@@ -7,5 +7,6 @@ RUN npm run build
 
 FROM nginx:1.27-alpine
 COPY deploy/nginx/prod.conf /etc/nginx/conf.d/default.conf
+COPY deploy/nginx/api-proxy-params.conf /etc/nginx/conf.d/api-proxy-params.conf
 COPY --from=build /workspace/frontend/dist /usr/share/nginx/html
 EXPOSE 80

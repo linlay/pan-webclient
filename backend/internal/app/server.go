@@ -21,6 +21,7 @@ import (
 
 type Server struct {
 	httpServer *http.Server
+	taskCancel context.CancelFunc
 }
 
 var lookPath = exec.LookPath
@@ -42,7 +43,8 @@ func New(cfg config.Config) (*Server, error) {
 		return nil, fmt.Errorf("load app public key: %w", err)
 	}
 	authManager := auth.NewManager(cfg.SessionSecret, appPublicKey, cfg.AdminUsername, cfg.AdminPasswordHash)
-	taskManager := transfer.NewManager(store)
+	taskCtx, taskCancel := context.WithCancel(context.Background())
+	taskManager := transfer.NewManager(taskCtx, store)
 	handler := httpapi.New(httpapi.Dependencies{
 		Config:      cfg,
 		Resolver:    resolver,
@@ -55,10 +57,14 @@ func New(cfg config.Config) (*Server, error) {
 		Addr:              ":" + cfg.APIPort,
 		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       5 * time.Minute,
+		WriteTimeout:      10 * time.Minute,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	return &Server{
 		httpServer: server,
+		taskCancel: taskCancel,
 	}, nil
 }
 
@@ -82,6 +88,9 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
+	if s.taskCancel != nil {
+		s.taskCancel()
+	}
 	if err := s.httpServer.Shutdown(ctx); err != nil {
 		return fmt.Errorf("shutdown http server: %w", err)
 	}

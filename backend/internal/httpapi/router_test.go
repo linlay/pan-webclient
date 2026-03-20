@@ -3,6 +3,7 @@ package httpapi
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -1328,6 +1329,45 @@ func TestUploadsRejectRequestsLargerThanConfiguredLimit(t *testing.T) {
 	}
 }
 
+func TestUploadsMarkPartialWhenSomeFilesFail(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Chmod(root, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chmod(root, 0o755)
+	})
+
+	handler := newTestHandler(t, root)
+	cookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+	rec := multipartRequestWithCookies(
+		t,
+		handler,
+		[]*http.Cookie{cookie},
+		http.MethodPost,
+		"/api/uploads",
+		map[string]string{"mountId": "root", "path": "/"},
+		[]multipartUploadFile{
+			{name: "a.txt", content: []byte("a")},
+			{name: "b.txt", content: []byte("bb")},
+		},
+	)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected upload 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var task transfer.Task
+	if err := json.Unmarshal(rec.Body.Bytes(), &task); err != nil {
+		t.Fatal(err)
+	}
+	if task.Status != "partial" {
+		t.Fatalf("task status = %q, want partial", task.Status)
+	}
+	if task.Detail != "Uploaded 0/2 files" {
+		t.Fatalf("task detail = %q, want Uploaded 0/2 files", task.Detail)
+	}
+}
+
 func newTestHandler(t *testing.T, root string) http.Handler {
 	t.Helper()
 	store := indexer.NewStore(t.TempDir())
@@ -1371,7 +1411,7 @@ func newHandlerWithMountsAndConfig(store *indexer.Store, mountsList []mounts.Mou
 		Resolver:    fsops.NewMountResolver(mountsList),
 		Store:       store,
 		Auth:        manager,
-		TaskManager: transfer.NewManager(store),
+			TaskManager: transfer.NewManager(context.Background(), store),
 	})
 }
 
@@ -1484,7 +1524,7 @@ func newJWTTestHandler(t *testing.T, root string) (http.Handler, *rsa.PrivateKey
 		Resolver:    fsops.NewMountResolver([]mounts.Mount{{ID: "root", Name: "Root", Path: root}}),
 		Store:       store,
 		Auth:        auth.NewManager("secret", &privateKey.PublicKey, "admin", routerTestPasswordHash),
-		TaskManager: transfer.NewManager(store),
+		TaskManager: transfer.NewManager(context.Background(), store),
 	}), privateKey
 }
 

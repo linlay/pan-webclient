@@ -654,13 +654,13 @@ func (a *api) serveShareContent(
 		if !forceAttachment {
 			return errors.New("directory cannot be streamed inline")
 		}
-		filename := sanitizeArchiveName(record.Name)
-		if path != "/" {
-			filename = sanitizeArchiveName(filepath.Base(abs))
-		}
-		w.Header().Set("Content-Type", "application/zip")
-		w.Header().Set("Content-Disposition", attachmentDisposition(filename))
-		return transfer.StreamZipArchive(w, resolver, record.ID, []string{path})
+			filename := transfer.SanitizeArchiveName(record.Name, "share.zip")
+			if path != "/" {
+				filename = transfer.SanitizeArchiveName(filepath.Base(abs), "share.zip")
+			}
+			w.Header().Set("Content-Type", "application/zip")
+			w.Header().Set("Content-Disposition", attachmentDisposition(filename))
+			return transfer.StreamZipArchive(r.Context(), w, resolver, record.ID, []string{path})
 	}
 	return serveFileFromResolver(w, r, resolver, record.ID, path, filepath.Base(abs), forceAttachment)
 }
@@ -1037,18 +1037,6 @@ func attachmentDisposition(filename string) string {
 		asciiFallback,
 		url.PathEscape(filename),
 	)
-}
-
-func sanitizeArchiveName(name string) string {
-	trimmed := strings.TrimSpace(name)
-	if trimmed == "" {
-		return "share.zip"
-	}
-	base := filepath.Base(trimmed)
-	if !strings.HasSuffix(strings.ToLower(base), ".zip") {
-		base += ".zip"
-	}
-	return base
 }
 
 func writeShareError(w http.ResponseWriter, err error) {

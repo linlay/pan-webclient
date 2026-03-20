@@ -65,7 +65,7 @@ func (r *MountResolver) Resolve(mountID, relPath string) (mounts.Mount, string, 
 	if hasTraversal(relPath) {
 		return mounts.Mount{}, "", "", errors.New("path escapes mount root")
 	}
-	clean := cleanRelPath(relPath)
+	clean := CleanRelPath(relPath)
 	abs := filepath.Clean(filepath.Join(mount.Path, "."+clean))
 	if !withinRoot(mount.Path, abs) {
 		return mounts.Mount{}, "", "", errors.New("path escapes mount root")
@@ -103,7 +103,7 @@ func ListDirectory(resolver *MountResolver, mountID, relPath string, showHidden 
 	}
 	result := make([]Entry, 0, len(entries))
 	for _, item := range entries {
-		if !showHidden && isHiddenName(item.Name()) {
+		if !showHidden && IsHiddenName(item.Name()) {
 			continue
 		}
 		info, err := item.Info()
@@ -113,8 +113,8 @@ func ListDirectory(resolver *MountResolver, mountID, relPath string, showHidden 
 		if info.Mode()&os.ModeSymlink != 0 {
 			continue
 		}
-		childRel := cleanRelPath(filepath.Join(clean, item.Name()))
-		result = append(result, entryFromInfo(mount.ID, childRel, item.Name(), info, isHiddenRelPath(childRel)))
+		childRel := CleanRelPath(filepath.Join(clean, item.Name()))
+		result = append(result, entryFromInfo(mount.ID, childRel, item.Name(), info, IsHiddenRelPath(childRel)))
 	}
 	sort.Slice(result, func(i, j int) bool {
 		if result[i].IsDir != result[j].IsDir {
@@ -139,7 +139,7 @@ func Tree(resolver *MountResolver, mountID, relPath string, showHidden bool) ([]
 		children, err := os.ReadDir(filepath.Join(resolver.byID[mountID].Path, "."+item.Path))
 		if err == nil {
 			for _, child := range children {
-				if showHidden || !isHiddenName(child.Name()) {
+				if showHidden || !IsHiddenName(child.Name()) {
 					hasChildren = true
 					break
 				}
@@ -215,12 +215,12 @@ func Mkdir(resolver *MountResolver, mountID, relPath, name string) (Entry, error
 	if err != nil {
 		return Entry{}, err
 	}
-	childRel := cleanRelPath(filepath.Join(clean, filepath.Base(name)))
-	return entryFromInfo(mountID, childRel, filepath.Base(name), info, isHiddenRelPath(childRel)), nil
+	childRel := CleanRelPath(filepath.Join(clean, filepath.Base(name)))
+	return entryFromInfo(mountID, childRel, filepath.Base(name), info, IsHiddenRelPath(childRel)), nil
 }
 
 func Rename(resolver *MountResolver, mountID, relPath, newName string) (Entry, error) {
-	if cleanRelPath(relPath) == "/" {
+	if CleanRelPath(relPath) == "/" {
 		return Entry{}, errors.New("mount root cannot be renamed")
 	}
 	_, abs, clean, err := resolver.Resolve(mountID, relPath)
@@ -238,12 +238,12 @@ func Rename(resolver *MountResolver, mountID, relPath, newName string) (Entry, e
 	if err != nil {
 		return Entry{}, err
 	}
-	newRel := cleanRelPath(filepath.Join(filepath.Dir(clean), filepath.Base(newName)))
-	return entryFromInfo(mountID, newRel, filepath.Base(newName), info, isHiddenRelPath(newRel)), nil
+	newRel := CleanRelPath(filepath.Join(filepath.Dir(clean), filepath.Base(newName)))
+	return entryFromInfo(mountID, newRel, filepath.Base(newName), info, IsHiddenRelPath(newRel)), nil
 }
 
 func Move(resolver *MountResolver, mountID, relPath, targetDir string) (Entry, error) {
-	if cleanRelPath(relPath) == "/" {
+	if CleanRelPath(relPath) == "/" {
 		return Entry{}, errors.New("mount root cannot be moved")
 	}
 	_, abs, _, err := resolver.Resolve(mountID, relPath)
@@ -265,8 +265,8 @@ func Move(resolver *MountResolver, mountID, relPath, targetDir string) (Entry, e
 	if err != nil {
 		return Entry{}, err
 	}
-	newRel := cleanRelPath(filepath.Join(targetClean, filepath.Base(abs)))
-	return entryFromInfo(mountID, newRel, filepath.Base(abs), newInfo, isHiddenRelPath(newRel)), nil
+	newRel := CleanRelPath(filepath.Join(targetClean, filepath.Base(abs)))
+	return entryFromInfo(mountID, newRel, filepath.Base(abs), newInfo, IsHiddenRelPath(newRel)), nil
 }
 
 func Copy(resolver *MountResolver, mountID, relPath, targetDir string) (Entry, error) {
@@ -281,7 +281,7 @@ func CopyToDirectory(
 	targetMountID string,
 	targetDir string,
 ) (Entry, error) {
-	if cleanRelPath(relPath) == "/" {
+	if CleanRelPath(relPath) == "/" {
 		return Entry{}, errors.New("mount root cannot be copied")
 	}
 	_, srcAbs, _, err := sourceResolver.Resolve(sourceMountID, relPath)
@@ -314,8 +314,8 @@ func CopyToDirectory(
 	if err != nil {
 		return Entry{}, err
 	}
-	newRel := cleanRelPath(filepath.Join(targetClean, filepath.Base(srcAbs)))
-	return entryFromInfo(targetMountID, newRel, filepath.Base(srcAbs), newInfo, isHiddenRelPath(newRel)), nil
+	newRel := CleanRelPath(filepath.Join(targetClean, filepath.Base(srcAbs)))
+	return entryFromInfo(targetMountID, newRel, filepath.Base(srcAbs), newInfo, IsHiddenRelPath(newRel)), nil
 }
 
 func SaveUploadedFile(resolver *MountResolver, mountID, relPath, filename string, src io.Reader) (Entry, int64, error) {
@@ -350,8 +350,8 @@ func SaveUploadedFile(resolver *MountResolver, mountID, relPath, filename string
 	if err != nil {
 		return Entry{}, written, err
 	}
-	targetRel := cleanRelPath(filepath.Join(clean, targetName))
-	return entryFromInfo(mountID, targetRel, targetName, info, isHiddenRelPath(targetRel)), written, nil
+	targetRel := CleanRelPath(filepath.Join(clean, targetName))
+	return entryFromInfo(mountID, targetRel, targetName, info, IsHiddenRelPath(targetRel)), written, nil
 }
 
 func MovePath(src, dst string) error {
@@ -448,7 +448,7 @@ func CollectEntries(mountID, root string, includeHidden bool) ([]Entry, error) {
 		if err != nil {
 			return nil
 		}
-		hidden := isHiddenRelPath(rel)
+		hidden := IsHiddenRelPath(rel)
 		if hidden && !includeHidden {
 			if d.IsDir() {
 				return filepath.SkipDir
@@ -459,7 +459,7 @@ func CollectEntries(mountID, root string, includeHidden bool) ([]Entry, error) {
 		if err != nil || info.Mode()&os.ModeSymlink != 0 {
 			return nil
 		}
-		entries = append(entries, entryFromInfo(mountID, cleanRelPath(rel), name, info, hidden))
+		entries = append(entries, entryFromInfo(mountID, CleanRelPath(rel), name, info, hidden))
 		return nil
 	})
 	return entries, err
@@ -491,18 +491,18 @@ func VersionFromInfo(info os.FileInfo) string {
 func entryFromInfo(mountID, relPath, name string, info os.FileInfo, hidden bool) Entry {
 	return Entry{
 		MountID:   mountID,
-		Path:      cleanRelPath(relPath),
+		Path:      CleanRelPath(relPath),
 		Name:      name,
 		IsDir:     info.IsDir(),
 		Size:      info.Size(),
 		ModTime:   info.ModTime().Unix(),
-		Mime:      mimeTypeForInfo(name, info),
+		Mime:      MimeTypeForInfo(name, info),
 		Extension: strings.ToLower(filepath.Ext(name)),
 		Hidden:    hidden,
 	}
 }
 
-func mimeTypeForInfo(name string, info os.FileInfo) string {
+func MimeTypeForInfo(name string, info os.FileInfo) string {
 	if info.IsDir() {
 		return "inode/directory"
 	}
@@ -512,7 +512,7 @@ func mimeTypeForInfo(name string, info os.FileInfo) string {
 	return "application/octet-stream"
 }
 
-func cleanRelPath(path string) string {
+func CleanRelPath(path string) string {
 	if path == "" || path == "." {
 		return "/"
 	}
@@ -523,14 +523,14 @@ func cleanRelPath(path string) string {
 	return clean
 }
 
-func isHiddenName(name string) bool {
+func IsHiddenName(name string) bool {
 	return strings.HasPrefix(name, ".")
 }
 
-func isHiddenRelPath(path string) bool {
-	clean := cleanRelPath(path)
+func IsHiddenRelPath(path string) bool {
+	clean := CleanRelPath(path)
 	for _, part := range strings.Split(strings.Trim(clean, "/"), "/") {
-		if isHiddenName(part) {
+		if IsHiddenName(part) {
 			return true
 		}
 	}
