@@ -33,7 +33,7 @@ make run
 
 `make run` 会先根据 `configs/mounts/*.json` 自动生成 `.cache/docker-compose.mounts.yml`，再调用开发态 `docker compose`。如果你直接手敲裸 `docker compose up`，这些自动生成的宿主机 bind mount 不会先被准备好。
 
-仓库显式设置了固定容器名，所以 `docker ps` 里会看到 `pan-webclient-api`、`pan-webclient-frontend-dev`、`pan-webclient-nginx`，不会带默认的 `-1` 后缀。
+仓库显式设置了固定容器名，所以 `docker ps` 里会看到 `pan-webclient-backend`、`pan-webclient-frontend-dev`、`pan-webclient-nginx`，不会带默认的 `-1` 后缀。
 
 浏览器统一访问：
 
@@ -70,7 +70,7 @@ make docker-up
 
 它用于验证“本机 Docker Compose 下的真实生产容器形态”，不等于远程服务器部署脚本。
 
-生产形态同样使用固定容器名，`docker ps` 里会显示 `pan-webclient-api`、`pan-webclient-frontend`，不会带默认的 `-1` 后缀。
+生产形态同样使用固定容器名，`docker ps` 里会显示 `pan-webclient-backend`、`pan-webclient-frontend`，不会带默认的 `-1` 后缀。
 
 本地生产形态和开发形态遵守同一条对外路径规则：前端资源必须走 `/pan/*` 或 `/apppan/*`，不会保留根路径静态资源兼容入口。
 

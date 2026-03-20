@@ -5,6 +5,11 @@ const webpack = require("webpack");
 
 const devServerPort = parseInt(process.env.FRONTEND_DEV_PORT || "80", 10);
 const webUiAssetPublicPath = "/pan/";
+const spaFallbackIndex = "/index.html";
+
+function shouldServeSpaShell(pathname) {
+  return pathname !== "/ws" && !pathname.startsWith("/ws/") && !path.posix.extname(pathname);
+}
 
 module.exports = (_env, argv) => {
   const isProd = argv.mode === "production";
@@ -131,7 +136,17 @@ module.exports = (_env, argv) => {
       host: "0.0.0.0",
       allowedHosts: "all",
       hot: true,
-      historyApiFallback: true,
+      historyApiFallback: {
+        rewrites: [
+          {
+            from: /./,
+            to: ({ parsedUrl }) => {
+              const pathname = parsedUrl.pathname || "/";
+              return shouldServeSpaShell(pathname) ? spaFallbackIndex : pathname;
+            },
+          },
+        ],
+      },
       headers: {
         "Cache-Control":
           "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0",

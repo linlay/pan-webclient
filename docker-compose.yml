@@ -1,6 +1,6 @@
 services:
   api:
-    container_name: pan-webclient-api
+    container_name: pan-webclient-backend
     build:
       context: .
       dockerfile: backend/Dockerfile
