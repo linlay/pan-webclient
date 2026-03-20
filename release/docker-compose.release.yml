@@ -1,0 +1,24 @@
+name: pan-webclient
+
+services:
+  api:
+    container_name: pan-webclient-backend
+    image: ${API_IMAGE:?missing API_IMAGE}
+    env_file:
+      - path: .env
+        format: raw
+    environment:
+      API_PORT: ${API_PORT:-8080}
+    volumes:
+      - ./configs:/app/configs:ro
+      - ./data:/app/data
+    expose:
+      - "${API_PORT:-8080}"
+
+  frontend:
+    container_name: pan-webclient-frontend
+    image: ${FRONTEND_IMAGE:?missing FRONTEND_IMAGE}
+    depends_on:
+      - api
+    ports:
+      - "${NGINX_PORT:-11946}:80"

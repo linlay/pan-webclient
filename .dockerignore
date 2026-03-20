@@ -1,0 +1,15 @@
+.cache
+.claude
+.env
+.git
+.github
+bin
+data
+dist
+release/backend
+release/logs
+release/run
+release/web
+frontend/dist
+frontend/node_modules
+**/.DS_Store

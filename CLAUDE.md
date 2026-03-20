@@ -31,6 +31,8 @@
 - `deploy/nginx`: 开发态 / 生产态 Nginx 配置
 - `docker-compose.yml`: 本地生产编排
 - `docker-compose.dev.yml`: 本地开发态 override
+- `release/`: 正式离线发布模板目录，包含 release compose 与部署脚本
+- `dist/release`: 版本化发布产物输出目录，不提交
 
 ## 4. 配置原则
 - `.env.example` 是环境变量契约。
@@ -47,6 +49,10 @@
 - `make stop`: 停止开发态服务
 - `make docker-up`: 启动本地生产形态容器编排
 - `make docker-down`: 停止本地生产形态服务
+- `make build-release VERSION=vX.Y.Z ARCH=amd64|arm64`: 构建当前架构镜像 tar 和 `composemounts`
+- `make package-release VERSION=vX.Y.Z ARCH=amd64|arm64`: 组装当前架构离线部署 bundle
+- `make check-release VERSION=vX.Y.Z ARCH=amd64|arm64`: 校验当前架构 bundle 结构、标签和 checksums
+- `scripts/package-release.ps1 -Version vX.Y.Z -Arch amd64`: Windows PowerShell 打包入口
 - 测试直接使用原生命令：`cd backend && go test ./...`、`cd frontend && node --test src/api/routing.test.ts`
 
 ## 6. 关键约束
@@ -56,3 +62,5 @@
 - 后端返回的资源链接使用 canonical `/api/*`；前端负责按当前 UI 基路径转换成外部可访问地址。
 - App 私钥不保存在本仓库；仓库内只允许放公钥示例文件。
 - 运行时若需要访问仓库外目录，必须在容器编排里显式增加 bind mount。
+- 正式发布只接受 `vX.Y.Z` 版本格式；每次本地只构建一个目标架构 bundle。
+- `arm64` 优先在 Mac arm64 主机构建，`amd64` 优先在 Windows/x86_64 主机构建。
