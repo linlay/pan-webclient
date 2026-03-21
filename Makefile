@@ -7,8 +7,10 @@ ENV_NGINX_PORT := $(shell sed -n 's/^NGINX_PORT=//p' .env 2>/dev/null | tail -n 
 ENV_API_PORT := $(shell sed -n 's/^API_PORT=//p' .env 2>/dev/null | tail -n 1)
 NGINX_PORT_VALUE := $(or $(NGINX_PORT),$(ENV_NGINX_PORT),11946)
 API_PORT_VALUE := $(or $(API_PORT),$(ENV_API_PORT),8080)
+VERSION := $(shell cat VERSION 2>/dev/null || echo "dev")
+ARCH := $(shell uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
 
-.PHONY: build build-backend build-frontend compose-mounts run stop docker-up docker-down build-release package-release check-release apppan-smoke clean
+.PHONY: build build-backend build-frontend compose-mounts run stop docker-up docker-down release apppan-smoke clean
 
 build: build-backend build-frontend
 
@@ -37,14 +39,8 @@ docker-up: compose-mounts
 docker-down: compose-mounts
 	NGINX_PORT=$(NGINX_PORT_VALUE) API_PORT=$(API_PORT_VALUE) docker compose $(COMPOSE_FILES) down --remove-orphans
 
-build-release:
-	bash scripts/build-release.sh
-
-package-release:
-	bash scripts/package-release.sh
-
-check-release:
-	bash scripts/check-release.sh
+release:
+	VERSION=$(VERSION) ARCH=$(ARCH) bash scripts/release.sh
 
 apppan-smoke:
 	bash scripts/apppan-smoke.sh

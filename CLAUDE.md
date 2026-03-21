@@ -19,6 +19,7 @@
 
 ## 3. 目录结构
 - `backend/cmd/server`: Go 服务入口
+- `backend/cmd/composemounts`: 挂载 compose 生成工具（同时编译进后端镜像）
 - `backend/internal/config`: 默认配置与加载器
 - `backend/internal/auth`: Web Session 与 App JWT 验签
 - `backend/internal/httpapi`: 纯 API 路由
@@ -31,7 +32,9 @@
 - `deploy/nginx`: 开发态 / 生产态 Nginx 配置
 - `docker-compose.yml`: 本地生产编排
 - `docker-compose.dev.yml`: 本地开发态 override
-- `release/`: 正式离线发布模板目录，包含 release compose 与部署脚本
+- `release/`: 正式离线发布模板目录，包含 release compose、部署脚本和 README
+- `scripts/release.sh`: 一键构建发布 bundle
+- `VERSION`: 版本号单一来源
 - `dist/release`: 版本化发布产物输出目录，不提交
 
 ## 4. 配置原则
@@ -49,10 +52,7 @@
 - `make stop`: 停止开发态服务
 - `make docker-up`: 启动本地生产形态容器编排
 - `make docker-down`: 停止本地生产形态服务
-- `make build-release VERSION=vX.Y.Z ARCH=amd64|arm64`: 构建当前架构镜像 tar 和 `composemounts`
-- `make package-release VERSION=vX.Y.Z ARCH=amd64|arm64`: 组装当前架构离线部署 bundle
-- `make check-release VERSION=vX.Y.Z ARCH=amd64|arm64`: 校验当前架构 bundle 结构、标签和 checksums
-- `scripts/package-release.ps1 -Version vX.Y.Z -Arch amd64`: Windows PowerShell 打包入口
+- `make release`: 构建离线部署 bundle；版本从 `VERSION` 文件读取，架构自动检测，均可手动覆盖（`make release VERSION=v0.2.0 ARCH=amd64`）
 - 测试直接使用原生命令：`cd backend && go test ./...`、`cd frontend && node --test src/api/routing.test.ts`
 
 ## 6. 关键约束

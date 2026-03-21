@@ -10,12 +10,14 @@ ENV PATH="/usr/local/go/bin:${PATH}"
 COPY backend/go.mod ./
 COPY backend ./
 RUN go build -o /out/pan-api ./cmd/server
+RUN go build -o /out/composemounts ./cmd/composemounts
 
 FROM alpine:3.21
 WORKDIR /app
 RUN apk add --no-cache apache2-utils \
     && mkdir -p /app/configs/mounts /app/data
 COPY --from=build /out/pan-api /app/pan-api
+COPY --from=build /out/composemounts /app/composemounts
 ENV API_PORT=8080
 EXPOSE 8080
 CMD ["/app/pan-api"]

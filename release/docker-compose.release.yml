@@ -3,7 +3,7 @@ name: pan-webclient
 services:
   api:
     container_name: pan-webclient-backend
-    image: ${API_IMAGE:?missing API_IMAGE}
+    image: pan-webclient-backend:${PAN_VERSION:-latest}
     env_file:
       - path: .env
         format: raw
@@ -17,7 +17,7 @@ services:
 
   frontend:
     container_name: pan-webclient-frontend
-    image: ${FRONTEND_IMAGE:?missing FRONTEND_IMAGE}
+    image: pan-webclient-frontend:${PAN_VERSION:-latest}
     depends_on:
       - api
     ports:
