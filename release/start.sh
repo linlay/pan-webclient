@@ -49,7 +49,7 @@ set -a
 . "$ENV_FILE"
 set +a
 
-ensure_image_loaded "$API_IMAGE" "$IMAGES_DIR/${API_IMAGE_NAME:-pan-webclient-api}.tar"
+ensure_image_loaded "$API_IMAGE" "$IMAGES_DIR/${API_IMAGE_NAME:-pan-webclient-backend}.tar"
 ensure_image_loaded "$FRONTEND_IMAGE" "$IMAGES_DIR/${FRONTEND_IMAGE_NAME:-pan-webclient-frontend}.tar"
 
 mkdir -p "$SCRIPT_DIR/.runtime" "$SCRIPT_DIR/data" "$SCRIPT_DIR/configs/mounts"

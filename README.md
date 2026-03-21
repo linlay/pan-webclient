@@ -279,7 +279,7 @@ Windows PowerShell:
 
 ### 离线 bundle 内容
 每个 bundle 内固定包含：
-- 两个镜像 tar：`images/pan-webclient-api.tar`、`images/pan-webclient-frontend.tar`
+- 两个镜像 tar：`images/pan-webclient-backend.tar`、`images/pan-webclient-frontend.tar`
 - `docker-compose.release.yml`
 - `.env.example`
 - `start.sh`、`stop.sh`
@@ -326,13 +326,13 @@ cp configs/local-public-key.example.pem configs/local-public-key.pem
 
 ### 手工镜像调试
 ```bash
-docker build -f backend/Dockerfile -t pan-webclient-api:debug .
+docker build -f backend/Dockerfile -t pan-webclient-backend:debug .
 docker build -f frontend/Dockerfile -t pan-webclient-frontend:debug .
 ```
 
 标准部署拓扑：
 - `pan-webclient-frontend`：唯一对外入口，负责静态资源和 `/pan/api`、`/apppan/api` 代理
-- `pan-webclient-api`：内网服务，只监听 `/api/*`
+- `pan-webclient-backend`：内网服务，只监听 `/api/*`
 
 ## 7. 运维与排查
 - 浏览器入口始终是 Nginx，不要直接访问 Go 端口

@@ -27,7 +27,7 @@ Require-Command tar
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = Split-Path -Parent $ScriptDir
 $RepoName = "pan-webclient"
-$ApiImageName = "pan-webclient-api"
+$ApiImageName = "pan-webclient-backend"
 $FrontendImageName = "pan-webclient-frontend"
 $Platform = "linux/$Arch"
 $PlatformSlug = "linux-$Arch"

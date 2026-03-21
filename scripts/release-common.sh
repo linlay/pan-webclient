@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 REPO_NAME="${REPO_NAME:-pan-webclient}"
-API_IMAGE_NAME="${API_IMAGE_NAME:-pan-webclient-api}"
+API_IMAGE_NAME="${API_IMAGE_NAME:-pan-webclient-backend}"
 FRONTEND_IMAGE_NAME="${FRONTEND_IMAGE_NAME:-pan-webclient-frontend}"
 RELEASE_ROOT_REL="${RELEASE_ROOT_REL:-dist/release}"
 
