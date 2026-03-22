@@ -33,8 +33,8 @@
 - `backend/internal/transfer`: 上传、批量下载任务
 - `frontend/src`: React 应用
 - `deploy/nginx`: 开发态 / 生产态 Nginx 配置
-- `docker-compose.yml`: 本地生产编排
-- `docker-compose.dev.yml`: 本地开发态 override
+- `compose.yml`: 本地生产编排
+- `compose.dev.yml`: 本地开发态 override
 - `scripts/release-assets/`: 正式离线发布模板目录，包含 release compose、部署脚本和 README
 - `scripts/release.sh`: 一键构建发布 bundle
 - `VERSION`: 版本号单一来源

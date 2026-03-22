@@ -75,7 +75,7 @@ make release VERSION=v1.0.0 ARCH=amd64
 - 版本号：`VERSION` 文件或环境变量 `VERSION`
 - 目标架构：环境变量 `ARCH` 或当前机器架构
 - 容器构建定义：`backend/Dockerfile`、`frontend/Dockerfile`
-- release 模板资产：`scripts/release-assets/docker-compose.release.yml`
+- release 模板资产：`scripts/release-assets/compose.release.yml`
 - release 模板资产：`scripts/release-assets/start.sh`
 - release 模板资产：`scripts/release-assets/stop.sh`
 - release 模板资产：`scripts/release-assets/README.txt`
@@ -131,7 +131,7 @@ docker buildx build \
 
 - `images/pan-webclient-backend.tar`
 - `images/pan-webclient-frontend.tar`
-- `docker-compose.release.yml`
+- `compose.release.yml`
 - `start.sh`
 - `stop.sh`
 - `README.txt`
@@ -185,7 +185,7 @@ bundle 解压后，目录大致如下：
 ```text
 pan-webclient/
   .env.example
-  docker-compose.release.yml
+  compose.release.yml
   start.sh
   stop.sh
   README.txt
@@ -252,7 +252,7 @@ cp configs/mounts/home.example.json configs/mounts/home.json
 9. 执行：
 
 ```bash
-docker compose -f docker-compose.release.yml -f .runtime/docker-compose.mounts.yml up -d
+docker compose -f compose.release.yml -f .runtime/docker-compose.mounts.yml up -d
 ```
 
 这意味着部署端完全不需要重新编译前后端，也不需要持有源码。
@@ -262,12 +262,12 @@ docker compose -f docker-compose.release.yml -f .runtime/docker-compose.mounts.y
 `stop.sh` 使用同一组 compose 文件执行：
 
 ```bash
-docker compose -f docker-compose.release.yml -f .runtime/docker-compose.mounts.yml down --remove-orphans
+docker compose -f compose.release.yml -f .runtime/docker-compose.mounts.yml down --remove-orphans
 ```
 
 它的职责很单纯：按当前版本配置停止 release bundle 启动的容器。
 
-### 5.4 `docker-compose.release.yml` 的角色
+### 5.4 `compose.release.yml` 的角色
 
 release compose 和开发 compose 的思路不同：
 
@@ -402,7 +402,7 @@ release compose 和开发 compose 的思路不同：
 - `VERSION`：版本号单一来源
 - `Makefile`：`make release` 的外层入口
 - `scripts/release.sh`：正式打包主脚本
-- `scripts/release-assets/docker-compose.release.yml`：release 编排模板
+- `scripts/release-assets/compose.release.yml`：release 编排模板
 - `scripts/release-assets/start.sh`：release 启动脚本
 - `scripts/release-assets/stop.sh`：release 停止脚本
 - `scripts/release-assets/README.txt`：bundle 内最小操作说明

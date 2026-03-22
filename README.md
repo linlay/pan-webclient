@@ -54,7 +54,7 @@ http://127.0.0.1:${NGINX_PORT}/pan/
 
 ```bash
 make stop
-docker compose -f docker-compose.yml -f docker-compose.dev.yml -f .cache/docker-compose.mounts.yml logs -f nginx api frontend-dev
+docker compose -f compose.yml -f compose.dev.yml -f .cache/docker-compose.mounts.yml logs -f nginx api frontend-dev
 ```
 
 ### 本地生产启动
@@ -78,7 +78,7 @@ make docker-up
 
 ```bash
 make docker-down
-docker compose -f docker-compose.yml -f .cache/docker-compose.mounts.yml logs -f frontend api
+docker compose -f compose.yml -f .cache/docker-compose.mounts.yml logs -f frontend api
 ```
 
 ## 3. 构建、运行与测试
@@ -290,7 +290,7 @@ bash scripts/release.sh
 ### 离线 bundle 内容
 每个 bundle 内固定包含：
 - 两个镜像 tar：`images/pan-webclient-backend.tar`、`images/pan-webclient-frontend.tar`
-- `docker-compose.release.yml`
+- `compose.release.yml`
 - `.env.example`
 - `start.sh`、`stop.sh`
 - `README.txt`
@@ -337,7 +337,7 @@ cp configs/mounts/home.example.json configs/mounts/home.json
 ### 升级与回滚
 - 升级：下载新版本 bundle，解压后复用原有 `.env`、`configs/`、`data/`，执行 `./start.sh`
 - 回滚：停止当前版本后，切回上一版本 bundle 并重新执行 `./start.sh`
-- `docker-compose.release.yml` 只引用预构建镜像，不在部署端执行 `build`
+- `compose.release.yml` 只引用预构建镜像，不在部署端执行 `build`
 
 ### 手工镜像调试
 ```bash

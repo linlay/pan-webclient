@@ -1,8 +1,8 @@
 APP_NAME := pan-api
 GO_CACHE := $(CURDIR)/.cache/go-build
 COMPOSE_MOUNTS_FILE := .cache/docker-compose.mounts.yml
-COMPOSE_FILES := -f docker-compose.yml -f $(COMPOSE_MOUNTS_FILE)
-DEV_COMPOSE_FILES := -f docker-compose.yml -f docker-compose.dev.yml -f $(COMPOSE_MOUNTS_FILE)
+COMPOSE_FILES := -f compose.yml -f $(COMPOSE_MOUNTS_FILE)
+DEV_COMPOSE_FILES := -f compose.yml -f compose.dev.yml -f $(COMPOSE_MOUNTS_FILE)
 ENV_NGINX_PORT := $(shell sed -n 's/^NGINX_PORT=//p' .env 2>/dev/null | tail -n 1)
 ENV_API_PORT := $(shell sed -n 's/^API_PORT=//p' .env 2>/dev/null | tail -n 1)
 NGINX_PORT_VALUE := $(or $(NGINX_PORT),$(ENV_NGINX_PORT),11946)

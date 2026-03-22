@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$SCRIPT_DIR/.env"
-COMPOSE_FILE="$SCRIPT_DIR/docker-compose.release.yml"
+COMPOSE_FILE="$SCRIPT_DIR/compose.release.yml"
 MOUNTS_FILE="$SCRIPT_DIR/.runtime/docker-compose.mounts.yml"
 
 die() { echo "[stop] $*" >&2; exit 1; }
