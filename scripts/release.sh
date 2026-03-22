@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+RELEASE_ASSETS_DIR="$SCRIPT_DIR/release-assets"
 
 die() { echo "[release] $*" >&2; exit 1; }
 
@@ -58,10 +59,10 @@ mkdir -p \
   "$BUNDLE_ROOT/data" \
   "$BUNDLE_ROOT/images"
 
-cp "$REPO_ROOT/release/docker-compose.release.yml" "$BUNDLE_ROOT/docker-compose.release.yml"
-cp "$REPO_ROOT/release/start.sh"                   "$BUNDLE_ROOT/start.sh"
-cp "$REPO_ROOT/release/stop.sh"                    "$BUNDLE_ROOT/stop.sh"
-cp "$REPO_ROOT/release/README.txt"                 "$BUNDLE_ROOT/README.txt"
+cp "$RELEASE_ASSETS_DIR/docker-compose.release.yml" "$BUNDLE_ROOT/docker-compose.release.yml"
+cp "$RELEASE_ASSETS_DIR/start.sh"                   "$BUNDLE_ROOT/start.sh"
+cp "$RELEASE_ASSETS_DIR/stop.sh"                    "$BUNDLE_ROOT/stop.sh"
+cp "$RELEASE_ASSETS_DIR/README.txt"                 "$BUNDLE_ROOT/README.txt"
 cp "$REPO_ROOT/.env.example"                       "$BUNDLE_ROOT/.env.example"
 cp "$REPO_ROOT/configs/local-public-key.example.pem" "$BUNDLE_ROOT/configs/local-public-key.example.pem"
 

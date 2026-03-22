@@ -3,6 +3,9 @@
 ## 1. 项目概览
 `pan-webclient` 是一个全栈单用户私有网盘项目。
 
+- 仓库级使用、发布、部署说明以 `README.md` 为准。
+- `CLAUDE.md` 只记录工程约束、目录职责和命令速查，不重复完整部署手册。
+
 - Backend: Go 1.26, `net/http`
 - Frontend: React 18, TypeScript, Webpack
 - Gateway: Nginx
@@ -32,7 +35,7 @@
 - `deploy/nginx`: 开发态 / 生产态 Nginx 配置
 - `docker-compose.yml`: 本地生产编排
 - `docker-compose.dev.yml`: 本地开发态 override
-- `release/`: 正式离线发布模板目录，包含 release compose、部署脚本和 README
+- `scripts/release-assets/`: 正式离线发布模板目录，包含 release compose、部署脚本和 README
 - `scripts/release.sh`: 一键构建发布 bundle
 - `VERSION`: 版本号单一来源
 - `dist/release`: 版本化发布产物输出目录，不提交
@@ -52,7 +55,7 @@
 - `make stop`: 停止开发态服务
 - `make docker-up`: 启动本地生产形态容器编排
 - `make docker-down`: 停止本地生产形态服务
-- `make release`: 构建离线部署 bundle；版本从 `VERSION` 文件读取，架构自动检测，均可手动覆盖（`make release VERSION=v0.2.0 ARCH=amd64`）
+- `make release`: 正式离线发布入口；构建镜像并打包 bundle，版本从 `VERSION` 文件读取，架构自动检测，均可手动覆盖（`make release VERSION=v0.2.0 ARCH=amd64`）
 - 测试直接使用原生命令：`cd backend && go test ./...`、`cd frontend && node --test src/api/routing.test.ts`
 
 ## 6. 关键约束

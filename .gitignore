@@ -1,10 +1,5 @@
 bin/
 dist/
-release/*
-!release/
-!release/docker-compose.release.yml
-!release/start.sh
-!release/stop.sh
 configs/*.pem
 !configs/*.example.pem
 configs/mounts/*.json
