@@ -106,6 +106,8 @@ export function MaterialIcon(props: MaterialIconProps) {
 			return <IconSync {...common} />;
 		case "touch_app":
 			return <IconTap {...common} />;
+		case "translate":
+			return <IconTranslate {...common} />;
 		case "upload":
 			return <IconUpload {...common} />;
 		case "view_list":
@@ -171,6 +173,19 @@ export function IconCode(props: IconProps) {
 		<IconBase {...props}>
 			<path d="m8 6.5-3 3 3 3" />
 			<path d="m12 6.5 3 3-3 3" />
+		</IconBase>
+	);
+}
+
+export function IconTranslate(props: IconProps) {
+	return (
+		<IconBase {...props}>
+			<path d="M3.75 5h7.5" />
+			<path d="M7.5 3.75V5" />
+			<path d="M5.35 7.5c.65 1.95 1.84 3.73 3.57 5.1" />
+			<path d="M9.65 7.5c-.65 1.95-1.84 3.73-3.57 5.1" />
+			<path d="m12.6 15.25 2.05-5.9 2.05 5.9" />
+			<path d="M13.45 13.2h2.4" />
 		</IconBase>
 	);
 }
@@ -624,18 +639,18 @@ export function IconTap(props: IconProps) {
 	);
 }
 
-function IconBase({ size = 18, children, ...props }: IconProps) {
+function IconBase({ size = 20, children, ...props }: IconProps) {
 	return (
 		<svg
 			aria-hidden="true"
 			fill="none"
-			height={typeof size === "number" ? size : "2em"}
+			height={typeof size === "number" ? size : "2.5em"}
 			stroke="currentColor"
 			strokeLinecap="round"
 			strokeLinejoin="round"
 			strokeWidth="1.6"
 			viewBox="0 0 20 20"
-			width={typeof size === "number" ? size : "2em"}
+			width={typeof size === "number" ? size : "2.5em"}
 			{...props}
 		>
 			{children}

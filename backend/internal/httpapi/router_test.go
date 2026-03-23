@@ -1176,6 +1176,23 @@ func TestPasswordWriteShareUploadRequiresAuthorization(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	metaRec := requestWithCookies(handler, nil, http.MethodGet, "/api/public/shares/"+created.ID, nil)
+	if metaRec.Code != http.StatusOK {
+		t.Fatalf("expected locked write share meta 200, got %d: %s", metaRec.Code, metaRec.Body.String())
+	}
+	var locked struct {
+		Name       string `json:"name"`
+		Authorized bool   `json:"authorized"`
+		Permission string `json:"permission"`
+		WriteMode  string `json:"writeMode"`
+	}
+	if err := json.Unmarshal(metaRec.Body.Bytes(), &locked); err != nil {
+		t.Fatal(err)
+	}
+	if locked.Authorized || locked.Name != "drop" || locked.Permission != "write" || locked.WriteMode != "local" {
+		t.Fatalf("unexpected locked write share payload: %+v", locked)
+	}
+
 	unauthorizedUpload := multipartRequestWithCookies(
 		t,
 		handler,

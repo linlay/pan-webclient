@@ -25,8 +25,10 @@ import {
 	ShareLoadingState,
 	SharePasswordGate,
 } from "./SharePageStates";
+import { useTranslation } from "react-i18next";
 
 export function SharePage(props: { shareId: string }) {
+	const { t } = useTranslation();
 	const [share, setShare] = useState<PublicShare | null>(null);
 	const [entries, setEntries] = useState<FileEntry[]>([]);
 	const [sessionUploadedEntries, setSessionUploadedEntries] = useState<
@@ -117,7 +119,10 @@ export function SharePage(props: { shareId: string }) {
 			: null;
 	const activeFileEntry =
 		activeEntry && !activeEntry.isDir ? activeEntry : null;
-	const currentSaveName = activeFileEntry?.name ?? share?.name ?? "当前分享";
+	const currentSaveName =
+		activeFileEntry?.name ??
+		share?.name ??
+		t("sharePage.passwordGate.protectedShareName");
 	const canReadShare = share?.permission !== "write";
 	const canUploadToShare = Boolean(
 		share?.isDir && share?.permission === "write",
@@ -134,11 +139,11 @@ export function SharePage(props: { shareId: string }) {
 			: null;
 	const currentWriteActionLabel = isTextWriteMode
 		? savingTextFile
-			? "保存中..."
-			: "保存 Markdown 到当前目录"
+			? t("common.saving")
+			: t("sharePage.content.saveMarkdown")
 		: uploading
 			? formatUploadProgress(uploadProgress)
-			: "上传到当前目录";
+			: t("common.upload");
 	const showMobilePropertiesPage =
 		isMobile &&
 		canReadShare &&
@@ -186,7 +191,11 @@ export function SharePage(props: { shareId: string }) {
 				}
 			}
 		} catch (e) {
-			setError(e instanceof Error ? e.message : "分享加载失败");
+			setError(
+				e instanceof Error
+					? e.message
+					: t("sharePage.errors.shareLoadFailed"),
+			);
 		} finally {
 			setLoading(false);
 		}
@@ -205,7 +214,11 @@ export function SharePage(props: { shareId: string }) {
 			setMobilePropertiesOpen(false);
 			setError("");
 		} catch (e) {
-			setError(e instanceof Error ? e.message : "目录加载失败");
+			setError(
+				e instanceof Error
+					? e.message
+					: t("sharePage.errors.directoryLoadFailed"),
+			);
 		}
 	}
 
@@ -219,7 +232,11 @@ export function SharePage(props: { shareId: string }) {
 			}
 			setError("");
 		} catch (e) {
-			setError(e instanceof Error ? e.message : "文件预览失败");
+			setError(
+				e instanceof Error
+					? e.message
+					: t("sharePage.errors.filePreviewFailed"),
+			);
 		}
 	}
 
@@ -231,7 +248,11 @@ export function SharePage(props: { shareId: string }) {
 			setPassword("");
 			await loadShare();
 		} catch (e) {
-			setError(e instanceof Error ? e.message : "密码校验失败");
+			setError(
+				e instanceof Error
+					? e.message
+					: t("sharePage.errors.passwordValidationFailed"),
+			);
 		} finally {
 			setSubmittingPassword(false);
 		}
@@ -239,7 +260,7 @@ export function SharePage(props: { shareId: string }) {
 
 	async function handleCopyLink() {
 		await navigator.clipboard.writeText(window.location.href);
-		setNotice("链接已复制");
+		setNotice(t("sharePage.notices.linkCopied"));
 	}
 
 	async function handleShareUpload(files: FileList | null) {
@@ -268,11 +289,22 @@ export function SharePage(props: { shareId: string }) {
 			]);
 			setNotice(
 				uploaded.length > 1
-					? `已上传 ${uploaded.length} 个文件`
-					: `已上传 ${uploaded[0]?.name ?? uploadFiles[0]?.name ?? "文件"}`,
+					? t("sharePage.notices.uploadedMany", {
+							count: uploaded.length,
+						})
+					: t("sharePage.notices.uploadedOne", {
+							name:
+								uploaded[0]?.name ??
+								uploadFiles[0]?.name ??
+								t("common.file"),
+						}),
 			);
 		} catch (e) {
-			setError(e instanceof Error ? e.message : "上传失败");
+			setError(
+				e instanceof Error
+					? e.message
+					: t("sharePage.errors.uploadFailed"),
+			);
 		} finally {
 			setUploading(false);
 			setUploadProgress({ loaded: 0, total: 0 });
@@ -307,9 +339,17 @@ export function SharePage(props: { shareId: string }) {
 			]);
 			setTextFileName("");
 			setTextFileContent("");
-			setNotice(`已保存 ${uploaded[0]?.name ?? filename}`);
+			setNotice(
+				t("sharePage.notices.savedAs", {
+					name: uploaded[0]?.name ?? filename,
+				}),
+			);
 		} catch (e) {
-			setError(e instanceof Error ? e.message : "文本保存失败");
+			setError(
+				e instanceof Error
+					? e.message
+					: t("sharePage.errors.textSaveFailed"),
+			);
 		} finally {
 			setSavingTextFile(false);
 		}
@@ -321,7 +361,7 @@ export function SharePage(props: { shareId: string }) {
 			return;
 		}
 		if (!canReadShare) {
-			setNotice("写入分享不支持文件预览或下载");
+			setNotice(t("sharePage.notices.writeShareNoPreview"));
 			return;
 		}
 		await previewFile(entry.path);
@@ -331,8 +371,13 @@ export function SharePage(props: { shareId: string }) {
 		setSaveDialogOpen(false);
 		setNotice(
 			mount
-				? `已保存到 ${mount.name}${entry.path}`
-				: `已保存 ${entry.name}`,
+				? t("sharePage.notices.savedToMount", {
+						mount: mount.name,
+						path: entry.path,
+					})
+				: t("sharePage.notices.savedEntry", {
+						name: entry.name,
+					}),
 		);
 	}
 

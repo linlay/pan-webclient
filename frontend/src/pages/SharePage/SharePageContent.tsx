@@ -8,6 +8,7 @@ import {
 	formatUploadProgress,
 } from "@/utils";
 import type { FileEntry, PreviewMeta, PublicShare } from "@/types/contracts";
+import { useTranslation } from "react-i18next";
 
 export function SharePageContent(props: {
 	share: PublicShare;
@@ -38,6 +39,7 @@ export function SharePageContent(props: {
 	onSaveText: () => void;
 	onPickLocalFile: () => void;
 }) {
+	const { t } = useTranslation();
 	const writePanel = props.canUploadToShare ? (
 		props.isTextWriteMode ? (
 			<ShareTextComposer
@@ -170,10 +172,10 @@ export function SharePageContent(props: {
 									/>
 								</div>
 								<div className="mt-4 text-lg font-bold text-slate-900 dark:text-white">
-									目录不展示 Properties
+									{t("sharePage.content.directoryNoPropertiesTitle")}
 								</div>
 								<p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-									请选择左侧单个文件查看属性、预览和下载内容。
+									{t("sharePage.content.directoryNoPropertiesDescription")}
 								</p>
 							</div>
 						</div>
@@ -275,22 +277,25 @@ function ShareWriteDescriptionCard(props: {
 }
 
 function ShareWriteUploadedListCard(props: { entries: FileEntry[] }) {
+	const { t } = useTranslation();
 	return (
 		<div className="overflow-hidden rounded-[30px] border border-slate-200 bg-white/90 shadow-[0_18px_38px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-900/80">
 			<div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/90 px-5 py-4 dark:border-slate-800 dark:bg-slate-800/70">
 				<div>
 					<div className="mt-1 text-base font-bold text-slate-900 dark:text-white">
-						上传列表
+						{t("sharePage.content.uploadedList")}
 					</div>
 				</div>
 				<div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500 dark:bg-slate-700/70 dark:text-slate-300">
-					{props.entries.length} 条
+					{t("sharePage.content.uploadedCount", {
+						count: props.entries.length,
+					})}
 				</div>
 			</div>
 			<div className="p-3">
 				{props.entries.length === 0 ? (
 					<div className="rounded-[24px] bg-slate-50 px-4 py-10 text-center text-sm text-slate-400 dark:bg-slate-800/70 dark:text-slate-500">
-						当前会话还没有上传成功的文件
+						{t("sharePage.content.noUploadedFiles")}
 					</div>
 				) : (
 					<div className="space-y-2">
@@ -342,6 +347,7 @@ function ShareMobileFileDetailsPanel(props: {
 	activeFileEntry: FileEntry | null;
 	onBack?: () => void;
 }) {
+	const { t } = useTranslation();
 	return (
 		<div className="min-h-0 flex flex-1 flex-col overflow-hidden bg-[linear-gradient(180deg,rgba(248,250,252,0.92),rgba(255,255,255,0.96))] dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.96),rgba(15,23,42,0.98))]">
 			<div className="flex items-center gap-3 border-b border-slate-200 bg-white/80 px-5 py-4 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
@@ -356,7 +362,7 @@ function ShareMobileFileDetailsPanel(props: {
 				) : null}
 				<div className="min-w-0">
 					<div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-sky-500">
-						File Details
+						{t("preview.properties")}
 					</div>
 					<div className="mt-1 truncate text-base font-semibold text-slate-900 dark:text-white">
 						{props.activeFilePreview?.name ?? props.share.name}
@@ -396,6 +402,7 @@ function ShareDirectoryListCard(props: {
 	onBack?: () => void;
 	onEntryOpen: (entry: FileEntry) => void;
 }) {
+	const { t } = useTranslation();
 	return (
 		<div
 			className={
@@ -412,7 +419,7 @@ function ShareDirectoryListCard(props: {
 				}`}
 			>
 				<ShareDirectoryListHeader onBack={props.onBack} />
-				<span>{props.entries.length} 项</span>
+				<span>{t("files.itemsCount", { count: props.entries.length })}</span>
 			</div>
 			<div
 				className={
@@ -429,7 +436,7 @@ function ShareDirectoryListCard(props: {
 								: "px-4 py-12 text-center text-sm text-slate-400"
 						}
 					>
-						当前目录为空
+						{t("sharePage.content.currentDirectoryEmpty")}
 					</div>
 				) : props.mobile ? (
 					<div className="space-y-2.5">
@@ -467,6 +474,7 @@ function ShareMobileDirectoryRow(props: {
 	canReadShare: boolean;
 	onOpen: (entry: FileEntry) => void;
 }) {
+	const { t } = useTranslation();
 	return (
 		<button
 			className={`flex w-full items-center gap-3 rounded-[22px] px-4 py-3.5 text-left transition-all ${
@@ -496,7 +504,7 @@ function ShareMobileDirectoryRow(props: {
 				<div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400">
 					<span>
 						{props.entry.isDir
-							? "目录"
+							? t("files.directory")
 							: formatBytes(props.entry.size)}
 					</span>
 					<span>·</span>
@@ -524,6 +532,7 @@ function ShareDesktopDirectoryRow(props: {
 	canReadShare: boolean;
 	onOpen: (entry: FileEntry) => void;
 }) {
+	const { t } = useTranslation();
 	return (
 		<button
 			className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ${
@@ -553,7 +562,7 @@ function ShareDesktopDirectoryRow(props: {
 				<div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400">
 					<span>
 						{props.entry.isDir
-							? "目录"
+							? t("files.directory")
 							: formatBytes(props.entry.size)}
 					</span>
 					<span>·</span>
@@ -575,8 +584,9 @@ function ShareDesktopDirectoryRow(props: {
 }
 
 function ShareDirectoryListHeader(props: { onBack?: () => void }) {
+	const { t } = useTranslation();
 	if (!props.onBack) {
-		return <span>当前目录</span>;
+		return <span>{t("sharePage.content.currentDirectory")}</span>;
 	}
 	return (
 		<button
@@ -585,12 +595,13 @@ function ShareDirectoryListHeader(props: { onBack?: () => void }) {
 			type="button"
 		>
 			<MaterialIcon name="arrow_back" className="text-sm" />
-			返回上一级
+			{t("sharePage.content.upOneLevel")}
 		</button>
 	);
 }
 
 function ShareSingleFileHint(props: { mobile?: boolean }) {
+	const { t } = useTranslation();
 	return props.mobile ? (
 		<div className="flex min-h-0 flex-1 items-center justify-center px-5 pb-5 pt-4">
 			<div className="rounded-[28px] border border-slate-200 bg-white/85 px-5 py-8 text-center shadow-[0_18px_40px_rgba(15,23,42,0.05)] dark:border-slate-800 dark:bg-slate-900/80">
@@ -598,10 +609,10 @@ function ShareSingleFileHint(props: { mobile?: boolean }) {
 					<MaterialIcon name="description" className="text-2xl" />
 				</div>
 				<div className="mt-4 text-base font-bold text-slate-900 dark:text-white">
-					这是一个单文件分享
+					{t("sharePage.content.singleFileShare")}
 				</div>
 				<p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-					点击上方按钮可下载或保存，文件详情会单独展示。
+					{t("sharePage.content.singleFileMobileHint")}
 				</p>
 			</div>
 		</div>
@@ -612,10 +623,10 @@ function ShareSingleFileHint(props: { mobile?: boolean }) {
 					<MaterialIcon name="description" className="text-2xl" />
 				</div>
 				<div className="mt-4 text-base font-bold text-slate-900 dark:text-white sm:text-lg">
-					这是一个单文件分享
+					{t("sharePage.content.singleFileShare")}
 				</div>
 				<p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-					右侧可以直接预览或下载文件内容。
+					{t("sharePage.content.singleFileDesktopHint")}
 				</p>
 			</div>
 		</div>
@@ -634,6 +645,7 @@ function ShareTextComposer(props: {
 	onSave: () => void;
 	saving: boolean;
 }) {
+	const { t } = useTranslation();
 	return (
 		<div
 			className={`flex w-full flex-col ${
@@ -643,14 +655,14 @@ function ShareTextComposer(props: {
 			<div className="flex items-start gap-3">
 				<div className="w-full">
 					<div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-sky-500">
-						Quick Note
+						{t("sharePage.content.quickNoteTitle")}
 					</div>
 					{props.shareDescription?.trim() ? (
 						<div>
 							<ShareWriteDescriptionCard
 								title={
 									<div className="mt-1 text-lg font-bold text-slate-900 dark:text-white">
-										快速保存.md文件到当前目录
+										{t("sharePage.content.quickNoteTitle")}
 									</div>
 								}
 								description={props.shareDescription}
@@ -662,14 +674,16 @@ function ShareTextComposer(props: {
 			<div className="mt-5">
 				<label className="block">
 					<span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
-						文件名
+						{t("sharePage.content.fileName")}
 					</span>
 					<input
 						className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
 						onChange={(event) =>
 							props.onFileNameChange(event.target.value)
 						}
-						placeholder={`留空默认使用 ${props.defaultFileName}`}
+						placeholder={t("sharePage.content.fileNamePlaceholder", {
+							name: props.defaultFileName,
+						})}
 						type="text"
 						value={props.fileName}
 					/>
@@ -678,7 +692,7 @@ function ShareTextComposer(props: {
 
 			<label className="mt-4 flex min-h-0 flex-1 flex-col">
 				<span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
-					主体信息
+					{t("sharePage.content.body")}
 				</span>
 				<textarea
 					className={`w-full flex-1 resize-none rounded-[24px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white ${
@@ -687,7 +701,7 @@ function ShareTextComposer(props: {
 					onChange={(event) =>
 						props.onContentChange(event.target.value)
 					}
-					placeholder="输入要保存的 Markdown 内容。"
+					placeholder={t("sharePage.content.bodyPlaceholder")}
 					value={props.fileContent}
 				/>
 			</label>
@@ -702,8 +716,13 @@ function ShareTextComposer(props: {
 					className={props.saving ? "animate-spin" : ""}
 				/>
 				{props.saving
-					? "保存中..."
-					: `保存 ${buildShareTextFilename(props.fileName, props.defaultFileName)} 到当前目录`}
+					? t("common.saving")
+					: t("sharePage.content.saveMarkdownToFolder", {
+							name: buildShareTextFilename(
+								props.fileName,
+								props.defaultFileName,
+							),
+						})}
 			</button>
 		</div>
 	);
@@ -718,9 +737,12 @@ function ShareLocalUploadPanel(props: {
 	uploading: boolean;
 	uploadProgress: { loaded: number; total: number };
 }) {
+	const { t } = useTranslation();
 	const [dragActive, setDragActive] = useState(false);
 	const targetLabel =
-		props.currentPath === "/" ? "当前目录" : props.currentPath;
+		props.currentPath === "/"
+			? t("sharePage.content.currentDirectory")
+			: props.currentPath;
 
 	function handleDragOver(event: DragEvent<HTMLDivElement>) {
 		event.preventDefault();
@@ -753,7 +775,7 @@ function ShareLocalUploadPanel(props: {
 			<div className={`flex items-start`}>
 				<div className="w-full">
 					<div className="text-[11px] font-semibold uppercase tracking-[0.34em] text-sky-500">
-						Local File
+						{t("shares.writeMode.local")}
 					</div>
 
 					{props.shareDescription?.trim() ? (
@@ -761,7 +783,7 @@ function ShareLocalUploadPanel(props: {
 							<ShareWriteDescriptionCard
 								title={
 									<div className="mt-1 text-lg font-bold text-slate-900 dark:text-white">
-										上传本地文件到当前目录
+										{t("sharePage.content.localFileTitle")}
 									</div>
 								}
 								description={props.shareDescription}
@@ -770,8 +792,8 @@ function ShareLocalUploadPanel(props: {
 					) : null}
 					<div className="mt-4 flex flex-wrap gap-2">
 						<ShareWritePill>{targetLabel}</ShareWritePill>
-						<ShareWritePill>支持多文件</ShareWritePill>
-						<ShareWritePill>上传后自动保存</ShareWritePill>
+						<ShareWritePill>{t("sharePage.content.multiFile")}</ShareWritePill>
+						<ShareWritePill>{t("sharePage.content.autoSaveAfterUpload")}</ShareWritePill>
 					</div>
 				</div>
 			</div>
@@ -804,13 +826,13 @@ function ShareLocalUploadPanel(props: {
 				</div>
 				<div className="mt-5 text-[1.45rem] font-bold text-slate-900 dark:text-white">
 					{dragActive
-						? "松开鼠标，立即上传"
+						? t("sharePage.content.releaseToUpload")
 						: props.uploading
 							? formatUploadProgress(props.uploadProgress)
-							: "拖拽文件到这里"}
+							: t("sharePage.content.dragFilesHere")}
 				</div>
 				<p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500 dark:text-slate-300">
-					也可以点击下方按钮选择本地文件。
+					{t("sharePage.content.chooseFilesHelp")}
 				</p>
 				<button
 					className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-[24px] bg-[#dd7a58] px-4 py-3.5 text-sm font-semibold text-white shadow-[0_18px_30px_rgba(221,122,88,0.28)] transition-colors hover:bg-[#cf6945] disabled:cursor-not-allowed disabled:opacity-60"
@@ -824,14 +846,14 @@ function ShareLocalUploadPanel(props: {
 					/>
 					{props.uploading
 						? formatUploadProgress(props.uploadProgress)
-						: "选择本地文件上传"}
+						: t("sharePage.content.chooseFilesToUpload")}
 				</button>
 				<div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-400 dark:text-slate-500">
-					<span>拖拽上传</span>
+					<span>{t("sharePage.content.dragUpload")}</span>
 					<span>·</span>
-					<span>支持批量选择</span>
+					<span>{t("sharePage.content.batchSelection")}</span>
 					<span>·</span>
-					<span>上传完成后自动提示</span>
+					<span>{t("sharePage.content.uploadAutoPrompt")}</span>
 				</div>
 			</div>
 		</div>

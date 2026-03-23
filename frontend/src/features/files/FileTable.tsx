@@ -18,6 +18,7 @@ import {
 	getFileVisual,
 	isEntrySelected,
 } from "@/utils";
+import { useTranslation } from "react-i18next";
 
 export function FileTable(props: {
 	isMobile?: boolean;
@@ -38,6 +39,7 @@ export function FileTable(props: {
 	onShare: (entry: FileEntry) => void;
 	onToggleAllSelection?: (selectAll: boolean) => void;
 }) {
+	const { t } = useTranslation();
 	if (props.entries.length === 0) {
 		return (
 			<div className="flex flex-col items-center justify-center py-20 text-center">
@@ -46,10 +48,10 @@ export function FileTable(props: {
 					className="text-slate-300 dark:text-slate-600 !text-6xl mb-4"
 				/>
 				<strong className="text-slate-500 dark:text-slate-400 text-lg">
-					当前没有可展示的项目
+					{t("files.emptyTitle")}
 				</strong>
 				<p className="text-slate-400 dark:text-slate-500 text-sm mt-2">
-					可以切换目录、清空搜索条件，或直接上传文件。
+					{t("files.emptyDescription")}
 				</p>
 			</div>
 		);
@@ -92,6 +94,7 @@ function GridView(props: {
 	onToggleSelection: (entry: FileEntry) => void;
 	onShare?: (entry: FileEntry) => void;
 }) {
+	const { t } = useTranslation();
 	return (
 		<div className="grid grid-cols-[repeat(auto-fill,minmax(142px,1fr))] gap-x-3.5 gap-y-4.5 md:grid-cols-[repeat(auto-fill,minmax(148px,1fr))] md:gap-x-4 md:gap-y-5 xl:grid-cols-[repeat(auto-fill,minmax(156px,1fr))]">
 			{props.entries.map((entry) => {
@@ -148,7 +151,7 @@ function GridView(props: {
 								<div className="mt-1 flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
 									<span className="truncate">
 										{entry.isDir
-											? "目录"
+											? t("files.directory")
 											: formatBytes(entry.size)}
 									</span>
 									<span className="shrink-0">·</span>
@@ -167,6 +170,7 @@ function GridView(props: {
 
 // ─── List View (based on professional_remote_file_manager_pc prototype) ───
 function ListView(props: ListViewProps) {
+	const { t } = useTranslation();
 	if (props.isMobile) {
 		return <MobileListView {...props} />;
 	}
@@ -178,7 +182,7 @@ function ListView(props: ListViewProps) {
 		);
 
 	return (
-		<div className="rounded-xl border border-slate-200 dark:border-slate-800">
+		<div className="rounded-xl border border-slate-200 dark:border-slate-800 w-full min-w-max">
 			<table className="w-full text-left text-sm border-collapse">
 				<thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 uppercase text-[10px] font-bold tracking-wider">
 					<tr className="border-b border-slate-200 dark:border-slate-800">
@@ -198,13 +202,15 @@ function ListView(props: ListViewProps) {
 								/>
 							</div>
 						</th>
-						<th className="px-4 py-3">Name</th>
+						<th className="px-4 py-3">{t("files.columns.name")}</th>
 						<th className="px-4 py-3 hidden md:table-cell">
-							Date Modified
+							{t("files.columns.dateModified")}
 						</th>
-						<th className="px-4 py-3 hidden lg:table-cell">Type</th>
+						<th className="px-4 py-3 hidden lg:table-cell">
+							{t("files.columns.type")}
+						</th>
 						<th className="px-4 py-3 text-right hidden sm:table-cell">
-							Size
+							{t("files.columns.size")}
 						</th>
 						<th className="px-4 py-3 w-10"></th>
 					</tr>
@@ -297,25 +303,25 @@ function ListView(props: ListViewProps) {
 									<MenuButton
 										actions={[
 											{
-												label: "Rename",
+												label: t("common.rename"),
 												icon: <IconEdit size={14} />,
 												onSelect: () =>
 													props.onRename(entry),
 											},
 											{
-												label: "Move",
+												label: t("common.move"),
 												icon: <IconMove size={14} />,
 												onSelect: () =>
 													props.onMove(entry),
 											},
 											{
-												label: "Copy",
+												label: t("common.copy"),
 												icon: <IconCopy size={14} />,
 												onSelect: () =>
 													props.onCopy(entry),
 											},
 											{
-												label: "Share",
+												label: t("common.share"),
 												icon: (
 													<MaterialIcon
 														name="open_in_new"
@@ -326,7 +332,7 @@ function ListView(props: ListViewProps) {
 													props.onShare(entry),
 											},
 											{
-												label: "Download",
+												label: t("common.download"),
 												icon: (
 													<IconDownload size={14} />
 												),
@@ -334,7 +340,7 @@ function ListView(props: ListViewProps) {
 													props.onDownload(entry),
 											},
 											{
-												label: "Delete",
+												label: t("common.delete"),
 												icon: <IconTrash size={14} />,
 												danger: true,
 												onSelect: () =>
@@ -348,7 +354,9 @@ function ListView(props: ListViewProps) {
 												className="text-lg"
 											/>
 										}
-										buttonLabel={`${entry.name} 操作`}
+										buttonLabel={t("files.actions", {
+											name: entry.name,
+										})}
 										align="right"
 									/>
 								</td>
@@ -362,6 +370,7 @@ function ListView(props: ListViewProps) {
 }
 
 function MobileListView(props: ListViewProps) {
+	const { t } = useTranslation();
 	const longPressTimerRef = useRef<number | null>(null);
 	const suppressActivateKeyRef = useRef<string | null>(null);
 	const selectionMode = Boolean(props.selectionMode);
@@ -417,8 +426,10 @@ function MobileListView(props: ListViewProps) {
 			<div className="flex items-center justify-between px-1">
 				<span className="text-xs font-medium text-slate-400">
 					{selectionMode && props.selectedEntries.length > 0
-						? `已选 ${props.selectedEntries.length} 项`
-						: `${props.entries.length} 项`}
+						? t("files.selectedCount", {
+								count: props.selectedEntries.length,
+							})
+						: t("files.itemsCount", { count: props.entries.length })}
 				</span>
 				<button
 					className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
@@ -429,12 +440,15 @@ function MobileListView(props: ListViewProps) {
 					onClick={() => setSelectionModeEnabled(!selectionMode)}
 					type="button"
 				>
-					{selectionMode ? "完成" : "选择"}
+					{selectionMode ? t("common.done") : t("common.select")}
 				</button>
 			</div>
 			<div className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
 				{props.entries.map((entry, index) => {
-					const selected = isEntrySelected(entry, props.selectedEntries);
+					const selected = isEntrySelected(
+						entry,
+						props.selectedEntries,
+					);
 					const { icon, textColor } = getFileVisual(entry);
 
 					return (
@@ -501,23 +515,23 @@ function MobileListView(props: ListViewProps) {
 								<MenuButton
 									actions={[
 										{
-											label: "Rename",
+											label: t("common.rename"),
 											icon: <IconEdit size={14} />,
 											onSelect: () =>
 												props.onRename(entry),
 										},
 										{
-											label: "Move",
+											label: t("common.move"),
 											icon: <IconMove size={14} />,
 											onSelect: () => props.onMove(entry),
 										},
 										{
-											label: "Copy",
+											label: t("common.copy"),
 											icon: <IconCopy size={14} />,
 											onSelect: () => props.onCopy(entry),
 										},
 										{
-											label: "Share",
+											label: t("common.share"),
 											icon: (
 												<MaterialIcon
 													name="open_in_new"
@@ -528,13 +542,13 @@ function MobileListView(props: ListViewProps) {
 												props.onShare(entry),
 										},
 										{
-											label: "Download",
+											label: t("common.download"),
 											icon: <IconDownload size={14} />,
 											onSelect: () =>
 												props.onDownload(entry),
 										},
 										{
-											label: "Delete",
+											label: t("common.delete"),
 											icon: <IconTrash size={14} />,
 											danger: true,
 											onSelect: () =>
@@ -549,7 +563,9 @@ function MobileListView(props: ListViewProps) {
 											className="text-lg"
 										/>
 									}
-									buttonLabel={`${entry.name} 操作`}
+									buttonLabel={t("files.actions", {
+										name: entry.name,
+									})}
 								/>
 							</div>
 						</div>

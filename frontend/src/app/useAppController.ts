@@ -6,6 +6,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { api, rawFileUrl } from "@/api";
 import { isAppMode } from "@/api/routing";
 import { uploadSizeErrorMessage } from "@/api/uploadLimits";
@@ -67,6 +68,7 @@ type TaskDeleteDialogState = {
 };
 
 export function useAppController() {
+	const { t } = useTranslation();
 	const [user, setUser] = useState<SessionUser | null>(null);
 	const [loadingSession, setLoadingSession] = useState(true);
 	const [mounts, setMounts] = useState<MountRoot[]>([]);
@@ -135,6 +137,24 @@ export function useAppController() {
 	const currentDirectoryTitle = user
 		? breadcrumbs[breadcrumbs.length - 1]?.label ?? null
 		: null;
+	const canShareCurrentDirectory = Boolean(
+		currentMountId && currentPath !== "/",
+	);
+	const currentDirectoryShareTarget = useMemo<FileEntry | null>(() => {
+		if (!canShareCurrentDirectory) {
+			return null;
+		}
+		return {
+			mountId: currentMountId,
+			path: currentPath,
+			name: basename(currentPath),
+			isDir: true,
+			size: 0,
+			modTime: Math.floor(Date.now() / 1000),
+			mime: "",
+			extension: "",
+		};
+	}, [canShareCurrentDirectory, currentMountId, currentPath]);
 	const hasActiveTask = useMemo(
 		() =>
 			tasks.some(
@@ -175,6 +195,13 @@ export function useAppController() {
 		() => (preview ? entryFromPreview(preview) : null),
 		[preview],
 	);
+	const desktopPreviewOpen = Boolean(
+		!isMobile &&
+			inspectorMode === "preview" &&
+			activeEntry &&
+			!activeEntry.isDir &&
+			preview,
+	);
 	const dialogMountId = useMemo(() => {
 		if (!dialog || (dialog.kind !== "move" && dialog.kind !== "copy")) {
 			return "";
@@ -190,10 +217,10 @@ export function useAppController() {
 	);
 	const mobileInspectorTitle =
 		inspectorMode === "trash"
-			? "垃圾桶"
+			? t("controller.inspector.trash")
 			: inspectorMode === "shares"
-				? "我的分享"
-				: "任务";
+				? t("controller.inspector.shares")
+				: t("controller.inspector.tasks");
 
 	useDocumentTitle(currentDirectoryTitle);
 
@@ -281,6 +308,8 @@ export function useAppController() {
 			if (event.key === "Escape") {
 				if (fullScreenImage) {
 					setFullScreenImage(null);
+				} else if (desktopPreviewOpen) {
+					handleCloseDesktopPreview();
 				} else if (dialog) {
 					setDialog(null);
 				} else if (taskDeleteDialog && !taskDeleteDialog.submitting) {
@@ -290,7 +319,12 @@ export function useAppController() {
 		};
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [fullScreenImage, dialog, taskDeleteDialog]);
+	}, [
+		fullScreenImage,
+		desktopPreviewOpen,
+		dialog,
+		taskDeleteDialog,
+	]);
 
 	useEffect(() => {
 		if (!user || !currentMountId) return;
@@ -390,7 +424,7 @@ export function useAppController() {
 					text:
 						error instanceof Error
 							? error.message
-							: "App 模式需要宿主注入访问令牌。",
+							: t("controller.errors.appModeToken"),
 				});
 			}
 		} finally {
@@ -449,7 +483,7 @@ export function useAppController() {
 				text:
 					error instanceof Error
 						? error.message
-						: "加载目录失败，请检查挂载目录是否存在。",
+						: t("controller.errors.loadDirectoryFailed"),
 			});
 		}
 	}
@@ -471,7 +505,7 @@ export function useAppController() {
 	async function handleLogin(username: string, password: string) {
 		const me = await api.login(username, password);
 		setUser(me);
-		setNotice({ tone: "info", text: "登录成功" });
+		setNotice({ tone: "info", text: t("controller.info.loginSuccess") });
 		await Promise.all([loadMountBootstrap(), loadRuntimeData()]);
 	}
 
@@ -526,7 +560,10 @@ export function useAppController() {
 			clearInspector(inspectRequestRef, setPreview, setEditor);
 			setNotice({
 				tone: "error",
-				text: error instanceof Error ? error.message : "加载预览失败",
+				text:
+					error instanceof Error
+						? error.message
+						: t("controller.errors.loadPreviewFailed"),
 			});
 		}
 	}
@@ -622,7 +659,10 @@ export function useAppController() {
 
 	function openRenameDialog(entry = selectedEntries[0]) {
 		if (!entry) {
-			setNotice({ tone: "error", text: "请选择一个项目重命名。" });
+			setNotice({
+				tone: "error",
+				text: t("controller.errors.selectOneRename"),
+			});
 			return;
 		}
 		setDialog({
@@ -639,14 +679,17 @@ export function useAppController() {
 		entriesArg = selectedEntries,
 	) {
 		if (!entriesArg.length) {
-			setNotice({ tone: "error", text: "请先选择文件或目录。" });
+			setNotice({
+				tone: "error",
+				text: t("controller.errors.selectEntriesFirst"),
+			});
 			return;
 		}
 		const mountId = getSingleMountId(entriesArg);
 		if (!mountId) {
 			setNotice({
 				tone: "error",
-				text: "批量操作暂不支持跨挂载点选择。",
+				text: t("controller.errors.crossMountBatch"),
 			});
 			return;
 		}
@@ -668,13 +711,16 @@ export function useAppController() {
 
 	function openDeleteDialog(entriesArg = selectedEntries) {
 		if (!entriesArg.length) {
-			setNotice({ tone: "error", text: "请先选择要删除的项目。" });
+			setNotice({
+				tone: "error",
+				text: t("controller.errors.selectDeleteFirst"),
+			});
 			return;
 		}
 		if (!getSingleMountId(entriesArg)) {
 			setNotice({
 				tone: "error",
-				text: "删除操作暂不支持跨挂载点选择。",
+				text: t("controller.errors.crossMountDelete"),
 			});
 			return;
 		}
@@ -688,7 +734,10 @@ export function useAppController() {
 
 	function openBatchDownloadDialog(entriesArg = selectedEntries) {
 		if (!entriesArg.length) {
-			setNotice({ tone: "error", text: "请先选择要下载的项目。" });
+			setNotice({
+				tone: "error",
+				text: t("controller.errors.selectDownloadFirst"),
+			});
 			return;
 		}
 		if (entriesArg.length === 1 && !entriesArg[0].isDir) {
@@ -704,7 +753,7 @@ export function useAppController() {
 		if (!getSingleMountId(entriesArg)) {
 			setNotice({
 				tone: "error",
-				text: "批量下载暂不支持跨挂载点选择。",
+				text: t("controller.errors.crossMountDownload"),
 			});
 			return;
 		}
@@ -721,11 +770,22 @@ export function useAppController() {
 		if (!entry) {
 			setNotice({
 				tone: "error",
-				text: "请选择一个文件或目录进行分享。",
+				text: t("controller.errors.selectShareFirst"),
 			});
 			return;
 		}
 		setShareTarget(entry);
+	}
+
+	function openCurrentDirectoryShareDialog() {
+		if (!currentDirectoryShareTarget) {
+			setNotice({
+				tone: "error",
+				text: t("controller.errors.shareCurrentDirUnsupported"),
+			});
+			return;
+		}
+		openShareDialog(currentDirectoryShareTarget);
 	}
 
 	function openTasksPanel() {
@@ -751,17 +811,20 @@ export function useAppController() {
 	async function handleCopyShare(share: ManagedShare) {
 		const link = new URL(share.urlPath, window.location.origin).toString();
 		const copyText = share.password
-			? `链接：${link}\n提取码：${share.password}`
-			: `链接：${link}`;
+			? t("controller.copyText.linkWithPassword", {
+					link,
+					password: share.password,
+				})
+			: t("controller.copyText.linkOnly", { link });
 		await navigator.clipboard.writeText(copyText);
 		setNotice({
 			tone: "info",
 			text:
 				share.access === "password"
 					? share.password
-						? "分享链接和提取码已复制"
-						: "分享链接已复制，当前分享创建时未保存提取码。"
-					: "分享链接已复制",
+						? t("controller.info.shareCopiedWithPassword")
+						: t("controller.info.shareCopiedWithoutPassword")
+					: t("controller.info.shareCopied"),
 		});
 	}
 
@@ -770,11 +833,14 @@ export function useAppController() {
 		try {
 			await api.deleteShare(id);
 			await reloadShares();
-			setNotice({ tone: "info", text: "已取消分享" });
+			setNotice({ tone: "info", text: t("controller.info.shareRevoked") });
 		} catch (error) {
 			setNotice({
 				tone: "error",
-				text: error instanceof Error ? error.message : "取消分享失败",
+				text:
+					error instanceof Error
+						? error.message
+						: t("controller.errors.operationFailed"),
 			});
 		} finally {
 			setDeletingShareId(null);
@@ -811,30 +877,33 @@ export function useAppController() {
 		try {
 			if (dialog.kind === "create-folder") {
 				const name = dialog.value.trim();
-				if (!name) throw new Error("请输入目录名称。");
-				if (!currentMountId) throw new Error("当前没有可用挂载点。");
+				if (!name) throw new Error(t("controller.errors.enterFolderName"));
+				if (!currentMountId) throw new Error(t("controller.errors.noMountAvailable"));
 				await api.createFolder(currentMountId, currentPath, name);
 				setDialog(null);
 				await refreshCurrentView();
-				setNotice({ tone: "info", text: `已创建 ${name}` });
+				setNotice({
+					tone: "info",
+					text: t("controller.info.folderCreated", { name }),
+				});
 				return;
 			}
 			if (dialog.kind === "rename") {
 				const nextName = dialog.value.trim();
-				if (!nextName) throw new Error("请输入新的名称。");
+				if (!nextName) throw new Error(t("controller.errors.enterNewName"));
 				await api.rename(dialog.entry.mountId, dialog.entry.path, nextName);
 				setDialog(null);
 				setSelectedEntries([]);
 				clearInspector(inspectRequestRef, setPreview, setEditor);
 				await refreshCurrentView();
-				setNotice({ tone: "info", text: "重命名成功" });
+				setNotice({ tone: "info", text: t("controller.info.renameSuccess") });
 				return;
 			}
 			if (dialog.kind === "move" || dialog.kind === "copy") {
 				const mountId = getSingleMountId(dialog.entries);
-				if (!mountId) throw new Error("批量操作暂不支持跨挂载点选择。");
+				if (!mountId) throw new Error(t("controller.errors.crossMountBatch"));
 				const targetDir = normalizeDirectory(dialog.targetDir);
-				if (!targetDir) throw new Error("请输入目标目录。");
+				if (!targetDir) throw new Error(t("controller.errors.enterTargetDir"));
 				await Promise.all(
 					dialog.entries.map((entry) =>
 						dialog.kind === "move"
@@ -848,13 +917,16 @@ export function useAppController() {
 				await refreshCurrentView();
 				setNotice({
 					tone: "info",
-					text: dialog.kind === "move" ? "移动完成" : "复制完成",
+					text:
+						dialog.kind === "move"
+							? t("controller.info.moveComplete")
+							: t("controller.info.copyComplete"),
 				});
 				return;
 			}
 			if (dialog.kind === "delete") {
 				const mountId = getSingleMountId(dialog.entries);
-				if (!mountId) throw new Error("删除操作暂不支持跨挂载点选择。");
+				if (!mountId) throw new Error(t("controller.errors.crossMountDelete"));
 				await Promise.all(
 					dialog.entries.map((entry) => api.remove(mountId, entry.path)),
 				);
@@ -862,12 +934,12 @@ export function useAppController() {
 				setSelectedEntries([]);
 				clearInspector(inspectRequestRef, setPreview, setEditor);
 				await refreshCurrentView();
-				setNotice({ tone: "info", text: "已移入垃圾桶" });
+				setNotice({ tone: "info", text: t("controller.info.movedToTrash") });
 				return;
 			}
 			if (dialog.kind === "batch-download") {
 				const mountId = getSingleMountId(dialog.entries);
-				if (!mountId) throw new Error("批量下载暂不支持跨挂载点选择。");
+				if (!mountId) throw new Error(t("controller.errors.crossMountDownload"));
 				const archiveName = dialog.value.trim() || "bundle.zip";
 				const task = await api.batchDownload(
 					mountId,
@@ -877,7 +949,10 @@ export function useAppController() {
 				setTasks((prev) => mergeTasks(prev, [task]));
 				setTaskPanelCollapsed(false);
 				setDialog(null);
-				setNotice({ tone: "info", text: "已创建下载任务" });
+				setNotice({
+					tone: "info",
+					text: t("controller.info.downloadTaskCreated"),
+				});
 				openTasksPanel();
 				setInspectorOpen(true);
 			}
@@ -890,7 +965,7 @@ export function useAppController() {
 							error:
 								error instanceof Error
 									? error.message
-									: "操作失败",
+									: t("controller.errors.operationFailed"),
 						}
 					: current,
 			);
@@ -945,7 +1020,10 @@ export function useAppController() {
 			setTasks((prev) => prev.filter((item) => item.id !== localTask.id));
 			setNotice({
 				tone: "error",
-				text: error instanceof Error ? error.message : "上传失败",
+				text:
+					error instanceof Error
+						? error.message
+						: t("controller.errors.uploadFailed"),
 			});
 		}
 	}
@@ -997,7 +1075,7 @@ export function useAppController() {
 				prev.filter((item) => item.id !== taskDeleteDialog.task.id),
 			);
 			setTaskDeleteDialog(null);
-			setNotice({ tone: "info", text: "任务已删除" });
+			setNotice({ tone: "info", text: t("controller.info.taskDeleted") });
 		} catch (error) {
 			setTaskDeleteDialog((current) =>
 				current
@@ -1005,7 +1083,9 @@ export function useAppController() {
 							...current,
 							submitting: false,
 							error:
-								error instanceof Error ? error.message : "删除失败",
+								error instanceof Error
+									? error.message
+									: t("controller.errors.deleteFailed"),
 						}
 					: current,
 			);
@@ -1031,7 +1111,7 @@ export function useAppController() {
 				: prev,
 		);
 		await refreshCurrentView();
-		setNotice({ tone: "info", text: "保存成功" });
+		setNotice({ tone: "info", text: t("controller.info.saveSuccess") });
 	}
 
 	async function handleRestoreTrash(id: string) {
@@ -1040,8 +1120,10 @@ export function useAppController() {
 		setNotice({
 			tone: result.conflicts.length ? "error" : "info",
 			text: result.conflicts.length
-				? `恢复失败：${result.conflicts.join("、")}`
-				: "已恢复到原位置",
+				? t("controller.restoreFailed", {
+						items: result.conflicts.join("、"),
+					})
+				: t("controller.info.restoreSuccess"),
 		});
 	}
 
@@ -1051,8 +1133,10 @@ export function useAppController() {
 		setNotice({
 			tone: result.missing.length ? "error" : "info",
 			text: result.missing.length
-				? `删除失败：${result.missing.join("、")}`
-				: "已彻底删除",
+				? t("controller.deletePermanentFailed", {
+						items: result.missing.join("、"),
+					})
+				: t("controller.info.deletePermanentSuccess"),
 		});
 	}
 
@@ -1138,6 +1222,11 @@ export function useAppController() {
 		setFullScreenImage(null);
 	}
 
+	function handleCloseDesktopPreview() {
+		clearSelectionInspector();
+		setInspectorOpen(false);
+	}
+
 	function handleDialogChange(value: string) {
 		setDialog((current) => {
 			if (!current) return current;
@@ -1205,6 +1294,7 @@ export function useAppController() {
 		activeEntry,
 		breadcrumbs,
 		canEditActiveEntry,
+		canShareCurrentDirectory,
 		currentMount,
 		currentMountId,
 		currentPath,
@@ -1217,6 +1307,7 @@ export function useAppController() {
 		fullScreenImage,
 		handleActivateEntry,
 		handleCloseFullScreenImage,
+		handleCloseDesktopPreview,
 		handleCloseMobileInspector,
 		handleCloseMobileNav,
 		handleCopyShare,
@@ -1263,6 +1354,7 @@ export function useAppController() {
 		notice,
 		openBatchDownloadDialog,
 		openCreateFolderDialog,
+		openCurrentDirectoryShareDialog,
 		openDeleteDialog,
 		openMoveCopyDialog,
 		openRenameDialog,

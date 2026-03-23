@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { MaterialIcon } from "@/features/shared/Icons";
+import { useTranslation } from "react-i18next";
 
 type ThemeMode = "system" | "light" | "dark";
 
@@ -11,6 +12,7 @@ export function LoginForm(props: {
 	onLogin: (username: string, password: string) => Promise<void>;
 	onThemeModeChange: (mode: ThemeMode) => void;
 }) {
+	const { t } = useTranslation();
 	const [username, setUsername] = useState("admin");
 	const [password, setPassword] = useState("");
 	const [loading, setLoading] = useState(false);
@@ -24,7 +26,9 @@ export function LoginForm(props: {
 		try {
 			await props.onLogin(username, password);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "登录失败");
+			setError(
+				err instanceof Error ? err.message : t("auth.loginFailed"),
+			);
 		} finally {
 			setLoading(false);
 		}
@@ -65,10 +69,10 @@ export function LoginForm(props: {
 							</div>
 							<div className="flex flex-col gap-1">
 								<h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-									Welcome back
+									{t("auth.welcomeBack")}
 								</h1>
 								<p className="text-slate-500 dark:text-slate-400 text-sm">
-									Enter your credentials to access Zenmind Pan
+									{t("auth.enterCredentials")}
 								</p>
 							</div>
 						</div>
@@ -79,8 +83,7 @@ export function LoginForm(props: {
 						{props.appMode ? (
 							<div className="flex flex-col gap-4">
 								<div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300">
-									/apppan 入口不使用密码登录。请由宿主 App
-									注入 Bearer Token 后再访问当前页面。
+									{t("auth.appModeMessage")}
 								</div>
 								{props.notice ? (
 									<div
@@ -101,7 +104,7 @@ export function LoginForm(props: {
 							>
 								<div className="flex flex-col gap-2">
 									<label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-										Email or Username
+										{t("auth.emailOrUsername")}
 									</label>
 									<div className="relative">
 										<MaterialIcon
@@ -123,7 +126,7 @@ export function LoginForm(props: {
 								<div className="flex flex-col gap-2">
 									<div className="flex justify-between items-center">
 										<label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-											Password
+											{t("auth.password")}
 										</label>
 									</div>
 									<div className="relative">
@@ -187,7 +190,9 @@ export function LoginForm(props: {
 									type="submit"
 								>
 									<span>
-										{loading ? "登录中..." : "Sign In"}
+										{loading
+											? t("auth.signingIn")
+											: t("auth.signIn")}
 									</span>
 									{!loading && (
 										<MaterialIcon
@@ -210,21 +215,21 @@ export function LoginForm(props: {
 								}
 								type="button"
 							>
-								System
+								{t("header.systemTheme")}
 							</button>
 							<button
 								className={`px-3 py-1.5 rounded-lg transition-colors ${props.themeMode === "light" ? "bg-primary/10 text-primary" : "hover:bg-slate-100 dark:hover:bg-slate-800"}`}
 								onClick={() => props.onThemeModeChange("light")}
 								type="button"
 							>
-								Light
+								{t("header.lightMode")}
 							</button>
 							<button
 								className={`px-3 py-1.5 rounded-lg transition-colors ${props.themeMode === "dark" ? "bg-primary/10 text-primary" : "hover:bg-slate-100 dark:hover:bg-slate-800"}`}
 								onClick={() => props.onThemeModeChange("dark")}
 								type="button"
 							>
-								Dark
+								{t("header.darkMode")}
 							</button>
 						</div>
 					</div>

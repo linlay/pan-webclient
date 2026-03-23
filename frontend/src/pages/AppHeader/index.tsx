@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { LanguageMenuButton } from "@/features/shared/LanguageMenuButton";
 import { MaterialIcon } from "@/features/shared/Icons";
 import { MenuButton } from "@/features/shared/MenuButton";
 import { ThemeMode, ViewMode } from "@/types/home";
 
 export interface AppHeaderProps {
 	breadcrumbs: { label: string; path: string }[];
+	canShareCurrentFolder: boolean;
 	isMobile: boolean;
 	searchText: string;
 	showHidden: boolean;
@@ -15,6 +18,7 @@ export interface AppHeaderProps {
 	onOpenMobileNav: () => void;
 	onRefresh: () => void;
 	onSearchChange: (val: string) => void;
+	onShareCurrentFolder: () => void;
 	onSetTheme: (theme: ThemeMode) => void;
 	onToggleShowHidden: () => void;
 	onToggleViewMode: (mode: ViewMode) => void;
@@ -23,6 +27,7 @@ export interface AppHeaderProps {
 }
 
 export function AppHeader(props: AppHeaderProps) {
+	const { t } = useTranslation();
 	const [localSearch, setLocalSearch] = useState(props.searchText);
 	const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 	const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -79,10 +84,10 @@ export function AppHeader(props: AppHeaderProps) {
 				{/* Breadcrumb */}
 				<nav className="flex items-center text-sm font-medium text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis max-w-[40vw]">
 					{props.isMobile ? (
-						<span className="text-slate-900 dark:text-white font-bold truncate">
-							{props.breadcrumbs[props.breadcrumbs.length - 1]
-								?.label || "Zenmind Pan"}
-						</span>
+							<span className="text-slate-900 dark:text-white font-bold truncate">
+								{props.breadcrumbs[props.breadcrumbs.length - 1]
+									?.label || t("common.appName")}
+							</span>
 					) : (
 						props.breadcrumbs.map((crumb, index) => (
 							<span
@@ -125,10 +130,10 @@ export function AppHeader(props: AppHeaderProps) {
 						className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg"
 						name="search"
 					/>
-					<input
-						className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-primary/20 text-sm placeholder:text-slate-400 outline-none transition-all"
-						placeholder="Search files, folders..."
-						type="text"
+						<input
+							className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-primary/20 text-sm placeholder:text-slate-400 outline-none transition-all"
+							placeholder={t("header.searchFilesPlaceholder")}
+							type="text"
 						value={localSearch}
 						onChange={(e) => handleSearchChange(e.target.value)}
 					/>
@@ -159,11 +164,11 @@ export function AppHeader(props: AppHeaderProps) {
 							<MaterialIcon name="arrow_back" />
 						</button>
 						<div className="relative flex-1">
-							<input
-								autoFocus
-								className="w-full pl-3 pr-10 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-primary/20 text-sm placeholder:text-slate-400 outline-none transition-all"
-								placeholder="Search..."
-								type="text"
+								<input
+									autoFocus
+									className="w-full pl-3 pr-10 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-primary/20 text-sm placeholder:text-slate-400 outline-none transition-all"
+									placeholder={t("header.searchPlaceholder")}
+									type="text"
 								value={localSearch}
 								onChange={(e) =>
 									handleSearchChange(e.target.value)
@@ -215,10 +220,25 @@ export function AppHeader(props: AppHeaderProps) {
 
 				{/* User actions */}
 				<div className="flex items-center gap-2 border-l border-slate-200 dark:border-slate-800 pl-4 flex-shrink-0">
+					<LanguageMenuButton compact />
 					<MenuButton
 						actions={[
+							...(props.isMobile && props.canShareCurrentFolder
+								? [
+										{
+											label: t("toolbar.shareFolder"),
+											icon: (
+												<MaterialIcon
+													name="folder"
+													className="text-sm filled-icon"
+												/>
+											),
+											onSelect: props.onShareCurrentFolder,
+											},
+										]
+									: []),
 							{
-								label: "Refresh",
+								label: t("common.refresh"),
 								icon: (
 									<MaterialIcon
 										name="refresh"
@@ -229,8 +249,8 @@ export function AppHeader(props: AppHeaderProps) {
 							},
 							{
 								label: props.showHidden
-									? "Hide Hidden Files"
-									: "Show Hidden Files",
+									? t("header.hideHiddenFiles")
+									: t("header.showHiddenFiles"),
 								icon: (
 									<MaterialIcon
 										name="visibility"
@@ -240,7 +260,7 @@ export function AppHeader(props: AppHeaderProps) {
 								onSelect: props.onToggleShowHidden,
 							},
 							{
-								label: "System Theme",
+								label: t("header.systemTheme"),
 								icon: (
 									<MaterialIcon
 										name="computer"
@@ -250,7 +270,7 @@ export function AppHeader(props: AppHeaderProps) {
 								onSelect: () => props.onSetTheme("system"),
 							},
 							{
-								label: "Light Mode",
+								label: t("header.lightMode"),
 								icon: (
 									<MaterialIcon
 										name="light_mode"
@@ -260,7 +280,7 @@ export function AppHeader(props: AppHeaderProps) {
 								onSelect: () => props.onSetTheme("light"),
 							},
 							{
-								label: "Dark Mode",
+								label: t("header.darkMode"),
 								icon: (
 									<MaterialIcon
 										name="dark_mode"
@@ -270,7 +290,7 @@ export function AppHeader(props: AppHeaderProps) {
 								onSelect: () => props.onSetTheme("dark"),
 							},
 							{
-								label: "Log Out",
+								label: t("header.logOut"),
 								icon: (
 									<MaterialIcon
 										name="logout"
@@ -284,7 +304,7 @@ export function AppHeader(props: AppHeaderProps) {
 						align="right"
 						buttonClassName="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs overflow-hidden hover:bg-primary/30 transition-colors"
 						buttonContent={<MaterialIcon name="person" />}
-						buttonLabel="用户菜单"
+						buttonLabel={t("header.userMenu")}
 					/>
 				</div>
 			</div>

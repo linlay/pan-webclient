@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { MaterialIcon } from "@/features/shared/Icons";
 import { SidebarTree } from "@/features/files/SidebarTree";
 import { ResizableSidebar } from "@/features/shared/ResizableSidebar";
@@ -34,6 +35,7 @@ export interface AppSidebarProps {
 }
 
 export function AppSidebar(props: AppSidebarProps) {
+	const { t } = useTranslation();
 	const [activeSegment, setActiveSegment] = useState<string>("home");
 
 	useEffect(() => {
@@ -62,7 +64,7 @@ export function AppSidebar(props: AppSidebarProps) {
 					<MaterialIcon name="cloud_done" />
 				</div>
 				<h2 className="text-lg font-bold tracking-tight">
-					Zenmind Pan
+					{t("common.appName")}
 				</h2>
 				{props.isMobile ? (
 					<button
@@ -78,28 +80,28 @@ export function AppSidebar(props: AppSidebarProps) {
 			<nav className="flex-1 overflow-y-auto px-4 space-y-6">
 				{/* Favorites */}
 				<div>
-					<h3 className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-						Favorites
-					</h3>
+						<h3 className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+							{t("sidebar.favorites")}
+						</h3>
 					<div className="space-y-1">
 						<button
 							className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/10 text-primary font-medium text-left text-sm"
 							onClick={props.onNavigateHome}
 							type="button"
 						>
-							<MaterialIcon className="text-[20px]" name="star" />
-							<span>Quick Access</span>
+								<MaterialIcon className="text-[20px]" name="star" />
+								<span>{t("sidebar.quickAccess")}</span>
 						</button>
 						<button
 							className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left text-sm"
 							onClick={props.onOpenShares}
 							type="button"
 						>
-							<MaterialIcon
-								className="text-[20px]"
-								name="share"
-							/>
-							<span>My Shares</span>
+								<MaterialIcon
+									className="text-[20px]"
+									name="share"
+								/>
+								<span>{t("sidebar.myShares")}</span>
 							{props.sharesLength > 0 ? (
 								<span className="ml-auto text-xs text-slate-400">
 									{props.sharesLength}
@@ -111,11 +113,11 @@ export function AppSidebar(props: AppSidebarProps) {
 							onClick={props.onOpenTasks}
 							type="button"
 						>
-							<MaterialIcon
-								className="text-[20px]"
-								name="schedule"
-							/>
-							<span>Tasks</span>
+								<MaterialIcon
+									className="text-[20px]"
+									name="schedule"
+								/>
+								<span>{t("sidebar.tasks")}</span>
 							{props.tasksLength > 0 ? (
 								<span className="ml-auto text-xs text-slate-400">
 									{props.tasksLength}
@@ -127,11 +129,11 @@ export function AppSidebar(props: AppSidebarProps) {
 							onClick={props.onOpenTrash}
 							type="button"
 						>
-							<MaterialIcon
-								className="text-[20px]"
-								name="delete"
-							/>
-							<span>Trash</span>
+								<MaterialIcon
+									className="text-[20px]"
+									name="delete"
+								/>
+								<span>{t("sidebar.trash")}</span>
 							{props.trashItemsLength > 0 ? (
 								<span className="ml-auto text-xs text-slate-400">
 									{props.trashItemsLength}
@@ -186,9 +188,11 @@ export function AppSidebar(props: AppSidebarProps) {
 			{/* Storage */}
 			<div className="p-4 border-t border-slate-200 dark:border-slate-800">
 				<div className="bg-slate-100 dark:bg-slate-800/50 rounded-xl p-4">
-					<div className="flex items-center justify-between mb-2">
-						<span className="text-xs font-medium">Storage</span>
-					</div>
+						<div className="flex items-center justify-between mb-2">
+							<span className="text-xs font-medium">
+								{t("sidebar.storage")}
+							</span>
+						</div>
 					<p className="text-[10px] text-slate-500 mb-2 overflow-hidden text-ellipsis">
 						{props.currentMountPath || "/"}
 					</p>
@@ -196,9 +200,9 @@ export function AppSidebar(props: AppSidebarProps) {
 						className="w-full py-1.5 text-xs font-bold text-primary border border-primary/20 rounded-lg hover:bg-primary/5 transition-colors"
 						onClick={props.onRefresh}
 						type="button"
-					>
-						Refresh
-					</button>
+						>
+							{t("common.refresh")}
+						</button>
 				</div>
 			</div>
 		</ResizableSidebar>

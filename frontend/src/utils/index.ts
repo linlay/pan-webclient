@@ -1,4 +1,5 @@
 import { api } from "@/api";
+import { getDateLocale, translate } from "@/i18n";
 import { useEffect, useState } from "react";
 import { OperationDialog, ThemeMode, ViewMode } from "@/types/home";
 import {
@@ -22,54 +23,56 @@ export * from "./tasks";
 // ─── Dialog helpers ───
 export function dialogEyebrow(kind: NonNullable<OperationDialog>["kind"]) {
   return kind === "delete"
-    ? "Danger Zone"
+    ? translate("dialog.dangerZone")
     : kind === "batch-download"
-      ? "Archive"
-      : "Operation";
+      ? translate("dialog.archive")
+      : translate("dialog.operation");
 }
 export function dialogTitle(d: NonNullable<OperationDialog>) {
   switch (d.kind) {
     case "create-folder":
-      return "新建目录";
+      return translate("dialog.createFolderTitle");
     case "rename":
-      return `重命名 ${d.entry.name}`;
+      return translate("dialog.renameTitle", { name: d.entry.name });
     case "move":
-      return `移动 ${d.entries.length} 个项目`;
+      return translate("dialog.moveTitle", { count: d.entries.length });
     case "copy":
-      return `复制 ${d.entries.length} 个项目`;
+      return translate("dialog.copyTitle", { count: d.entries.length });
     case "delete":
-      return `删除 ${d.entries.length} 个项目`;
+      return translate("dialog.deleteTitle", { count: d.entries.length });
     case "batch-download":
-      return `批量下载 ${d.entries.length} 个项目`;
+      return translate("dialog.batchDownloadTitle", {
+        count: d.entries.length,
+      });
   }
 }
 export function dialogDescription(d: NonNullable<OperationDialog>) {
   switch (d.kind) {
     case "create-folder":
-      return "目录会创建在当前工作目录下。";
+      return translate("dialog.createFolderDescription");
     case "rename":
-      return "仅修改名称，不改变所在目录。";
+      return translate("dialog.renameDescription");
     case "move":
-      return "输入目标目录路径。";
+      return translate("dialog.moveDescription");
     case "copy":
-      return "输入目标目录路径。";
+      return translate("dialog.copyDescription");
     case "delete":
-      return "删除会进入垃圾桶，不会直接执行不可恢复删除。";
+      return translate("dialog.deleteDescription");
     case "batch-download":
-      return "系统会在后台创建压缩包任务。";
+      return translate("dialog.batchDownloadDescription");
   }
 }
 export function dialogFieldLabel(kind: NonNullable<OperationDialog>["kind"]) {
   switch (kind) {
     case "create-folder":
-      return "目录名称";
+      return translate("dialog.folderName");
     case "rename":
-      return "新名称";
+      return translate("dialog.newName");
     case "move":
     case "copy":
-      return "目标目录";
+      return translate("dialog.targetDirectory");
     case "batch-download":
-      return "ZIP 文件名";
+      return translate("dialog.zipFileName");
     case "delete":
       return "";
   }
@@ -77,17 +80,17 @@ export function dialogFieldLabel(kind: NonNullable<OperationDialog>["kind"]) {
 export function dialogConfirmLabel(kind: NonNullable<OperationDialog>["kind"]) {
   switch (kind) {
     case "create-folder":
-      return "创建";
+      return translate("common.create");
     case "rename":
-      return "保存名称";
+      return translate("common.rename");
     case "move":
-      return "确认移动";
+      return translate("common.move");
     case "copy":
-      return "确认复制";
+      return translate("common.copy");
     case "delete":
-      return "确认删除";
+      return translate("common.delete");
     case "batch-download":
-      return "创建任务";
+      return translate("dialog.createTask");
   }
 }
 
@@ -227,7 +230,7 @@ export function sortEntries(rows: FileEntry[]) {
   return [...rows].sort((l, r) => {
     if (l.isDir && !r.isDir) return -1;
     if (!l.isDir && r.isDir) return 1;
-    return l.name.localeCompare(r.name, "zh-CN", {
+    return l.name.localeCompare(r.name, getDateLocale(), {
       numeric: true,
       sensitivity: "base",
     });

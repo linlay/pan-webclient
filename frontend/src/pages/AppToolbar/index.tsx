@@ -5,8 +5,10 @@ import {
 	IconCopy,
 	IconTrash,
 } from "@/features/shared/Icons";
+import { useTranslation } from "react-i18next";
 
 export interface AppToolbarProps {
+	canShareCurrentFolder: boolean;
 	foldersCount: number;
 	filesCount: number;
 	hasSelection: boolean;
@@ -16,12 +18,16 @@ export interface AppToolbarProps {
 	onDelete: () => void;
 	onMoveCopy: (kind: "move" | "copy") => void;
 	onRename: () => void;
+	onRefresh: () => void;
+	onShareCurrentFolder: () => void;
 	onShare: () => void;
 	onUploadClick: () => void;
 	isMobile: boolean;
 }
 
 export function AppToolbar(props: AppToolbarProps) {
+	const { t } = useTranslation();
+
 	if (props.isMobile && !props.hasSelection) {
 		return null;
 	}
@@ -46,8 +52,8 @@ export function AppToolbar(props: AppToolbarProps) {
 							onClick={props.onCreateFolder}
 							type="button"
 						>
-							<MaterialIcon name="add" className="text-sm" /> New
-							Folder
+							<MaterialIcon name="add" className="text-sm" />{" "}
+							{t("toolbar.newFolder")}
 						</button>
 						<button
 							className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-all shadow-sm"
@@ -55,8 +61,29 @@ export function AppToolbar(props: AppToolbarProps) {
 							type="button"
 						>
 							<MaterialIcon name="upload" className="text-sm" />{" "}
-							Upload
+							{t("common.upload")}
 						</button>
+						<button
+							className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-all shadow-sm"
+							onClick={props.onRefresh}
+							type="button"
+						>
+							<MaterialIcon name="refresh" className="text-sm" />{" "}
+							{t("common.refresh")}
+						</button>
+						{props.canShareCurrentFolder ? (
+							<button
+								className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-all shadow-sm"
+								onClick={props.onShareCurrentFolder}
+								type="button"
+							>
+									<MaterialIcon
+										name="folder"
+										className="text-sm filled-icon"
+									/>{" "}
+									{t("toolbar.shareFolder")}
+								</button>
+							) : null}
 					</>
 				)}
 
@@ -72,12 +99,12 @@ export function AppToolbar(props: AppToolbarProps) {
 							onClick={props.onBatchDownload}
 							type="button"
 						>
-							<MaterialIcon
-								name="download"
-								className={props.isMobile ? "text-[13px]" : "text-sm"}
-							/>{" "}
-							{props.isMobile ? "下载" : "Download"}
-						</button>
+								<MaterialIcon
+									name="download"
+									className={props.isMobile ? "text-[13px]" : "text-sm"}
+								/>{" "}
+								{t("common.download")}
+							</button>
 						{props.isSingleSelection ? (
 							<button
 								className={
@@ -92,7 +119,7 @@ export function AppToolbar(props: AppToolbarProps) {
 									name="open_in_new"
 									className={props.isMobile ? "text-[13px]" : "text-sm"}
 								/>{" "}
-								{props.isMobile ? "分享" : "Share"}
+								{t("common.share")}
 							</button>
 						) : null}
 						{props.isSingleSelection ? (
@@ -106,7 +133,7 @@ export function AppToolbar(props: AppToolbarProps) {
 								type="button"
 							>
 								<IconEdit size={props.isMobile ? 12 : 14} />{" "}
-								{props.isMobile ? "重命名" : "Rename"}
+								{t("common.rename")}
 							</button>
 						) : null}
 						<button
@@ -119,7 +146,7 @@ export function AppToolbar(props: AppToolbarProps) {
 							type="button"
 						>
 							<IconMove size={props.isMobile ? 12 : 14} />{" "}
-							{props.isMobile ? "移动" : "Move"}
+							{t("common.move")}
 						</button>
 						<button
 							className={
@@ -131,7 +158,7 @@ export function AppToolbar(props: AppToolbarProps) {
 							type="button"
 						>
 							<IconCopy size={props.isMobile ? 12 : 14} />{" "}
-							{props.isMobile ? "复制" : "Copy"}
+							{t("common.copy")}
 						</button>
 						<button
 							className={
@@ -143,7 +170,7 @@ export function AppToolbar(props: AppToolbarProps) {
 							type="button"
 						>
 							<IconTrash size={props.isMobile ? 12 : 14} />{" "}
-							{props.isMobile ? "删除" : "Delete"}
+							{t("common.delete")}
 						</button>
 					</>
 				) : null}
@@ -154,11 +181,12 @@ export function AppToolbar(props: AppToolbarProps) {
 						? "hidden"
 						: "flex flex-shrink-0 items-center gap-2 px-2 text-xs font-medium text-slate-400 sm:px-4"
 				}
-			>
-				<span>
-					{props.foldersCount} folders, {props.filesCount} files
-				</span>
-			</div>
+				>
+					<span>
+						{props.foldersCount} {t("common.folders")},{" "}
+						{props.filesCount} {t("common.files")}
+					</span>
+				</div>
 		</div>
 	);
 }

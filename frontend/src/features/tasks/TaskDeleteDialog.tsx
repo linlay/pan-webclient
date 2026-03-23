@@ -1,6 +1,7 @@
 import { MaterialIcon } from "@/features/shared/Icons";
 import type { TransferTask } from "@/types/contracts";
 import { taskPrimaryLabel } from "@/utils";
+import { useTranslation } from "react-i18next";
 
 export function TaskDeleteDialog(props: {
 	error: string;
@@ -9,6 +10,7 @@ export function TaskDeleteDialog(props: {
 	submitting: boolean;
 	task: TransferTask;
 }) {
+	const { t } = useTranslation();
 	const removesArtifact =
 		props.task.kind === "download" && props.task.status === "success";
 
@@ -31,7 +33,7 @@ export function TaskDeleteDialog(props: {
 			>
 				<div className="p-6 pb-4">
 					<p className="mb-1 text-xs uppercase tracking-wider text-slate-400">
-						Task
+						{t("sidebar.tasks")}
 					</p>
 					<div className="flex items-start gap-3">
 						<div className="mt-0.5 rounded-xl bg-red-50 p-2 text-red-500 dark:bg-red-500/10">
@@ -39,12 +41,12 @@ export function TaskDeleteDialog(props: {
 						</div>
 						<div className="min-w-0">
 							<h2 className="text-lg font-bold text-slate-900 dark:text-white">
-								Delete task history
+								{t("taskDelete.dialogTitle")}
 							</h2>
 							<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-								This cannot be undone.
+								{t("taskDelete.undoWarning")}
 								{removesArtifact
-									? " The generated download archive will be removed as well."
+									? ` ${t("taskDelete.removeArchive")}`
 									: ""}
 							</p>
 						</div>
@@ -54,7 +56,7 @@ export function TaskDeleteDialog(props: {
 				<div className="px-6 pb-4">
 					<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
 						<p className="text-xs uppercase tracking-wider text-slate-400">
-							Task name
+							{t("taskDelete.taskName")}
 						</p>
 						<p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-white">
 							{taskPrimaryLabel(props.task)}
@@ -79,14 +81,16 @@ export function TaskDeleteDialog(props: {
 						onClick={props.onClose}
 						type="button"
 					>
-						Cancel
+						{t("common.cancel")}
 					</button>
 					<button
 						className="rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
 						disabled={props.submitting}
 						type="submit"
 					>
-						{props.submitting ? "Deleting..." : "Delete"}
+						{props.submitting
+							? t("taskDelete.deleting")
+							: t("taskDelete.delete")}
 					</button>
 				</div>
 			</form>

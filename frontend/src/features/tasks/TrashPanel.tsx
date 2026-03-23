@@ -1,6 +1,7 @@
 import type { TrashItem } from "../../types/contracts/index";
 import { MaterialIcon } from "../shared/Icons";
 import { formatDateTime } from "@/utils";
+import { useTranslation } from "react-i18next";
 
 export function TrashPanel(props: {
 	items: TrashItem[];
@@ -10,14 +11,15 @@ export function TrashPanel(props: {
 	onRefresh: () => void;
 	onBack: () => void;
 }) {
+	const { t } = useTranslation();
 	return (
 		<div className="p-6 flex flex-col gap-4">
 			<div className="flex items-center justify-between">
 				<div>
 					<p className="text-xs uppercase tracking-wider text-slate-400">
-						Trash
+						{t("sidebar.trash")}
 					</p>
-					<h3 className="text-lg font-bold">垃圾桶</h3>
+					<h3 className="text-lg font-bold">{t("trash.panelTitle")}</h3>
 				</div>
 				{!props.isMobile ? (
 					<div className="flex items-center gap-2">
@@ -33,7 +35,7 @@ export function TrashPanel(props: {
 							onClick={props.onBack}
 							type="button"
 						>
-							返回
+							{t("common.back")}
 						</button>
 					</div>
 				) : null}
@@ -46,7 +48,9 @@ export function TrashPanel(props: {
 							name="delete_sweep"
 							className="text-slate-300 dark:text-slate-600 !text-5xl mb-2"
 						/>
-						<p className="text-sm text-slate-400">垃圾桶为空</p>
+						<p className="text-sm text-slate-400">
+							{t("trash.empty")}
+						</p>
 					</div>
 				) : (
 					props.items.map((item) => (
@@ -73,7 +77,7 @@ export function TrashPanel(props: {
 								<button
 									className="p-1.5 text-green-500 hover:bg-green-50 dark:hover:bg-green-500/10 rounded-lg transition-colors"
 									onClick={() => props.onRestore(item.id)}
-									title="恢复"
+									title={t("trash.restore")}
 									type="button"
 								>
 									<MaterialIcon
@@ -84,7 +88,7 @@ export function TrashPanel(props: {
 								<button
 									className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
 									onClick={() => props.onDelete(item.id)}
-									title="彻底删除"
+									title={t("trash.deletePermanently")}
 									type="button"
 								>
 									<MaterialIcon

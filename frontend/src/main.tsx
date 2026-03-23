@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { loadUploadLimits } from "./api/uploadLimits";
 import { App } from "./App";
 import { shareIdFromPath } from "./api/routing";
+import "./i18n";
 import { SharePage } from "./pages/SharePage";
 import "./styles/index.scss";
 

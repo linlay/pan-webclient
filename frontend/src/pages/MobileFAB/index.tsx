@@ -1,5 +1,6 @@
 import { MaterialIcon } from "@/features/shared/Icons";
 import { MenuButton } from "@/features/shared/MenuButton";
+import { useTranslation } from "react-i18next";
 
 export interface MobileFABProps {
 	onCreateFolder: () => void;
@@ -7,6 +8,8 @@ export interface MobileFABProps {
 }
 
 export function MobileFAB(props: MobileFABProps) {
+	const { t } = useTranslation();
+
 	return (
 		<div className="fixed bottom-6 right-6 z-40 lg:hidden">
 			<MenuButton
@@ -18,12 +21,12 @@ export function MobileFAB(props: MobileFABProps) {
 				actions={[
 					{
 						icon: <MaterialIcon name="create_new_folder" />,
-						label: "New Folder",
+						label: t("mobileFab.newFolder"),
 						onSelect: props.onCreateFolder,
 					},
 					{
 						icon: <MaterialIcon name="upload" />,
-						label: "Upload File",
+						label: t("mobileFab.uploadFile"),
 						onSelect: props.onUploadClick,
 					},
 				]}

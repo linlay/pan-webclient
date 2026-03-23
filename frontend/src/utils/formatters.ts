@@ -1,3 +1,5 @@
+import { getDateLocale, translate } from "@/i18n";
+
 export function formatBytes(value: number) {
   if (value < 1024) return `${value} B`;
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
@@ -7,11 +9,11 @@ export function formatBytes(value: number) {
 }
 
 export function formatDateTime(value: number) {
-  return new Date(value * 1000).toLocaleString();
+  return new Date(value * 1000).toLocaleString(getDateLocale());
 }
 
 export function formatCompactDate(value: number) {
-  return new Date(value * 1000).toLocaleDateString(undefined, {
+  return new Date(value * 1000).toLocaleDateString(getDateLocale(), {
     month: "numeric",
     day: "numeric",
   });
@@ -22,15 +24,16 @@ export function formatUploadProgress(progress: {
   total: number;
 }) {
   if (progress.total > 0) {
-    return `上传中 ${Math.min(
-      100,
-      Math.round((progress.loaded / progress.total) * 100),
-    )}%`;
+    return translate("formatters.uploadingProgress", {
+      value: Math.min(100, Math.round((progress.loaded / progress.total) * 100)),
+    });
   }
   if (progress.loaded > 0) {
-    return `已上传 ${formatBytes(progress.loaded)}`;
+    return translate("formatters.uploadedBytes", {
+      value: formatBytes(progress.loaded),
+    });
   }
-  return "上传中...";
+  return translate("formatters.uploading");
 }
 
 export function formatDateInput(value: Date) {

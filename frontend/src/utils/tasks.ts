@@ -1,4 +1,6 @@
 import type { TransferTask } from "@/types/contracts";
+import { translate } from "@/i18n";
+import { formatBytes } from "./formatters";
 
 export function isLocalTaskId(taskId: string) {
   return taskId.startsWith("local-");
@@ -13,8 +15,10 @@ export function buildLocalUploadTask(files: File[]): TransferTask {
     status: "running",
     detail:
       files.length === 1
-        ? `Uploading ${files[0]?.name ?? "file"}`
-        : `Uploading ${files.length} files`,
+        ? translate("tasks.detail.uploadingOne", {
+            name: files[0]?.name ?? translate("common.file"),
+          })
+        : translate("tasks.detail.uploadingMany", { count: files.length }),
     items: files.map((file) => ({
       name: file.name,
       path: file.name,
@@ -31,12 +35,26 @@ export function buildLocalUploadTask(files: File[]): TransferTask {
 export function taskPrimaryLabel(task: TransferTask) {
   const items = task.items ?? [];
   if (items.length === 0) {
-    return task.kind === "upload" ? "Upload Task" : "Download Task";
+    return task.kind === "upload"
+      ? translate("common.upload")
+      : translate("tasks.summary.zipArchive");
   }
   if (items.length === 1) {
     return items[0].name;
   }
   return `${items[0].name} +${items.length - 1}`;
+}
+
+export function isDownloadTaskReady(task: TransferTask) {
+  return (
+    task.kind === "download" &&
+    task.status === "success" &&
+    Boolean(task.downloadUrl)
+  );
+}
+
+export function isUploadTaskComplete(task: TransferTask) {
+  return task.kind === "upload" && task.status === "success";
 }
 
 export function taskTotalBytes(task: TransferTask) {
@@ -71,15 +89,59 @@ export function taskHasByteProgress(task: TransferTask) {
 }
 
 export function shouldShowTaskProgress(task: TransferTask) {
+  if (isDownloadTaskReady(task) || isUploadTaskComplete(task)) {
+    return false;
+  }
   return taskHasByteProgress(task) || task.status === "success";
 }
 
 export function taskSummary(task: TransferTask) {
   const count = task.items?.length ?? 0;
-  const noun = count === 1 ? "item" : "items";
-  const type = task.kind === "upload" ? "Upload" : "Download";
+  const type =
+    task.kind === "upload"
+      ? translate("tasks.summary.upload")
+      : isDownloadTaskReady(task)
+        ? translate("tasks.summary.zipReady")
+        : translate("tasks.summary.zipPacking");
   if (!count) {
     return type;
   }
-  return `${type} · ${count} ${noun}`;
+  return `${type} · ${translate("tasks.summary.countSuffix", { count })}`;
+}
+
+export function taskDisplayDetail(task: TransferTask) {
+  if (isUploadTaskComplete(task)) {
+    return "";
+  }
+  if (task.kind !== "download") {
+    return task.detail;
+  }
+  switch (task.detail) {
+    case "Preparing archive":
+      return translate("tasks.detail.preparingArchive");
+    case "Building ZIP archive":
+      return translate("tasks.detail.buildingArchive");
+    case "Archive ready":
+      return "";
+    default:
+      return task.detail;
+  }
+}
+
+export function taskFooterLabel(task: TransferTask) {
+  if (isUploadTaskComplete(task)) {
+    return translate("tasks.footer.transferComplete");
+  }
+  if (isDownloadTaskReady(task)) {
+    const total = taskTotalBytes(task);
+    return total > 0
+      ? translate("tasks.footer.sourceTotalSize", {
+          size: formatBytes(total),
+        })
+      : translate("tasks.footer.zipReady");
+  }
+  if (taskHasByteProgress(task)) {
+    return `${formatBytes(taskCompletedBytes(task))} / ${formatBytes(taskTotalBytes(task))}`;
+  }
+  return task.status === "success" ? "100%" : "";
 }

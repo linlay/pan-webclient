@@ -15,6 +15,8 @@ import {
 	previewIconName,
 	previewTextColor,
 } from "@/utils";
+import { translate } from "@/i18n";
+import { useTranslation } from "react-i18next";
 
 export function PreviewPane(props: {
 	preview: PreviewMeta | null;
@@ -27,30 +29,35 @@ export function PreviewPane(props: {
 	onEnterEdit: () => void;
 	onShowTasks: () => void;
 	onImagePreview?: (url: string) => void;
+	onClosePreview?: () => void;
 	taskCount: number;
 }) {
+	const { t } = useTranslation();
 	const entry = props.activeEntry;
+	const immersivePreview = Boolean(props.onClosePreview);
 
 	// Multi-selection
 	if (props.selectedEntries.length > 1) {
 		return (
 			<div className="flex h-full min-h-0 flex-col overflow-y-auto p-4 sm:p-6">
-				<div className="mb-6 flex items-center justify-between">
-					<h3 className="text-lg font-bold">
-						{props.selectedEntries.length} 项已选
-					</h3>
+					<div className="mb-6 flex items-center justify-between">
+						<h3 className="text-lg font-bold">
+							{t("preview.selectedTitle", {
+								count: props.selectedEntries.length,
+							})}
+						</h3>
 					{props.taskCount > 0 ? (
 						<button
 							className="text-xs text-primary font-medium"
 							onClick={props.onShowTasks}
 							type="button"
 						>
-							任务 {props.taskCount}
+							{t("preview.viewTasks", { count: props.taskCount })}
 						</button>
 					) : null}
 				</div>
 				<p className="text-sm text-slate-500 mb-4">
-					批量选择时不会自动加载预览。可以直接执行移动、复制、删除或批量下载操作。
+					{t("preview.selectedDescription")}
 				</p>
 				<div className="flex flex-wrap gap-2">
 					{props.selectedEntries.slice(0, 5).map((item) => (
@@ -76,7 +83,7 @@ export function PreviewPane(props: {
 		return (
 			<div className="flex h-full min-h-0 flex-col overflow-y-auto p-4 sm:p-6">
 				<div className="mb-6 flex items-center justify-between">
-					<h3 className="text-lg font-bold">Properties</h3>
+					<h3 className="text-lg font-bold">{t("preview.properties")}</h3>
 				</div>
 				<div className="mb-8 flex flex-col items-center gap-4">
 					<div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-blue-500/10 sm:h-32 sm:w-32">
@@ -88,12 +95,12 @@ export function PreviewPane(props: {
 					<h4 className="text-md font-bold text-center">
 						{entry.name}
 					</h4>
-					<p className="text-xs text-slate-500">文件夹</p>
+					<p className="text-xs text-slate-500">{t("preview.fileFolder")}</p>
 				</div>
 				<div className="space-y-4">
 					<div className="flex justify-between text-sm">
 						<span className="text-slate-500 font-medium">
-							Mount:
+							{t("preview.mount")}:
 						</span>
 						<span className="font-medium">
 							{props.currentMount?.name ?? entry.mountId}
@@ -101,7 +108,7 @@ export function PreviewPane(props: {
 					</div>
 					<div className="flex justify-between text-sm">
 						<span className="text-slate-500 font-medium">
-							Location:
+							{t("preview.location")}:
 						</span>
 						<span className="font-medium truncate ml-4">
 							{entry.path}
@@ -109,7 +116,7 @@ export function PreviewPane(props: {
 					</div>
 					<div className="flex justify-between text-sm">
 						<span className="text-slate-500 font-medium">
-							Modified:
+							{t("preview.modified")}:
 						</span>
 						<span className="font-medium">
 							{formatDateTime(entry.modTime)}
@@ -128,21 +135,21 @@ export function PreviewPane(props: {
 					name="touch_app"
 					className="text-slate-300 dark:text-slate-600 !text-6xl mb-4"
 				/>
-				<h3 className="text-lg font-bold mb-2">
-					{props.currentMount?.name ?? "未选择挂载点"}
-				</h3>
-				<p className="text-sm text-slate-500">
-					{props.searchQuery
-						? `当前正在搜索 "${props.searchQuery}"`
-						: "选择一个项目查看详情"}
-				</p>
+					<h3 className="text-lg font-bold mb-2">
+						{props.currentMount?.name ?? t("preview.noMountSelected")}
+					</h3>
+					<p className="text-sm text-slate-500">
+						{props.searchQuery
+							? t("preview.searching", { query: props.searchQuery })
+							: t("preview.selectToView")}
+					</p>
 				{props.taskCount > 0 ? (
 					<button
 						className="mt-4 text-sm text-primary font-medium hover:underline"
 						onClick={props.onShowTasks}
 						type="button"
 					>
-						查看 {props.taskCount} 个任务
+						{t("preview.viewTasks", { count: props.taskCount })}
 					</button>
 				) : null}
 			</div>
@@ -155,68 +162,94 @@ export function PreviewPane(props: {
 			? resolveExternalUrl(props.preview.streamUrl)
 			: null) ?? rawFileUrl(props.preview.mountId, props.preview.path);
 	const fileMetaItems = [
-		`Last modified ${formatDateTime(props.preview.modTime)}`,
+		`${t("preview.modified")} ${formatDateTime(props.preview.modTime)}`,
 		describePreviewKind(props.preview.kind, props.preview.mime),
 		formatBytes(props.preview.size),
 	];
 
 	return (
 		<div className="flex h-full min-h-0 flex-col p-4 sm:p-6">
-			<div className="shrink-0 rounded-2xl border border-slate-200 bg-white/80 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/70">
-				<div className="flex items-start gap-4">
-					<div
-						className={`relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl ${previewBgColor(props.preview)} group`}
-					>
-						{props.preview.kind === "image" ? (
-							<img
-								alt={props.preview.name}
-								src={streamUrl}
-								className="h-full w-full rounded-2xl object-cover"
-							/>
-						) : (
-							<MaterialIcon
-								name={previewIconName(props.preview)}
-								className={`${previewTextColor(props.preview)} !text-3xl ${props.preview.kind === "directory" ? "filled-icon" : ""}`}
-							/>
-						)}
-					</div>
-					<div className="min-w-0 flex-1">
-						<div className="flex items-start justify-between gap-3">
-							<div className="min-w-0 flex-1">
-								<div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-									<h3 className="min-w-0 truncate text-base font-bold text-slate-900 dark:text-white sm:text-lg">
-										{props.preview.name}
-									</h3>
-									{fileMetaItems.map((item, index) => (
-										<span
-											className="contents"
-											key={`${item}-${index}`}
-										>
-											<span className="text-slate-300 dark:text-slate-600">
-												·
-											</span>
-											<span className="text-xs text-slate-500 dark:text-slate-400">
-												{item}
-											</span>
-										</span>
-									))}
-								</div>
+			<div
+				className={`shrink-0 overflow-hidden border px-4 py-4 sm:px-5 sm:py-5 ${
+					immersivePreview
+						? "rounded-[28px] border-slate-200/90 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.12),_transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] shadow-[0_18px_40px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_transparent_28%),linear-gradient(180deg,rgba(15,23,42,0.98),rgba(15,23,42,0.96))]"
+						: "rounded-2xl border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-900/70"
+				}`}
+			>
+				<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+					<div className="flex min-w-0 items-start gap-4">
+						<div
+							className={`relative flex shrink-0 items-center justify-center overflow-hidden ${
+								immersivePreview
+									? "h-16 w-16 rounded-[22px]"
+									: "h-14 w-14 rounded-2xl"
+							} ${previewBgColor(props.preview)} group ring-1 ring-white/70 dark:ring-slate-900/40`}
+						>
+							{props.preview.kind === "image" ? (
+								<img
+									alt={props.preview.name}
+									src={streamUrl}
+									className="h-full w-full rounded-2xl object-cover"
+								/>
+							) : (
+								<MaterialIcon
+									name={previewIconName(props.preview)}
+									className={`${previewTextColor(props.preview)} !text-3xl ${props.preview.kind === "directory" ? "filled-icon" : ""}`}
+								/>
+							)}
+						</div>
+						<div className="min-w-0 flex-1">
+							<div className="flex flex-wrap items-center gap-2">
+									<span className="rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:border-slate-700 dark:bg-slate-900/75 dark:text-slate-300">
+										{t("preview.preview")}
+									</span>
+								<span className="text-xs font-medium text-slate-400 dark:text-slate-500">
+									{props.currentMount?.name ??
+										props.preview.mountId}
+								</span>
 							</div>
-							{props.canEdit ? (
+							<h3
+								className={`mt-3 min-w-0 truncate font-bold text-slate-900 dark:text-white ${
+									immersivePreview
+										? "text-2xl"
+										: "text-base sm:text-lg"
+								}`}
+							>
+								{props.preview.name}
+							</h3>
+							<div className="mt-3 flex flex-wrap items-center gap-2">
+								{fileMetaItems.map((item) => (
+									<span
+										className="rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-900/75 dark:text-slate-300"
+										key={item}
+									>
+										{item}
+									</span>
+								))}
+							</div>
+						</div>
+					</div>
+					{props.canEdit || props.onClosePreview ? (
+						<div className="flex shrink-0 items-center gap-2 self-start rounded-[22px] p-1.5backdrop-blur">
+							{props.onClosePreview ? (
 								<button
-									className="shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-white shadow-lg shadow-primary/20 transition-all hover:bg-primary/90"
-									onClick={props.onEnterEdit}
-									type="button"
-								>
-									Edit File
+										className="inline-flex h-11 w-11 items-center justify-center rounded-[16px] text-slate-400 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+										onClick={props.onClosePreview}
+										title={t("preview.closePreview")}
+										type="button"
+									>
+									<MaterialIcon
+										name="close"
+										className="text-lg"
+									/>
 								</button>
 							) : null}
 						</div>
-					</div>
+					) : null}
 				</div>
 			</div>
 
-			<div className="mt-4 min-h-0 flex-1">
+			<div className="mt-5 min-h-0 flex-1">
 				{renderPreviewContent(
 					props.preview,
 					streamUrl,
@@ -273,7 +306,10 @@ function renderPreviewContent(
 				<div className="w-full max-w-xl">
 					<div className="mb-4 flex items-center justify-center">
 						<div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
-							<MaterialIcon name="music_note" className="!text-3xl" />
+							<MaterialIcon
+								name="music_note"
+								className="!text-3xl"
+							/>
 						</div>
 					</div>
 					<audio controls src={streamUrl} className="w-full" />
@@ -310,10 +346,10 @@ function renderPreviewContent(
 					/>
 				</div>
 				<div className="mt-4 text-base font-bold text-slate-900 dark:text-white">
-					当前文件不支持内嵌预览
+					{translate("preview.noInlinePreviewTitle")}
 				</div>
 				<p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-					可以使用下载、打开或其他文件操作继续处理。
+					{translate("preview.noInlinePreviewDescription")}
 				</p>
 			</div>
 		</div>

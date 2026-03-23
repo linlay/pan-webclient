@@ -11,6 +11,7 @@ import {
 	previewIconName,
 	previewTextColor,
 } from "@/utils";
+import { useTranslation } from "react-i18next";
 
 export interface MobilePreviewSheetProps {
 	preview: PreviewMeta;
@@ -25,6 +26,7 @@ export interface MobilePreviewSheetProps {
 }
 
 export function MobilePreviewSheet(props: MobilePreviewSheetProps) {
+	const { t } = useTranslation();
 	if (!props.isOpen) return null;
 
 	const { preview } = props;
@@ -114,7 +116,7 @@ export function MobilePreviewSheet(props: MobilePreviewSheetProps) {
 								/>
 							</div>
 							<span className="text-[10px] font-medium">
-								Download
+								{t("common.download")}
 							</span>
 						</button>
 
@@ -132,7 +134,7 @@ export function MobilePreviewSheet(props: MobilePreviewSheetProps) {
 								/>
 							</div>
 							<span className="text-[10px] font-medium">
-								Rename
+								{t("common.rename")}
 							</span>
 						</button>
 
@@ -150,7 +152,7 @@ export function MobilePreviewSheet(props: MobilePreviewSheetProps) {
 								/>
 							</div>
 							<span className="text-[10px] font-medium">
-								Move
+								{t("common.move")}
 							</span>
 						</button>
 
@@ -168,7 +170,7 @@ export function MobilePreviewSheet(props: MobilePreviewSheetProps) {
 								/>
 							</div>
 							<span className="text-[10px] font-medium">
-								Copy
+								{t("common.copy")}
 							</span>
 						</button>
 
@@ -186,7 +188,7 @@ export function MobilePreviewSheet(props: MobilePreviewSheetProps) {
 								/>
 							</div>
 							<span className="text-[10px] font-medium">
-								Delete
+								{t("common.delete")}
 							</span>
 						</button>
 					</div>

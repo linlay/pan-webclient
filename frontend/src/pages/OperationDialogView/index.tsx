@@ -8,6 +8,7 @@ import {
 	dialogFieldLabel,
 	dialogConfirmLabel,
 } from "@/utils";
+import { useTranslation } from "react-i18next";
 
 export function OperationDialogView(props: {
 	dialog: NonNullable<OperationDialog>;
@@ -23,6 +24,7 @@ export function OperationDialogView(props: {
 	onChange: (v: string) => void;
 	onSubmit: () => void;
 }) {
+	const { t } = useTranslation();
 	const value =
 		props.dialog.kind === "create-folder" ||
 		props.dialog.kind === "rename" ||
@@ -85,14 +87,14 @@ export function OperationDialogView(props: {
 					<div className="px-6 pb-4">
 						<div className="mb-2 flex items-center justify-between">
 							<label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-								目标层级
+								{t("dialog.targetLevel")}
 							</label>
 							<span className="text-xs text-slate-400">
 								{props.directoryTree.mount.name}
 							</span>
 						</div>
 						<p className="mb-3 text-xs text-slate-500">
-							从当前工作区目录树中选择目标目录，也可以直接修改上方路径。
+							{t("dialog.pickTargetDir")}
 						</p>
 						<div className="max-h-72 py-4 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-800/40">
 							<SidebarTree
@@ -121,7 +123,7 @@ export function OperationDialogView(props: {
 				{selectedItems.length > 0 ? (
 					<div className="px-6 pb-4">
 						<span className="text-xs uppercase tracking-wider text-slate-400">
-							涉及项目
+							{t("dialog.involvedItems")}
 						</span>
 						<div className="flex flex-wrap gap-1.5 mt-2">
 							{selectedItems.slice(0, 6).map((e) => (
@@ -154,7 +156,7 @@ export function OperationDialogView(props: {
 						onClick={props.onClose}
 						type="button"
 					>
-						取消
+						{t("common.cancel")}
 					</button>
 					<button
 						className={`px-4 py-2 text-sm font-bold text-white rounded-lg transition-colors ${props.dialog.kind === "delete" ? "bg-red-500 hover:bg-red-600" : "bg-primary hover:bg-primary/90"}`}
@@ -162,7 +164,7 @@ export function OperationDialogView(props: {
 						type="submit"
 					>
 						{props.dialog.submitting
-							? "处理中..."
+							? t("common.processing")
 							: dialogConfirmLabel(props.dialog.kind)}
 					</button>
 				</div>

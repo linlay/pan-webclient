@@ -3,14 +3,17 @@ import { MaterialIcon } from "../shared/Icons";
 import {
 	formatBytes,
 	formatDateTime,
-	taskCompletedBytes,
-	taskHasByteProgress,
+	taskDisplayDetail,
+	taskFooterLabel,
+	isDownloadTaskReady,
+	isUploadTaskComplete,
 	taskPrimaryLabel,
 	taskProgressPercent,
 	taskSummary,
 	taskTotalBytes,
 	shouldShowTaskProgress,
 } from "@/utils";
+import { useTranslation } from "react-i18next";
 
 function statusColor(status: TransferTask["status"]) {
 	switch (status) {
@@ -63,14 +66,15 @@ export function TaskPanel(props: {
 	onOpenTask: (id: string) => void;
 	onBack: () => void;
 }) {
+	const { t } = useTranslation();
 	return (
 		<div className="flex h-full min-h-0 flex-col gap-4 p-6">
 			<div className="flex items-center justify-between">
 				<div>
 					<p className="text-xs uppercase tracking-wider text-slate-400">
-						Tasks
+						{t("sidebar.tasks")}
 					</p>
-					<h3 className="text-lg font-bold">传输任务</h3>
+					<h3 className="text-lg font-bold">{t("tasks.panelTitle")}</h3>
 				</div>
 				{!props.isMobile ? (
 					<div className="flex items-center gap-2">
@@ -79,20 +83,7 @@ export function TaskPanel(props: {
 							onClick={props.onBack}
 							type="button"
 						>
-							返回
-						</button>
-						<button
-							className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-400"
-							onClick={props.onToggle}
-							type="button"
-						>
-							<MaterialIcon
-								name={
-									props.collapsed
-										? "expand_more"
-										: "expand_less"
-								}
-							/>
+							{t("tasks.back")}
 						</button>
 					</div>
 				) : null}
@@ -108,7 +99,7 @@ export function TaskPanel(props: {
 									className="text-slate-300 dark:text-slate-600 !text-5xl mb-2"
 								/>
 								<p className="text-sm text-slate-400">
-									暂无任务
+									{t("tasks.empty")}
 								</p>
 							</div>
 						) : (
@@ -116,6 +107,10 @@ export function TaskPanel(props: {
 								const canDelete =
 									task.status === "success" ||
 									task.status === "failed";
+								const readyToDownload =
+									isDownloadTaskReady(task);
+								const uploadCompleted =
+									isUploadTaskComplete(task);
 								return (
 									<div
 										className="w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-left transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/50 dark:hover:bg-slate-800"
@@ -167,20 +162,29 @@ export function TaskPanel(props: {
 														{taskSummary(task)}
 														{taskTotalBytes(task) >
 														0
-															? ` · ${formatBytes(taskTotalBytes(task))}`
+															? readyToDownload
+																? ""
+																: ` · ${formatBytes(taskTotalBytes(task))}`
 															: ""}
+														{"  " +
+															taskDisplayDetail(
+																task,
+															)}
 													</p>
-													<p className="mt-1 truncate text-[11px] text-slate-400">
-														{task.detail}
-													</p>
+													<p className="mt-1 truncate text-[11px] text-slate-400"></p>
 												</div>
 											</div>
 											<div className="flex flex-shrink-0 items-center gap-1">
-												{task.status === "success" &&
-												task.downloadUrl ? (
+												{readyToDownload ? (
 													<button
 														className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-red-500 dark:hover:bg-slate-700"
-														title="Open"
+														onClick={(event) => {
+															event.stopPropagation();
+															props.onOpenTask(
+																task.id,
+															);
+														}}
+														title={t("tasks.downloadZip")}
 														type="button"
 													>
 														<MaterialIcon
@@ -202,7 +206,7 @@ export function TaskPanel(props: {
 																task.id,
 															);
 														}}
-														title="Delete task"
+														title={t("tasks.deleteTask")}
 														type="button"
 													>
 														<MaterialIcon
@@ -225,11 +229,7 @@ export function TaskPanel(props: {
 												</div>
 												<div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
 													<span>
-														{taskHasByteProgress(task)
-															? `${formatBytes(taskCompletedBytes(task))} / ${formatBytes(taskTotalBytes(task))}`
-															: task.status === "success"
-																? "100%"
-																: ""}
+														{taskFooterLabel(task)}
 													</span>
 													<span>
 														{formatDateTime(
@@ -240,6 +240,10 @@ export function TaskPanel(props: {
 											</div>
 										) : (
 											<p className="mt-3 text-[11px] text-slate-400">
+												{readyToDownload ||
+												uploadCompleted
+													? `${taskFooterLabel(task)} · `
+													: ""}
 												{formatDateTime(task.updatedAt)}
 											</p>
 										)}

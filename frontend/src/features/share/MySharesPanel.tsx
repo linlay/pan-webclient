@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { ManagedShare } from "@/types/contracts";
 import { MaterialIcon } from "../shared/Icons";
 import { formatDateTime } from "@/utils";
+import { useTranslation } from "react-i18next";
 
 export function MySharesPanel(props: {
 	items: ManagedShare[];
@@ -12,15 +13,16 @@ export function MySharesPanel(props: {
 	onDelete: (shareId: string) => void;
 	onRefresh: () => void;
 }) {
+	const { t } = useTranslation();
 	return (
 		<div className="flex h-full min-h-0 flex-col gap-5 p-5">
 			<div className="flex items-start justify-between gap-3">
 				<div>
 					<p className="text-xs uppercase tracking-wider text-slate-400">
-						My Shares
+						{t("shares.panelTitle")}
 					</p>
 					<h3 className="mt-1 text-[1.7rem] font-bold leading-none">
-						我的分享
+						{t("shares.panelTitle")}
 					</h3>
 				</div>
 				{!props.isMobile ? (
@@ -37,7 +39,7 @@ export function MySharesPanel(props: {
 							onClick={props.onBack}
 							type="button"
 						>
-							返回
+							{t("common.back")}
 						</button>
 					</div>
 				) : null}
@@ -52,10 +54,10 @@ export function MySharesPanel(props: {
 								className="mb-3 !text-5xl text-slate-300 dark:text-slate-600"
 							/>
 							<p className="text-sm text-slate-500 dark:text-slate-400">
-								还没有创建过分享
+								{t("shares.emptyTitle")}
 							</p>
 							<p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-								选中文件或目录后，点击工具栏里的分享即可生成短链。
+								{t("shares.emptyDescription")}
 							</p>
 						</div>
 					) : (
@@ -94,26 +96,34 @@ export function MySharesPanel(props: {
 									<div className="mt-4 flex flex-wrap gap-2">
 										<Tag>
 											{share.access === "password"
-												? "密码分享"
-												: "公开分享"}
+												? t("shares.access.password")
+												: t("shares.access.public")}
 										</Tag>
 										<Tag>
 											{share.permission === "write"
-												? "写入分享"
-												: "只读分享"}
+												? t("shares.permission.write")
+												: t("shares.permission.read")}
 										</Tag>
 										{share.permission === "write" ? (
 											<Tag>
 												{share.writeMode === "text"
-													? "文本输入"
-													: "本地文件"}
+													? t("shares.writeMode.text")
+													: t("shares.writeMode.local")}
 											</Tag>
 										) : null}
-										<Tag>{share.isDir ? "目录" : "文件"}</Tag>
+										<Tag>
+											{share.isDir
+												? t("shares.entryType.dir")
+												: t("shares.entryType.file")}
+										</Tag>
 										{share.expired ? (
-											<Tag tone="danger">已过期</Tag>
+											<Tag tone="danger">
+												{t("shares.status.expired")}
+											</Tag>
 										) : (
-											<Tag tone="success">生效中</Tag>
+											<Tag tone="success">
+												{t("shares.status.active")}
+											</Tag>
 										)}
 									</div>
 
@@ -121,7 +131,7 @@ export function MySharesPanel(props: {
 										<div className="grid gap-2 text-xs text-slate-500 dark:text-slate-400">
 											<div className="grid grid-cols-[56px_minmax(0,1fr)] gap-2">
 												<span className="font-medium text-slate-400">
-													创建
+													{t("shares.meta.created")}
 												</span>
 												<span className="min-w-0">
 													{formatDateTime(share.createdAt)}
@@ -129,20 +139,20 @@ export function MySharesPanel(props: {
 											</div>
 											<div className="grid grid-cols-[56px_minmax(0,1fr)] gap-2">
 												<span className="font-medium text-slate-400">
-													有效期
+													{t("shares.meta.expiry")}
 												</span>
 												<span className="min-w-0">
 													{share.expiresAt > 0
 														? formatDateTime(share.expiresAt)
-														: "永久有效"}
+														: t("shares.meta.never")}
 												</span>
 											</div>
 										</div>
 										{share.access === "password" ? (
 											<p className="mt-3 text-xs text-amber-600 dark:text-amber-300">
 												{share.password
-													? "复制链接时会自动附带提取码。"
-													: "当前分享创建时未保存提取码，复制时仅包含链接。"}
+													? t("shares.passwordHintSaved")
+													: t("shares.passwordHintMissing")}
 											</p>
 										) : null}
 									</div>
@@ -157,7 +167,7 @@ export function MySharesPanel(props: {
 												name="content_copy"
 												className="text-sm"
 											/>
-											复制链接
+											{t("shares.copyLink")}
 										</button>
 										<button
 											className="inline-flex w-full items-center justify-center gap-1.5 rounded-2xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20"
@@ -173,7 +183,9 @@ export function MySharesPanel(props: {
 														: "text-sm"
 												}
 											/>
-											{deleting ? "取消中..." : "取消分享"}
+											{deleting
+												? t("shares.revoking")
+												: t("shares.revokeShare")}
 										</button>
 									</div>
 								</div>

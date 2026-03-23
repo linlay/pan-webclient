@@ -323,7 +323,11 @@ func (a *api) publicShare(w http.ResponseWriter, r *http.Request, record indexer
 		ExpiresAt:        record.ExpiresAt,
 	}
 	if record.Access == shareAccessPassword && !authorized {
-		resp.Name = "受保护的分享"
+		if sharePermission(record) == sharePermissionWrite && shareWriteMode(record) == shareWriteModeLocal {
+			resp.Name = record.Name
+		} else {
+			resp.Name = "受保护的分享"
+		}
 		resp.Description = ""
 		writeJSON(w, http.StatusOK, resp)
 		return

@@ -9,6 +9,7 @@ import type {
 	MountRoot,
 } from "@/types/contracts";
 import { normalizeDirectory, pathLineage, treeCacheKey } from "@/utils";
+import { useTranslation } from "react-i18next";
 
 export function ShareSaveDialog(props: {
 	shareId: string;
@@ -17,6 +18,7 @@ export function ShareSaveDialog(props: {
 	onClose: () => void;
 	onSaved: (entry: FileEntry, mount: MountRoot | null) => void;
 }) {
+	const { t } = useTranslation();
 	const [mounts, setMounts] = useState<MountRoot[]>([]);
 	const [selectedMountId, setSelectedMountId] = useState("");
 	const [targetDirInput, setTargetDirInput] = useState("/");
@@ -41,9 +43,13 @@ export function ShareSaveDialog(props: {
 	useEffect(() => {
 		if (!selectedMountId || authRequired) return;
 		void ensureTreeLoaded(selectedMountId, normalizedTargetDir).catch((e) => {
-			setError(e instanceof Error ? e.message : "目录树加载失败");
+			setError(
+				e instanceof Error
+					? e.message
+					: t("controller.errors.operationFailed"),
+			);
 		});
-	}, [authRequired, normalizedTargetDir, selectedMountId]);
+	}, [authRequired, normalizedTargetDir, selectedMountId, t]);
 
 	async function bootstrap() {
 		setLoading(true);
@@ -53,7 +59,7 @@ export function ShareSaveDialog(props: {
 			await api.sessionMe();
 		} catch {
 			setAuthRequired(true);
-			setError("请先在当前浏览器登录网盘后，再保存分享内容。");
+			setError(t("shares.saveDialog.authRequiredDescription"));
 			setLoading(false);
 			return;
 		}
@@ -63,14 +69,10 @@ export function ShareSaveDialog(props: {
 			const initialMountId = nextMounts[0]?.id ?? "";
 			setSelectedMountId(initialMountId);
 			if (!initialMountId) {
-				setError("当前账号没有可用挂载点，暂时无法保存分享内容。");
+				setError(t("controller.errors.noMountAvailable"));
 			}
 		} catch (e) {
-			setError(
-				e instanceof Error
-					? e.message
-					: "可用挂载点加载失败",
-			);
+			setError(e instanceof Error ? e.message : t("controller.errors.operationFailed"));
 		} finally {
 			setLoading(false);
 		}
@@ -91,7 +93,7 @@ export function ShareSaveDialog(props: {
 				}));
 			} catch {
 				loadedTreeKeysRef.current.delete(key);
-				throw new Error("目标目录树加载失败，请确认挂载目录可访问。");
+				throw new Error(t("controller.errors.loadDirectoryFailed"));
 			}
 		}
 	}
@@ -105,19 +107,19 @@ export function ShareSaveDialog(props: {
 			try {
 				await ensureTreeLoaded(selectedMountId, path);
 			} catch (e) {
-				setError(e instanceof Error ? e.message : "目录树加载失败");
+				setError(e instanceof Error ? e.message : t("controller.errors.operationFailed"));
 			}
 		}
 	}
 
 	async function handleSubmit() {
 		if (!selectedMountId) {
-			setError("请选择要保存到的挂载点。");
+			setError(t("shares.saveDialog.noTargetDirectory"));
 			return;
 		}
 		const targetDir = normalizeDirectory(targetDirInput);
 		if (!targetDir) {
-			setError("请输入目标目录。");
+			setError(t("controller.errors.enterTargetDir"));
 			return;
 		}
 		setSubmitting(true);
@@ -132,11 +134,11 @@ export function ShareSaveDialog(props: {
 			props.onSaved(entry, selectedMount);
 		} catch (e) {
 			const message =
-				e instanceof Error ? e.message : "保存分享内容失败";
+				e instanceof Error ? e.message : t("controller.errors.operationFailed");
 			setError(
 				message.includes("please log in") ||
 					message.includes("missing or invalid credentials")
-					? "请先在当前浏览器登录网盘后，再保存分享内容。"
+					? t("shares.saveDialog.authRequiredDescription")
 					: message,
 			);
 		} finally {
@@ -153,20 +155,20 @@ export function ShareSaveDialog(props: {
 			role="presentation"
 		>
 			<div
-				className="w-full max-w-3xl overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 animate-fade-in"
+				className="animate-fade-in w-full max-w-3xl max-h-[calc(100dvh-2rem)] overflow-x-hidden overflow-y-auto overscroll-contain rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900"
 				onClick={(e) => e.stopPropagation()}
 			>
 				<div className="border-b border-slate-200 px-6 py-5 dark:border-slate-800">
 					<div className="flex items-start justify-between gap-4">
 						<div>
 							<p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-500">
-								Save Share
+								{t("common.save")}
 							</p>
 							<h2 className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
-								保存到我的网盘
+								{t("shares.saveDialog.title")}
 							</h2>
 							<p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-								把当前分享内容复制到你自己的挂载目录，不会扩大分享访问范围。
+								{t("shares.saveDialog.description")}
 							</p>
 						</div>
 						<button
@@ -181,7 +183,7 @@ export function ShareSaveDialog(props: {
 
 				{loading ? (
 					<div className="px-6 py-16 text-center text-sm text-slate-500 dark:text-slate-400">
-						正在检查登录状态并加载可用挂载点...
+						{t("shares.saveDialog.checkingSession")}
 					</div>
 				) : authRequired ? (
 					<div className="space-y-5 px-6 py-8">
@@ -190,10 +192,10 @@ export function ShareSaveDialog(props: {
 								<MaterialIcon name="lock" className="mt-0.5 text-xl" />
 								<div>
 									<div className="font-semibold">
-										需要先登录后才能保存
+										{t("shares.saveDialog.authRequiredTitle")}
 									</div>
 									<p className="mt-2 text-sm opacity-90">
-										当前分享页是公开访问入口，保存到自己的网盘时会额外校验你的登录会话。
+										{t("shares.saveDialog.authRequiredDescription")}
 									</p>
 								</div>
 							</div>
@@ -212,14 +214,14 @@ export function ShareSaveDialog(props: {
 								rel="noreferrer"
 								target="_blank"
 							>
-								打开登录页
+								{t("shares.saveDialog.openLoginPage")}
 							</a>
 							<button
 								className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
 								onClick={props.onClose}
 								type="button"
 							>
-								关闭
+								{t("common.close")}
 							</button>
 						</div>
 					</div>
@@ -227,13 +229,15 @@ export function ShareSaveDialog(props: {
 					<div className="space-y-5 px-6 py-6">
 						<div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4 dark:border-slate-700 dark:bg-slate-800/40">
 							<div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-								当前保存项
+								{t("shares.saveDialog.currentItem")}
 							</div>
 							<div className="mt-2 text-lg font-bold text-slate-900 dark:text-white">
 								{props.sourceName}
 							</div>
 							<div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-								分享路径：{props.sourcePath}
+								{t("shares.saveDialog.sharePath", {
+									path: props.sourcePath,
+								})}
 							</div>
 						</div>
 
@@ -241,7 +245,7 @@ export function ShareSaveDialog(props: {
 							<div className="space-y-4">
 								<div>
 									<label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
-										保存到挂载点
+										{t("shares.saveDialog.saveToMount")}
 									</label>
 									<select
 										className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
@@ -263,7 +267,7 @@ export function ShareSaveDialog(props: {
 
 								<div>
 									<label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
-										目标目录
+										{t("shares.saveDialog.targetDirectory")}
 									</label>
 									<input
 										className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
@@ -277,14 +281,14 @@ export function ShareSaveDialog(props: {
 										value={targetDirInput}
 									/>
 									<p className="mt-2 text-xs text-slate-400">
-										可以直接输入路径，也可以从右侧目录树中选择。
+										{t("shares.saveDialog.targetDirectoryHelp")}
 									</p>
 								</div>
 							</div>
 
 							<div className="overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800">
 								<div className="border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:border-slate-800 dark:bg-slate-800/50">
-									目标目录树
+									{t("shares.saveDialog.targetDirectoryTree")}
 								</div>
 								<div className="max-h-80 overflow-y-auto py-4">
 									{selectedMount ? (
@@ -305,7 +309,7 @@ export function ShareSaveDialog(props: {
 										/>
 									) : (
 										<div className="px-4 py-12 text-center text-sm text-slate-400">
-											暂无可选目标目录
+											{t("shares.saveDialog.noTargetDirectory")}
 										</div>
 									)}
 								</div>
@@ -325,7 +329,7 @@ export function ShareSaveDialog(props: {
 								onClick={props.onClose}
 								type="button"
 							>
-								取消
+								{t("common.cancel")}
 							</button>
 							<button
 								className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
@@ -333,7 +337,9 @@ export function ShareSaveDialog(props: {
 								onClick={() => void handleSubmit()}
 								type="button"
 							>
-								{submitting ? "保存中..." : "保存到网盘"}
+								{submitting
+									? t("shares.saveDialog.saveToDriveSaving")
+									: t("shares.saveDialog.saveToDrive")}
 							</button>
 						</div>
 					</div>

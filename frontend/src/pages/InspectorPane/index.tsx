@@ -44,6 +44,7 @@ export interface InspectorPaneProps {
 	tasks: TransferTask[];
 	trashItems: TrashItem[];
 	onImagePreview?: (url: string) => void;
+	onClosePreview?: () => void;
 }
 
 // ─── Inspector Pane Router ───
@@ -101,6 +102,7 @@ export function InspectorPane(props: InspectorPaneProps) {
 			currentPath={props.currentPath}
 			onEnterEdit={props.onEnterEdit}
 			onShowTasks={props.onShowTasks}
+			onClosePreview={props.onClosePreview}
 			preview={props.preview}
 			searchQuery={props.searchQuery}
 			selectedEntries={props.selectedEntries}

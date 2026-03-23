@@ -1,3 +1,4 @@
+import { EditorPane } from "@/features/editor/EditorPane";
 import { FileTable } from "@/features/files/FileTable";
 import { MobilePreviewSheet } from "@/features/preview/MobilePreviewSheet";
 import { MaterialIcon } from "@/features/shared/Icons";
@@ -10,11 +11,27 @@ import { AppSidebar } from "@/pages/AppSidebar";
 import { AppToolbar } from "@/pages/AppToolbar";
 import { MobileFAB } from "@/pages/MobileFAB";
 import { OperationDialogView } from "@/pages/OperationDialogView";
+import { useTranslation } from "react-i18next";
 import { useAppController } from "./useAppController";
 
 type AppShellProps = ReturnType<typeof useAppController>;
 
 export function AppShell(props: AppShellProps) {
+	const { t } = useTranslation();
+	const desktopPreviewOpen = Boolean(
+		!props.isMobile &&
+			props.inspectorMode === "preview" &&
+			props.preview &&
+			props.activeEntry &&
+			!props.activeEntry.isDir,
+	);
+	const desktopEditorOpen = Boolean(
+		!props.isMobile &&
+			props.inspectorMode === "editor" &&
+			props.editor &&
+			props.activeEntry &&
+			!props.activeEntry.isDir,
+	);
 	const inspectorPane = (
 		<InspectorPane
 			activeEntry={props.activeEntry}
@@ -34,6 +51,9 @@ export function AppShell(props: AppShellProps) {
 			onBack={props.handleInspectorBack}
 			onEnterEdit={props.handleEnterEdit}
 			onImagePreview={props.setFullScreenImage}
+			onClosePreview={
+				desktopPreviewOpen ? props.handleCloseDesktopPreview : undefined
+			}
 			onRefreshShares={props.handleRefreshShares}
 			onRefreshTrash={props.handleRefreshTrash}
 			onSaveEditor={props.handleSaveEditor}
@@ -88,6 +108,7 @@ export function AppShell(props: AppShellProps) {
 			<main className="flex-1 flex flex-col min-w-0 bg-white dark:bg-bg-dark">
 				<AppHeader
 					breadcrumbs={props.breadcrumbs}
+					canShareCurrentFolder={props.canShareCurrentDirectory}
 					isMobile={props.isMobile}
 					searchText={props.searchText}
 					showHidden={props.showHidden}
@@ -98,6 +119,7 @@ export function AppShell(props: AppShellProps) {
 					onOpenMobileNav={props.handleOpenMobileNav}
 					onRefresh={() => void props.refreshCurrentView()}
 					onSearchChange={props.handleSearchChange}
+					onShareCurrentFolder={props.openCurrentDirectoryShareDialog}
 					onSetTheme={props.setThemeMode}
 					onToggleShowHidden={props.handleToggleShowHidden}
 					onToggleViewMode={props.setViewMode}
@@ -106,6 +128,7 @@ export function AppShell(props: AppShellProps) {
 				<div className="relative flex min-h-0 flex-1 flex-col p-4 sm:p-8">
 					<div className="shrink-0">
 						<AppToolbar
+							canShareCurrentFolder={props.canShareCurrentDirectory}
 							filesCount={props.visibleFilesCount}
 							foldersCount={props.visibleFoldersCount}
 							hasSelection={props.hasSelection}
@@ -116,6 +139,10 @@ export function AppShell(props: AppShellProps) {
 							onDelete={() => props.openDeleteDialog()}
 							onMoveCopy={(kind) => props.openMoveCopyDialog(kind)}
 							onRename={() => props.openRenameDialog()}
+							onRefresh={() => void props.refreshCurrentView()}
+							onShareCurrentFolder={
+								props.openCurrentDirectoryShareDialog
+							}
 							onShare={() => props.openShareDialog()}
 							onUploadClick={() => props.fileInputRef.current?.click()}
 						/>
@@ -123,10 +150,12 @@ export function AppShell(props: AppShellProps) {
 						{props.searchQuery ? (
 							<div className="mb-4 flex items-center gap-3 px-2">
 								<span className="text-xs uppercase tracking-wider text-slate-400">
-									Search
+									{t("common.search")}
 								</span>
 								<strong className="text-sm">
-									{props.visibleRows.length} 条结果
+									{t("app.resultsCount", {
+										count: props.visibleRows.length,
+									})}
 								</strong>
 								<span className="text-xs text-slate-400">
 									"{props.searchQuery}"
@@ -185,7 +214,10 @@ export function AppShell(props: AppShellProps) {
 				/>
 			</main>
 
-			{!props.isMobile && props.inspectorOpen ? (
+			{!props.isMobile &&
+			props.inspectorOpen &&
+			!desktopPreviewOpen &&
+			!desktopEditorOpen ? (
 				<ResizableSidebar
 					side="right"
 					defaultWidth={320}
@@ -197,7 +229,7 @@ export function AppShell(props: AppShellProps) {
 				</ResizableSidebar>
 			) : null}
 
-			{!props.isMobile ? (
+			{!props.isMobile && !desktopPreviewOpen && !desktopEditorOpen ? (
 				<button
 					className={`fixed top-1/2 -translate-y-1/2 z-40 flex items-center justify-center transition-all duration-300 ${
 						props.inspectorOpen
@@ -210,7 +242,11 @@ export function AppShell(props: AppShellProps) {
 							: "24px",
 					}}
 					onClick={props.handleToggleInspector}
-					title={props.inspectorOpen ? "隐藏侧边栏" : "显示侧边栏"}
+					title={
+						props.inspectorOpen
+							? t("app.hideSidebar")
+							: t("app.showSidebar")
+					}
 				>
 					<MaterialIcon
 						name={
@@ -221,6 +257,37 @@ export function AppShell(props: AppShellProps) {
 						className="text-xl"
 					/>
 				</button>
+			) : null}
+
+			{desktopPreviewOpen ? (
+				<div
+					className="fixed inset-0 z-[90] bg-slate-950/55 p-4 backdrop-blur-md animate-fade-in sm:p-6"
+					onClick={props.handleCloseDesktopPreview}
+				>
+					<div
+						className="relative h-full w-full overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-bg-dark"
+						onClick={(event) => event.stopPropagation()}
+					>
+						{inspectorPane}
+					</div>
+				</div>
+			) : null}
+
+			{desktopEditorOpen ? (
+				<div className="fixed inset-0 z-[90] bg-slate-950/55 p-4 backdrop-blur-md animate-fade-in sm:p-6">
+					<div className="h-full w-full overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-bg-dark">
+						<div className="h-full overflow-y-auto">
+							<EditorPane
+								activeEntry={props.activeEntry}
+								editor={props.editor}
+								onBack={props.handleInspectorBack}
+								onClose={props.handleCloseDesktopPreview}
+								onSave={props.handleSaveEditor}
+								selectionCount={props.selectedEntries.length}
+							/>
+						</div>
+					</div>
+				</div>
 			) : null}
 
 			{props.isMobile &&
@@ -288,7 +355,7 @@ export function AppShell(props: AppShellProps) {
 					</button>
 					<img
 						src={props.fullScreenImage}
-						alt="Fullscreen Preview"
+						alt={t("preview.preview")}
 						className="max-w-full max-h-full object-contain drop-shadow-2xl rounded-sm"
 						onClick={(event) => event.stopPropagation()}
 					/>

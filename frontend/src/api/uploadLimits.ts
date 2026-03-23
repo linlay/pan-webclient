@@ -1,4 +1,5 @@
 import { apiUrl } from "./routing";
+import { translate } from "@/i18n";
 
 export const DEFAULT_MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 export let MAX_UPLOAD_BYTES = DEFAULT_MAX_UPLOAD_BYTES;
@@ -41,7 +42,9 @@ export function uploadSizeErrorMessage(files: Iterable<{ size: number }>) {
   for (const file of files) {
     totalBytes += file.size;
     if (totalBytes > MAX_UPLOAD_BYTES) {
-      return `单次上传总大小不能超过 ${formatUploadLimit(MAX_UPLOAD_BYTES)}。`;
+      return translate("uploadLimits.totalSizeExceeded", {
+        size: formatUploadLimit(MAX_UPLOAD_BYTES),
+      });
     }
   }
   return null;
@@ -60,7 +63,9 @@ export function uploadRequestErrorMessage(
     }
   }
   if (status === 413) {
-    return `单次上传总大小不能超过 ${formatUploadLimit(MAX_UPLOAD_BYTES)}。`;
+    return translate("uploadLimits.totalSizeExceeded", {
+      size: formatUploadLimit(MAX_UPLOAD_BYTES),
+    });
   }
   try {
     const payload = JSON.parse(responseText) as { message?: string } | null;

@@ -17,6 +17,7 @@ import type {
 import { getAppAccessToken, refreshAppAccessToken } from "./appAuth";
 import { apiUrl, isAppMode } from "./routing";
 import { uploadRequestErrorMessage } from "./uploadLimits";
+import { translate } from "@/i18n";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return requestWithReplay<T>(path, init, true);
@@ -231,7 +232,8 @@ export const api = {
           total: event.lengthComputable ? event.total : fallbackTotal,
         });
       };
-      request.onerror = () => reject(new Error("Upload failed"));
+      request.onerror = () =>
+        reject(new Error(translate("controller.errors.uploadFailed")));
       request.onload = () => {
         const response =
           request.response && typeof request.response === "object"
@@ -254,7 +256,7 @@ export const api = {
               request.statusText,
               response,
               request.responseText || "",
-            ) || "Upload failed",
+            ) || translate("controller.errors.uploadFailed"),
           ),
         );
       };
@@ -290,7 +292,8 @@ export const api = {
           total: event.lengthComputable ? event.total : fallbackTotal,
         });
       };
-      request.onerror = () => reject(new Error("Upload failed"));
+      request.onerror = () =>
+        reject(new Error(translate("controller.errors.uploadFailed")));
       request.onload = () => {
         const response =
           request.response && typeof request.response === "object"
@@ -313,7 +316,7 @@ export const api = {
               request.statusText,
               response,
               request.responseText || "",
-            ) || "Upload failed",
+            ) || translate("controller.errors.uploadFailed"),
           ),
         );
       };

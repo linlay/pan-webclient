@@ -1,4 +1,5 @@
 import { formatDateInput } from "./formatters";
+import { getDateLocale, translate } from "@/i18n";
 
 export type ShareExpiryPreset = "7d" | "14d" | "30d" | "permanent" | "custom";
 
@@ -21,11 +22,11 @@ export function resolveShareExpiryUnix(
   }
   if (preset === "custom") {
     if (!customDate) {
-      throw new Error("请选择自定义到期日期。");
+      throw new Error(translate("shareUtils.customDateRequired"));
     }
     const next = new Date(`${customDate}T23:59:59`);
     if (Number.isNaN(next.getTime())) {
-      throw new Error("自定义到期日期无效。");
+      throw new Error(translate("shareUtils.customDateInvalid"));
     }
     return Math.floor(next.getTime() / 1000);
   }
@@ -35,9 +36,11 @@ export function resolveShareExpiryUnix(
 
 export function describeShareExpiry(expiresAt: number) {
   if (!expiresAt) {
-    return "当前分享永久有效";
+    return translate("shareUtils.neverExpires");
   }
-  return `当前分享将于 ${new Date(expiresAt * 1000).toLocaleString()} 到期`;
+  return translate("shareUtils.expiresAt", {
+    value: new Date(expiresAt * 1000).toLocaleString(getDateLocale()),
+  });
 }
 
 export function defaultShareCustomDate() {

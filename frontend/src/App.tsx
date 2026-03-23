@@ -3,9 +3,11 @@ import { AppShell } from "@/app/AppShell";
 import { useAppController } from "@/app/useAppController";
 import { LoginForm } from "@/features/auth/LoginForm";
 import { MaterialIcon } from "@/features/shared/Icons";
+import { useTranslation } from "react-i18next";
 
 export function App() {
 	const controller = useAppController();
+	const { t } = useTranslation();
 
 	if (controller.loadingSession) {
 		return (
@@ -15,7 +17,7 @@ export function App() {
 						<MaterialIcon name="cloud" />
 					</div>
 					<p className="text-slate-500 text-sm">
-						正在连接你的工作区...
+						{t("app.connectingWorkspace")}
 					</p>
 				</div>
 			</div>

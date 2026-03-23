@@ -1,6 +1,8 @@
 import { api } from "@/api";
 import { MaterialIcon } from "@/features/shared/Icons";
 import type { PreviewMeta, PublicShare } from "@/types/contracts";
+import { formatDateTime } from "@/utils";
+import { useTranslation } from "react-i18next";
 
 export function SharePageHeader(props: {
 	share: PublicShare;
@@ -18,6 +20,7 @@ export function SharePageHeader(props: {
 	onOpenSaveDialog: () => void;
 	onPrimaryWriteAction: () => void;
 }) {
+	const { t } = useTranslation();
 	const primaryActionIcon = props.isTextWriteMode
 		? props.savingTextFile
 			? "sync"
@@ -75,30 +78,21 @@ export function SharePageHeader(props: {
 								/>
 								<span>
 									{props.share.expiresAt
-										? `到期于 ${new Date(
-												props.share.expiresAt * 1000,
-											).toLocaleString()}`
-										: "永久有效"}
+										? t("sharePage.header.expiresAt", {
+												value: formatDateTime(
+													props.share.expiresAt,
+												),
+											})
+										: t("sharePage.header.never")}
 								</span>
 							</div>
 						</div>
 						<ShareHeaderTag isMobile={props.isMobile}>
 							{props.share.permission === "write"
-								? "写入"
-								: "只读"}
+								? t("sharePage.writePermission")
+								: t("sharePage.readPermission")}
 						</ShareHeaderTag>
 					</div>
-					{/* <div
-						className={`flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400 ${
-							props.isMobile ? "mt-4" : "mt-3"
-						}`}
-					>
-						<ShareHeaderTag isMobile={props.isMobile}>
-							{props.share.permission === "write"
-								? "写入分享"
-								: "只读分享"}
-						</ShareHeaderTag>
-					</div> */}
 				</div>
 
 				{props.canReadShare ? (
@@ -125,8 +119,8 @@ export function SharePageHeader(props: {
 								className="text-base"
 							/>
 							{props.activePreview?.kind === "directory"
-								? "下载当前目录"
-								: "下载当前文件"}
+								? t("sharePage.header.downloadCurrentDirectory")
+								: t("sharePage.header.downloadCurrentFile")}
 						</a>
 					</div>
 				) : null}

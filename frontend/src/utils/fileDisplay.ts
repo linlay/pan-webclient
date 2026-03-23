@@ -1,4 +1,5 @@
 import type { FileEntry, PreviewKind, PreviewMeta } from "@/types/contracts";
+import { translate } from "@/i18n";
 
 type KindLike = { kind: PreviewKind };
 
@@ -66,19 +67,19 @@ export function previewTextColor(preview: KindLike) {
 export function describePreviewKind(kind: PreviewMeta["kind"], mime: string) {
   switch (kind) {
     case "markdown":
-      return "Markdown";
+      return translate("fileTypes.markdown");
     case "text":
-      return "Text File";
+      return translate("fileTypes.text");
     case "download":
-      return mime || "File";
+      return mime || translate("fileTypes.file");
     case "image":
-      return "Image";
+      return translate("fileTypes.image");
     case "audio":
-      return "Audio";
+      return translate("fileTypes.audio");
     case "video":
-      return "Video";
+      return translate("fileTypes.video");
     case "pdf":
-      return "PDF Document";
+      return translate("fileTypes.pdf");
     default:
       return kind;
   }
@@ -163,13 +164,13 @@ export function getFileVisual(entry: Pick<FileEntry, "isDir" | "mime">) {
 export function describeEntryType(
   entry: Pick<FileEntry, "isDir" | "mime" | "extension">,
 ) {
-  if (entry.isDir) return "Folder";
-  if (entry.mime === "application/pdf") return "PDF Document";
-  if (entry.mime.startsWith("image/")) return "Image";
-  if (entry.mime.startsWith("video/")) return "Video";
-  if (entry.mime.startsWith("audio/")) return "Audio";
-  if (entry.mime.startsWith("text/")) return "Text File";
+  if (entry.isDir) return translate("files.directory");
+  if (entry.mime === "application/pdf") return translate("fileTypes.pdf");
+  if (entry.mime.startsWith("image/")) return translate("fileTypes.image");
+  if (entry.mime.startsWith("video/")) return translate("fileTypes.video");
+  if (entry.mime.startsWith("audio/")) return translate("fileTypes.audio");
+  if (entry.mime.startsWith("text/")) return translate("fileTypes.text");
   return entry.extension
-    ? entry.extension.toUpperCase().replace(".", "") + " File"
-    : "File";
+    ? `${entry.extension.toUpperCase().replace(".", "")} ${translate("fileTypes.file")}`
+    : translate("fileTypes.file");
 }

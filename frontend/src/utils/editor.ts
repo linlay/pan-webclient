@@ -1,13 +1,14 @@
 import type { FileEntry } from "@/types/contracts";
+import { translate } from "@/i18n";
 
 export function emptyEditorTitle(
   selectionCount: number,
   activeEntry: FileEntry | null,
 ) {
-  if (selectionCount > 1) return "批量选择不进入编辑模式";
-  if (activeEntry?.isDir) return "目录不可直接编辑";
-  if (activeEntry) return "该文件当前仅支持预览";
-  return "选择文本文件进入编辑";
+  if (selectionCount > 1) return translate("editor.empty.multiTitle");
+  if (activeEntry?.isDir) return translate("editor.empty.dirTitle");
+  if (activeEntry) return translate("editor.empty.previewOnlyTitle");
+  return translate("editor.empty.idleTitle");
 }
 
 export function emptyEditorDescription(
@@ -15,9 +16,9 @@ export function emptyEditorDescription(
   activeEntry: FileEntry | null,
 ) {
   if (selectionCount > 1)
-    return "先收敛到单个文本或 Markdown 文件，再在这里修改内容。";
+    return translate("editor.empty.multiDescription");
   if (activeEntry?.isDir)
-    return "目录不会进入编辑状态；单击目录会直接进入该层级。";
-  if (activeEntry) return "现阶段只支持文本类文件和 Markdown 的在线编辑。";
-  return "支持纯文本、Markdown，以及后端当前已识别的其它文本类型。";
+    return translate("editor.empty.dirDescription");
+  if (activeEntry) return translate("editor.empty.previewOnlyDescription");
+  return translate("editor.empty.idleDescription");
 }

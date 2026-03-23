@@ -1,5 +1,6 @@
 // @ts-nocheck
 import assert from "node:assert/strict";
+import { setAppLanguage } from "../i18n.ts";
 import {
   DEFAULT_MAX_UPLOAD_BYTES,
   MAX_UPLOAD_BYTES,
@@ -7,6 +8,8 @@ import {
   uploadRequestErrorMessage,
   uploadSizeErrorMessage,
 } from "./uploadLimits.ts";
+
+await setAppLanguage("zh-CN");
 
 assert.equal(MAX_UPLOAD_BYTES, DEFAULT_MAX_UPLOAD_BYTES);
 assert.equal(uploadSizeErrorMessage([{ size: MAX_UPLOAD_BYTES }]), null);

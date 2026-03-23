@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
 import type { EditorDocument, FileEntry } from "../../types/contracts/index";
 import { emptyEditorDescription, emptyEditorTitle } from "@/utils";
+import { useTranslation } from "react-i18next";
 
 export function EditorPane(props: {
 	editor: EditorDocument | null;
 	activeEntry: FileEntry | null;
 	selectionCount: number;
+	onClose?: () => void;
 	onSave: (content: string) => Promise<void>;
 	onBack: () => void;
 }) {
+	const { t } = useTranslation();
 	const [content, setContent] = useState("");
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState("");
@@ -22,7 +25,7 @@ export function EditorPane(props: {
 		return (
 			<div className="p-6">
 				<div className="flex items-center justify-between mb-4">
-					<h3 className="text-lg font-bold">编辑器</h3>
+					<h3 className="text-lg font-bold">{t("editor.title")}</h3>
 				</div>
 					<div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-6 text-center">
 						<strong className="text-slate-600 dark:text-slate-300">
@@ -48,7 +51,7 @@ export function EditorPane(props: {
 		try {
 			await props.onSave(content);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "保存失败");
+			setError(err instanceof Error ? err.message : t("editor.saveFailed"));
 		} finally {
 			setSaving(false);
 		}
@@ -61,7 +64,7 @@ export function EditorPane(props: {
 			<div className="flex items-center justify-between">
 				<div>
 					<p className="text-xs uppercase tracking-wider text-slate-400">
-						编辑器
+						{t("editor.title")}
 					</p>
 					<h3 className="text-lg font-bold">{props.editor.name}</h3>
 				</div>
@@ -69,26 +72,35 @@ export function EditorPane(props: {
 					<span className="px-2.5 py-1 text-xs bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700">
 						{props.editor.language}
 					</span>
+					{props.onClose ? (
+						<button
+							className="px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+							onClick={props.onClose}
+							type="button"
+						>
+							{t("common.close")}
+						</button>
+					) : null}
 					<button
 						className="px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
 						onClick={props.onBack}
 						type="button"
 					>
-						返回预览
+						{t("common.back")}
 					</button>
 					<button
 						className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium"
 						onClick={() => void save()}
 						type="button"
 					>
-						{saving ? "保存中..." : "保存"}
+						{saving ? t("common.saving") : t("common.save")}
 					</button>
 				</div>
 			</div>
 
 			<div className="flex gap-3 text-xs text-slate-400">
-				<span>{lineCount} 行</span>
-				<span>{content.length} 字符</span>
+				<span>{t("editor.lineCount", { count: lineCount })}</span>
+				<span>{t("editor.charCount", { count: content.length })}</span>
 			</div>
 
 			{error ? (
