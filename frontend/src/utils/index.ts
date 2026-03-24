@@ -128,7 +128,25 @@ export async function loadTree(
 }
 export function mergeTasks(prev: TransferTask[], next: TransferTask[]) {
   const m = new Map(prev.map((t) => [t.id, t]));
-  next.forEach((t) => m.set(t.id, t));
+  next.forEach((t) => {
+    const existing = m.get(t.id);
+    if (!existing) {
+      m.set(t.id, t);
+      return;
+    }
+    m.set(t.id, {
+      ...existing,
+      ...t,
+      items: t.items && t.items.length > 0 ? t.items : existing.items,
+      totalBytes:
+        typeof t.totalBytes === "number" ? t.totalBytes : existing.totalBytes,
+      completedBytes:
+        typeof t.completedBytes === "number"
+          ? t.completedBytes
+          : existing.completedBytes,
+      downloadUrl: t.downloadUrl || existing.downloadUrl,
+    });
+  });
   return Array.from(m.values()).sort((a, b) => b.updatedAt - a.updatedAt);
 }
 export function basename(p: string) {

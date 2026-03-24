@@ -6,11 +6,14 @@ export function isLocalTaskId(taskId: string) {
   return taskId.startsWith("local-");
 }
 
-export function buildLocalUploadTask(files: File[]): TransferTask {
+export function buildLocalUploadTask(
+  files: File[],
+  taskId = `local-upload-${Date.now()}`,
+): TransferTask {
   const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
   const now = Math.floor(Date.now() / 1000);
   return {
-    id: `local-upload-${Date.now()}`,
+    id: taskId,
     kind: "upload",
     status: "running",
     detail:

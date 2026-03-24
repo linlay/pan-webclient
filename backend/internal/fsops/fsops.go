@@ -126,33 +126,57 @@ func ListDirectory(resolver *MountResolver, mountID, relPath string, showHidden 
 }
 
 func Tree(resolver *MountResolver, mountID, relPath string, showHidden bool) ([]TreeNode, error) {
-	entries, err := ListDirectory(resolver, mountID, relPath, showHidden)
+	_, abs, clean, err := resolver.Resolve(mountID, relPath)
+	if err != nil {
+		return nil, err
+	}
+	info, err := os.Stat(abs)
+	if err != nil {
+		return nil, err
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("%s is not a directory", clean)
+	}
+	entries, err := os.ReadDir(abs)
 	if err != nil {
 		return nil, err
 	}
 	nodes := make([]TreeNode, 0, len(entries))
 	for _, item := range entries {
-		if !item.IsDir {
+		if !showHidden && IsHiddenName(item.Name()) {
 			continue
 		}
-		hasChildren := false
-		children, err := os.ReadDir(filepath.Join(resolver.byID[mountID].Path, "."+item.Path))
-		if err == nil {
-			for _, child := range children {
-				if showHidden || !IsHiddenName(child.Name()) {
-					hasChildren = true
-					break
-				}
-			}
+		if item.Type()&os.ModeSymlink != 0 || !item.IsDir() {
+			continue
 		}
+		childRel := CleanRelPath(filepath.Join(clean, item.Name()))
 		nodes = append(nodes, TreeNode{
-			MountID:     item.MountID,
-			Path:        item.Path,
-			Name:        item.Name,
-			HasChildren: hasChildren,
+			MountID:     mountID,
+			Path:        childRel,
+			Name:        item.Name(),
+			HasChildren: directoryHasVisibleChildren(filepath.Join(abs, item.Name()), showHidden),
 		})
 	}
 	return nodes, nil
+}
+
+func directoryHasVisibleChildren(absPath string, showHidden bool) bool {
+	dir, err := os.Open(absPath)
+	if err != nil {
+		return false
+	}
+	defer dir.Close()
+	for {
+		names, err := dir.Readdirnames(32)
+		for _, name := range names {
+			if showHidden || !IsHiddenName(name) {
+				return true
+			}
+		}
+		if err != nil {
+			return false
+		}
+	}
 }
 
 func ReadTextFile(resolver *MountResolver, mountID, relPath string, maxBytes int64) ([]byte, os.FileInfo, error) {
@@ -319,18 +343,28 @@ func CopyToDirectory(
 }
 
 func SaveUploadedFile(resolver *MountResolver, mountID, relPath, filename string, src io.Reader) (Entry, int64, error) {
+	return SaveUploadedFileWithProgress(resolver, mountID, relPath, filename, src, nil)
+}
+
+func SaveUploadedFileWithProgress(
+	resolver *MountResolver,
+	mountID, relPath, filename string,
+	src io.Reader,
+	onProgress func(int64),
+) (Entry, int64, error) {
 	_, abs, clean, err := resolver.Resolve(mountID, relPath)
 	if err != nil {
 		return Entry{}, 0, err
 	}
 	targetName := filepath.Base(filename)
+	target := ""
 	var dst *os.File
 	for {
 		targetName, err = nextUploadedFilename(abs, targetName)
 		if err != nil {
 			return Entry{}, 0, err
 		}
-		target := filepath.Join(abs, targetName)
+		target = filepath.Join(abs, targetName)
 		dst, err = os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 		if os.IsExist(err) {
 			continue
@@ -340,18 +374,49 @@ func SaveUploadedFile(resolver *MountResolver, mountID, relPath, filename string
 		}
 		break
 	}
-	defer dst.Close()
-	written, err := io.Copy(dst, src)
+	closed := false
+	defer func() {
+		if !closed {
+			_ = dst.Close()
+		}
+	}()
+	copySrc := src
+	if onProgress != nil {
+		copySrc = &progressReader{reader: src, onProgress: onProgress}
+	}
+	written, err := io.Copy(dst, copySrc)
 	if err != nil {
+		_ = dst.Close()
+		closed = true
+		_ = os.Remove(target)
 		return Entry{}, written, err
 	}
-	target := filepath.Join(abs, targetName)
+	if err := dst.Close(); err != nil {
+		closed = true
+		_ = os.Remove(target)
+		return Entry{}, written, err
+	}
+	closed = true
 	info, err := os.Stat(target)
 	if err != nil {
+		_ = os.Remove(target)
 		return Entry{}, written, err
 	}
 	targetRel := CleanRelPath(filepath.Join(clean, targetName))
 	return entryFromInfo(mountID, targetRel, targetName, info, IsHiddenRelPath(targetRel)), written, nil
+}
+
+type progressReader struct {
+	reader     io.Reader
+	onProgress func(int64)
+}
+
+func (r *progressReader) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	if n > 0 && r.onProgress != nil {
+		r.onProgress(int64(n))
+	}
+	return n, err
 }
 
 func MovePath(src, dst string) error {

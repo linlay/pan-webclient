@@ -32,6 +32,12 @@ const (
 	appAPIBase                       = "/apppan/api"
 	uploadParseMemoryBytes     int64 = 32 << 20
 	uploadRequestOverheadBytes int64 = 32 << 20
+	uploadFieldMaxBytes        int64 = 1 << 20
+	uploadTaskIDHeader               = "X-Upload-Task-ID"
+	uploadTotalBytesHeader           = "X-Upload-Total-Bytes"
+	uploadItemCountHeader            = "X-Upload-Item-Count"
+	uploadTaskIDMaxLen               = 80
+	uploadTaskPersistInterval        = 250 * time.Millisecond
 )
 
 type Dependencies struct {
@@ -78,6 +84,7 @@ func New(deps Dependencies) http.Handler {
 	mux.HandleFunc("/api/files/raw", a.withAuth(a.raw))
 	mux.HandleFunc("/api/shares", a.withAuth(a.shares))
 	mux.HandleFunc("/api/shares/", a.withAuth(a.shareRoute))
+	mux.HandleFunc("/api/uploads/task", a.withAuth(a.createUploadTask))
 	mux.HandleFunc("/api/uploads", a.withAuth(a.uploads))
 	mux.HandleFunc("/api/tasks", a.withAuth(a.tasks))
 	mux.HandleFunc("/api/downloads/batch", a.withAuth(a.batchDownload))
@@ -427,6 +434,83 @@ func (a *api) uploads(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		return
 	}
+
+	taskID, err := requestedUploadTaskID(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "UPLOAD_TASK_INVALID", err.Error())
+		return
+	}
+	if taskID == "" {
+		a.uploadsBuffered(w, r)
+		return
+	}
+
+	a.uploadsStreaming(w, r, taskID)
+}
+
+func (a *api) createUploadTask(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	var req struct {
+		Items []struct {
+			Name string `json:"name"`
+			Size int64  `json:"size"`
+		} `json:"items"`
+		TotalBytes int64 `json:"totalBytes"`
+	}
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	if len(req.Items) == 0 {
+		writeError(w, http.StatusBadRequest, "UPLOAD_EMPTY", "files is required")
+		return
+	}
+
+	task := transfer.NewTask("upload", "Uploading files")
+	task.Status = "pending"
+	task.Items = make([]transfer.TaskItem, 0, len(req.Items))
+	var totalBytes int64
+	for _, item := range req.Items {
+		name := filepath.Base(strings.TrimSpace(item.Name))
+		if name == "." || name == "/" || name == "" {
+			name = "file"
+		}
+		size := item.Size
+		if size < 0 {
+			size = 0
+		}
+		totalBytes += size
+		task.Items = append(task.Items, transfer.TaskItem{
+			Name:  name,
+			Path:  name,
+			Size:  size,
+			IsDir: false,
+		})
+	}
+	if totalBytes <= 0 && req.TotalBytes > 0 {
+		totalBytes = req.TotalBytes
+	}
+	if totalBytes > a.cfg.MaxUploadBytes {
+		writeError(
+			w,
+			http.StatusRequestEntityTooLarge,
+			"UPLOAD_TOO_LARGE",
+			uploadTooLargeMessage(a.cfg.MaxUploadBytes),
+		)
+		return
+	}
+	task.TotalBytes = totalBytes
+	task.UpdatedAt = time.Now().Unix()
+	if err := a.taskManager.Put(task, ""); err != nil {
+		writeServerError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, task)
+}
+
+func (a *api) uploadsBuffered(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, a.cfg.MaxUploadBytes+uploadRequestOverheadBytes)
 	if err := r.ParseMultipartForm(uploadParseMemoryBytes); err != nil {
 		var maxBytesErr *http.MaxBytesError
@@ -455,6 +539,7 @@ func (a *api) uploads(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
+
 	task := transfer.NewTask("upload", "Uploading files")
 	task.Status = "running"
 	task.Items = make([]transfer.TaskItem, 0, len(files))
@@ -500,6 +585,366 @@ func (a *api) uploads(w http.ResponseWriter, r *http.Request) {
 	task.UpdatedAt = time.Now().Unix()
 	_ = a.taskManager.Put(task, "")
 	writeJSON(w, http.StatusOK, task)
+}
+
+func (a *api) uploadsStreaming(w http.ResponseWriter, r *http.Request, taskID string) {
+	claimedTotalBytes := requestedUploadTotalBytes(r)
+	task, _, err := a.taskManager.Get(taskID)
+	if err != nil {
+		task = transfer.NewTask("upload", "Uploading files")
+		task.ID = taskID
+	}
+	task.Kind = "upload"
+	task.Status = "running"
+	task.Detail = "Uploading files"
+	if claimedTotalBytes > 0 {
+		task.TotalBytes = claimedTotalBytes
+	}
+	task.UpdatedAt = time.Now().Unix()
+	_ = a.taskManager.Put(task, "")
+	if claimedTotalBytes > a.cfg.MaxUploadBytes {
+		a.failUploadTask(
+			task,
+			"UPLOAD_TOO_LARGE",
+			uploadTooLargeMessage(a.cfg.MaxUploadBytes),
+			w,
+			http.StatusRequestEntityTooLarge,
+		)
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, a.cfg.MaxUploadBytes+uploadRequestOverheadBytes)
+	reader, err := r.MultipartReader()
+	if err != nil {
+		a.failUploadTask(task, "UPLOAD_PARSE_FAILED", err.Error(), w, http.StatusBadRequest)
+		return
+	}
+
+	mountID := ""
+	relPath := "/"
+	expectedFiles := requestedUploadItemCount(r)
+	remainingFileBytes := a.cfg.MaxUploadBytes
+	uploaded := 0
+	filesSeen := 0
+	lastPersist := time.Now()
+	persistTask := func(force bool) {
+		if !force && time.Since(lastPersist) < uploadTaskPersistInterval {
+			return
+		}
+		task.UpdatedAt = time.Now().Unix()
+		_ = a.taskManager.Put(task, "")
+		lastPersist = time.Now()
+	}
+
+	for {
+		part, err := reader.NextPart()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			var maxBytesErr *http.MaxBytesError
+			if errors.As(err, &maxBytesErr) {
+				a.failUploadTask(
+					task,
+					"UPLOAD_TOO_LARGE",
+					uploadTooLargeMessage(a.cfg.MaxUploadBytes),
+					w,
+					http.StatusRequestEntityTooLarge,
+				)
+				return
+			}
+			if isRecoverableMultipartEOF(err, expectedFiles, filesSeen, uploaded) {
+				break
+			}
+			a.failUploadTask(task, "UPLOAD_PARSE_FAILED", err.Error(), w, http.StatusBadRequest)
+			return
+		}
+		if part.FileName() == "" {
+			value, err := readMultipartFieldValue(part, uploadFieldMaxBytes)
+			_ = part.Close()
+			if err != nil {
+				a.failUploadTask(task, "UPLOAD_PARSE_FAILED", err.Error(), w, http.StatusBadRequest)
+				return
+			}
+			switch part.FormName() {
+			case "mountId":
+				mountID = strings.TrimSpace(value)
+			case "path":
+				if value != "" {
+					relPath = value
+				}
+			}
+			continue
+		}
+		if part.FormName() != "files" {
+			_, _ = io.Copy(io.Discard, part)
+			_ = part.Close()
+			continue
+		}
+		if strings.TrimSpace(mountID) == "" {
+			_, _ = io.Copy(io.Discard, part)
+			_ = part.Close()
+			a.failUploadTask(
+				task,
+				"UPLOAD_PARSE_FAILED",
+				"mountId is required before files",
+				w,
+				http.StatusBadRequest,
+			)
+			return
+		}
+
+		filesSeen++
+		itemIndex := filesSeen - 1
+		expectedItemSize := int64(0)
+		if itemIndex < len(task.Items) {
+			task.Items[itemIndex].Name = part.FileName()
+			task.Items[itemIndex].Path = part.FileName()
+			task.Items[itemIndex].IsDir = false
+			if task.Items[itemIndex].Size > 0 {
+				expectedItemSize = task.Items[itemIndex].Size
+			}
+		} else {
+			task.Items = append(task.Items, transfer.TaskItem{
+				Name:  part.FileName(),
+				Path:  part.FileName(),
+				IsDir: false,
+			})
+		}
+		persistTask(true)
+
+		partReader := io.Reader(&uploadLimitReader{reader: part, remaining: &remainingFileBytes})
+		if expectedItemSize > 0 {
+			partReader = io.LimitReader(partReader, expectedItemSize)
+		}
+		written, err := func() (int64, error) {
+			_, written, saveErr := fsops.SaveUploadedFileWithProgress(
+				a.resolver,
+				mountID,
+				relPath,
+				part.FileName(),
+				partReader,
+				func(delta int64) {
+					task.CompletedBytes += delta
+					persistTask(false)
+				},
+			)
+			return written, saveErr
+		}()
+		task.Items[itemIndex].Size = written
+		if err != nil {
+			if errors.Is(err, errUploadTooLarge) {
+				a.failUploadTask(
+					task,
+					"UPLOAD_TOO_LARGE",
+					uploadTooLargeMessage(a.cfg.MaxUploadBytes),
+					w,
+					http.StatusRequestEntityTooLarge,
+				)
+				return
+			}
+			if errors.Is(err, io.ErrUnexpectedEOF) &&
+				isRecoverableMultipartPartEOF(expectedFiles, filesSeen, written, expectedItemSize) {
+				uploaded++
+				task.Detail = fmt.Sprintf(
+					"Uploaded %d/%d files",
+					uploaded,
+					uploadTaskFileTotal(expectedFiles, len(task.Items)),
+				)
+				persistTask(true)
+				break
+			}
+			if errors.Is(err, io.ErrUnexpectedEOF) {
+				a.failUploadTask(task, "UPLOAD_PARSE_FAILED", err.Error(), w, http.StatusBadRequest)
+				return
+			}
+			continue
+		}
+		if drainErr := discardMultipartPartRemainder(part, &remainingFileBytes); drainErr != nil {
+			if errors.Is(drainErr, errUploadTooLarge) {
+				a.failUploadTask(
+					task,
+					"UPLOAD_TOO_LARGE",
+					uploadTooLargeMessage(a.cfg.MaxUploadBytes),
+					w,
+					http.StatusRequestEntityTooLarge,
+				)
+				return
+			}
+			if errors.Is(drainErr, io.ErrUnexpectedEOF) &&
+				isRecoverableMultipartDrainEOF(expectedFiles, filesSeen) {
+				uploaded++
+				task.Detail = fmt.Sprintf(
+					"Uploaded %d/%d files",
+					uploaded,
+					uploadTaskFileTotal(expectedFiles, len(task.Items)),
+				)
+				persistTask(true)
+				break
+			}
+			a.failUploadTask(task, "UPLOAD_PARSE_FAILED", drainErr.Error(), w, http.StatusBadRequest)
+			return
+		}
+
+		uploaded++
+		task.Detail = fmt.Sprintf(
+			"Uploaded %d/%d files",
+			uploaded,
+			uploadTaskFileTotal(expectedFiles, len(task.Items)),
+		)
+		persistTask(true)
+		if expectedFiles > 0 && filesSeen >= expectedFiles {
+			break
+		}
+	}
+
+	if filesSeen == 0 {
+		a.failUploadTask(task, "UPLOAD_EMPTY", "files is required", w, http.StatusBadRequest)
+		return
+	}
+
+	if uploaded == filesSeen {
+		task.Status = "success"
+		task.Detail = fmt.Sprintf("Uploaded %d/%d files", uploaded, filesSeen)
+		if task.TotalBytes > 0 {
+			task.CompletedBytes = task.TotalBytes
+		} else {
+			task.TotalBytes = task.CompletedBytes
+		}
+	} else {
+		task.Status = "partial"
+		task.Detail = fmt.Sprintf("Uploaded %d/%d files", uploaded, filesSeen)
+	}
+	task.UpdatedAt = time.Now().Unix()
+	_ = a.taskManager.Put(task, "")
+	writeJSON(w, http.StatusOK, task)
+}
+
+func requestedUploadTaskID(r *http.Request) (string, error) {
+	raw := strings.TrimSpace(r.Header.Get(uploadTaskIDHeader))
+	if raw == "" {
+		return "", nil
+	}
+	if len(raw) > uploadTaskIDMaxLen {
+		return "", errors.New("upload task id is too long")
+	}
+	for _, ch := range raw {
+		switch {
+		case ch >= 'a' && ch <= 'z':
+		case ch >= 'A' && ch <= 'Z':
+		case ch >= '0' && ch <= '9':
+		case ch == '-' || ch == '_':
+		default:
+			return "", errors.New("upload task id contains invalid characters")
+		}
+	}
+	return raw, nil
+}
+
+func requestedUploadTotalBytes(r *http.Request) int64 {
+	raw := strings.TrimSpace(r.Header.Get(uploadTotalBytesHeader))
+	if raw == "" {
+		return 0
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || value < 0 {
+		return 0
+	}
+	return value
+}
+
+func requestedUploadItemCount(r *http.Request) int {
+	raw := strings.TrimSpace(r.Header.Get(uploadItemCountHeader))
+	if raw == "" {
+		return 0
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil || value < 0 {
+		return 0
+	}
+	return value
+}
+
+func readMultipartFieldValue(part *multipart.Part, maxBytes int64) (string, error) {
+	data, err := io.ReadAll(io.LimitReader(part, maxBytes+1))
+	if err != nil {
+		return "", err
+	}
+	if int64(len(data)) > maxBytes {
+		return "", errors.New("multipart field too large")
+	}
+	return string(data), nil
+}
+
+func uploadTaskFileTotal(expectedFiles, seenFiles int) int {
+	if expectedFiles > 0 {
+		return expectedFiles
+	}
+	if seenFiles > 0 {
+		return seenFiles
+	}
+	return 1
+}
+
+func (a *api) failUploadTask(task transfer.Task, code, message string, w http.ResponseWriter, status int) {
+	task.Status = "failed"
+	task.Detail = message
+	task.UpdatedAt = time.Now().Unix()
+	_ = a.taskManager.Put(task, "")
+	writeError(w, status, code, message)
+}
+
+func isRecoverableMultipartEOF(err error, expectedFiles, filesSeen, uploaded int) bool {
+	return errors.Is(err, io.ErrUnexpectedEOF) &&
+		expectedFiles > 0 &&
+		filesSeen >= expectedFiles &&
+		uploaded == filesSeen
+}
+
+func isRecoverableMultipartPartEOF(expectedFiles, filesSeen int, written, expectedItemSize int64) bool {
+	return expectedFiles > 0 &&
+		filesSeen >= expectedFiles &&
+		expectedItemSize > 0 &&
+		written == expectedItemSize
+}
+
+func isRecoverableMultipartDrainEOF(expectedFiles, filesSeen int) bool {
+	return expectedFiles > 0 && filesSeen >= expectedFiles
+}
+
+func discardMultipartPartRemainder(part *multipart.Part, remaining *int64) error {
+	_, err := io.Copy(io.Discard, &uploadLimitReader{reader: part, remaining: remaining})
+	return err
+}
+
+var errUploadTooLarge = errors.New("upload exceeds configured size limit")
+
+type uploadLimitReader struct {
+	reader    io.Reader
+	remaining *int64
+}
+
+func (r *uploadLimitReader) Read(p []byte) (int, error) {
+	if r.remaining == nil {
+		return r.reader.Read(p)
+	}
+	if *r.remaining < 0 {
+		return 0, errUploadTooLarge
+	}
+	if *r.remaining == 0 {
+		var scratch [1]byte
+		n, err := r.reader.Read(scratch[:])
+		if n > 0 {
+			return 0, errUploadTooLarge
+		}
+		return 0, err
+	}
+	if int64(len(p)) > *r.remaining {
+		p = p[:int(*r.remaining)]
+	}
+	n, err := r.reader.Read(p)
+	*r.remaining -= int64(n)
+	return n, err
 }
 
 func (a *api) tasks(w http.ResponseWriter, r *http.Request) {

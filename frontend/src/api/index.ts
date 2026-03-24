@@ -263,11 +263,24 @@ export const api = {
       request.send(form);
     });
   },
+  createUploadTask: (files: FileList | File[]) => {
+    const rows = Array.from(files);
+    return request<TransferTask>("/api/uploads/task", {
+      method: "POST",
+      body: JSON.stringify({
+        totalBytes: rows.reduce((sum, file) => sum + file.size, 0),
+        items: rows.map((file) => ({
+          name: file.name,
+          size: file.size,
+        })),
+      }),
+    });
+  },
   upload: async (
+    taskId: string,
     mountId: string,
     path: string,
     files: FileList | File[],
-    onProgress?: (progress: UploadProgress) => void,
   ) => {
     const form = new FormData();
     const rows = Array.from(files);
@@ -280,18 +293,18 @@ export const api = {
       request.open("POST", apiUrl("/api/uploads"));
       request.withCredentials = !isAppMode();
       request.responseType = "json";
+      request.setRequestHeader("X-Upload-Task-ID", taskId);
+      request.setRequestHeader(
+        "X-Upload-Total-Bytes",
+        `${Math.max(0, Math.floor(fallbackTotal))}`,
+      );
+      request.setRequestHeader("X-Upload-Item-Count", `${rows.length}`);
       if (isAppMode()) {
         const token = getAppAccessToken();
         if (token) {
           request.setRequestHeader("Authorization", `Bearer ${token}`);
         }
       }
-      request.upload.onprogress = (event) => {
-        onProgress?.({
-          loaded: event.loaded,
-          total: event.lengthComputable ? event.total : fallbackTotal,
-        });
-      };
       request.onerror = () =>
         reject(new Error(translate("controller.errors.uploadFailed")));
       request.onload = () => {

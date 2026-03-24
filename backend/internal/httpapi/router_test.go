@@ -1385,6 +1385,339 @@ func TestUploadsMarkPartialWhenSomeFilesFail(t *testing.T) {
 	}
 }
 
+func TestUploadsWithTaskHeaderPersistsProvidedTaskID(t *testing.T) {
+	root := t.TempDir()
+	handler := newTestHandler(t, root)
+	cookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	if err := writer.WriteField("mountId", "root"); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.WriteField("path", "/"); err != nil {
+		t.Fatal(err)
+	}
+	part, err := writer.CreateFormFile("files", "hello.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write([]byte("hello")); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/uploads", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set(uploadTaskIDHeader, "upload-test-123")
+	req.Header.Set(uploadTotalBytesHeader, "5")
+	req.Header.Set(uploadItemCountHeader, "1")
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected upload 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var task transfer.Task
+	if err := json.Unmarshal(rec.Body.Bytes(), &task); err != nil {
+		t.Fatal(err)
+	}
+	if task.ID != "upload-test-123" {
+		t.Fatalf("task ID = %q, want upload-test-123", task.ID)
+	}
+	if task.Status != "success" {
+		t.Fatalf("task status = %q, want success", task.Status)
+	}
+	if task.TotalBytes != 5 || task.CompletedBytes != 5 {
+		t.Fatalf("unexpected byte progress: total=%d completed=%d", task.TotalBytes, task.CompletedBytes)
+	}
+	if task.Detail != "Uploaded 1/1 files" {
+		t.Fatalf("task detail = %q, want Uploaded 1/1 files", task.Detail)
+	}
+
+	data, err := os.ReadFile(filepath.Join(root, "hello.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "hello" {
+		t.Fatalf("uploaded file content = %q, want hello", string(data))
+	}
+
+	taskRec := authedRequest(handler, cookie, http.MethodGet, "/api/tasks/upload-test-123", nil)
+	if taskRec.Code != http.StatusOK {
+		t.Fatalf("expected task lookup 200, got %d: %s", taskRec.Code, taskRec.Body.String())
+	}
+	var stored transfer.Task
+	if err := json.Unmarshal(taskRec.Body.Bytes(), &stored); err != nil {
+		t.Fatal(err)
+	}
+	if stored.ID != task.ID || stored.CompletedBytes != 5 {
+		t.Fatalf("unexpected stored task: %+v", stored)
+	}
+}
+
+func TestCreateUploadTaskThenUploadDoesNotDuplicateItems(t *testing.T) {
+	root := t.TempDir()
+	handler := newTestHandler(t, root)
+	cookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	createRec := authedRequest(
+		handler,
+		cookie,
+		http.MethodPost,
+		"/api/uploads/task",
+		[]byte(`{"totalBytes":5,"items":[{"name":"hello.txt","size":5}]}`),
+	)
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("expected create task 201, got %d: %s", createRec.Code, createRec.Body.String())
+	}
+	var created transfer.Task
+	if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	if err := writer.WriteField("mountId", "root"); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.WriteField("path", "/"); err != nil {
+		t.Fatal(err)
+	}
+	part, err := writer.CreateFormFile("files", "hello.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write([]byte("hello")); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/uploads", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set(uploadTaskIDHeader, created.ID)
+	req.Header.Set(uploadTotalBytesHeader, "5")
+	req.Header.Set(uploadItemCountHeader, "1")
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected upload 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var task transfer.Task
+	if err := json.Unmarshal(rec.Body.Bytes(), &task); err != nil {
+		t.Fatal(err)
+	}
+	if len(task.Items) != 1 {
+		t.Fatalf("task items = %+v, want exactly 1 item", task.Items)
+	}
+	if task.Items[0].Name != "hello.txt" || task.Items[0].Size != 5 {
+		t.Fatalf("unexpected task item: %+v", task.Items[0])
+	}
+}
+
+func TestUploadsWithTaskHeaderRejectsClaimedOversizeBeforeWriting(t *testing.T) {
+	root := t.TempDir()
+	store := indexer.NewStore(t.TempDir())
+	if err := store.Init(); err != nil {
+		t.Fatal(err)
+	}
+	handler := newHandlerWithConfig(root, store, config.Config{
+		SessionCookieName: "pan_session",
+		SessionSecret:     "secret",
+		AdminUsername:     "admin",
+		AdminPasswordHash: routerTestPasswordHash,
+		MaxUploadBytes:    4,
+		MaxEditFileBytes:  1024 * 1024,
+	})
+	cookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	if err := writer.WriteField("mountId", "root"); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.WriteField("path", "/"); err != nil {
+		t.Fatal(err)
+	}
+	part, err := writer.CreateFormFile("files", "large.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write([]byte("hello")); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/uploads", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set(uploadTaskIDHeader, "upload-too-large")
+	req.Header.Set(uploadTotalBytesHeader, "5")
+	req.Header.Set(uploadItemCountHeader, "1")
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("expected 413, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if _, err := os.Stat(filepath.Join(root, "large.txt")); !os.IsNotExist(err) {
+		t.Fatalf("expected oversized upload to be rejected before writing file, got %v", err)
+	}
+
+	taskRec := authedRequest(handler, cookie, http.MethodGet, "/api/tasks/upload-too-large", nil)
+	if taskRec.Code != http.StatusOK {
+		t.Fatalf("expected task lookup 200, got %d: %s", taskRec.Code, taskRec.Body.String())
+	}
+	var task transfer.Task
+	if err := json.Unmarshal(taskRec.Body.Bytes(), &task); err != nil {
+		t.Fatal(err)
+	}
+	if task.Status != "failed" {
+		t.Fatalf("task status = %q, want failed", task.Status)
+	}
+}
+
+func TestUploadsWithTaskHeaderAcceptsUnexpectedEOFAfterExpectedFiles(t *testing.T) {
+	root := t.TempDir()
+	handler := newTestHandler(t, root)
+	cookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	if err := writer.WriteField("mountId", "root"); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.WriteField("path", "/"); err != nil {
+		t.Fatal(err)
+	}
+	part, err := writer.CreateFormFile("files", "hello.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write([]byte("hello")); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	raw := body.Bytes()
+	if len(raw) < 4 {
+		t.Fatal("multipart body unexpectedly short")
+	}
+	truncated := raw[:len(raw)-4]
+
+	req := httptest.NewRequest(http.MethodPost, "/api/uploads", bytes.NewReader(truncated))
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set(uploadTaskIDHeader, "upload-truncated-final-boundary")
+	req.Header.Set(uploadTotalBytesHeader, "5")
+	req.Header.Set(uploadItemCountHeader, "1")
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected upload 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var task transfer.Task
+	if err := json.Unmarshal(rec.Body.Bytes(), &task); err != nil {
+		t.Fatal(err)
+	}
+	if task.Status != "success" {
+		t.Fatalf("task status = %q, want success", task.Status)
+	}
+	if task.Detail != "Uploaded 1/1 files" {
+		t.Fatalf("task detail = %q, want Uploaded 1/1 files", task.Detail)
+	}
+
+	data, err := os.ReadFile(filepath.Join(root, "hello.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "hello" {
+		t.Fatalf("uploaded file content = %q, want hello", string(data))
+	}
+}
+
+func TestUploadsWithTaskHeaderAcceptsMissingFinalBoundaryWhenSizesMatch(t *testing.T) {
+	root := t.TempDir()
+	handler := newTestHandler(t, root)
+	cookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	createRec := authedRequest(
+		handler,
+		cookie,
+		http.MethodPost,
+		"/api/uploads/task",
+		[]byte(`{"totalBytes":5,"items":[{"name":"hello.txt","size":5}]}`),
+	)
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("expected create task 201, got %d: %s", createRec.Code, createRec.Body.String())
+	}
+	var created transfer.Task
+	if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	if err := writer.WriteField("mountId", "root"); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.WriteField("path", "/"); err != nil {
+		t.Fatal(err)
+	}
+	part, err := writer.CreateFormFile("files", "hello.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write([]byte("hello")); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	raw := body.Bytes()
+	boundaryStart := bytes.LastIndex(raw, []byte("\r\n--"+writer.Boundary()))
+	if boundaryStart < 0 {
+		t.Fatal("expected final multipart boundary")
+	}
+	truncated := raw[:boundaryStart]
+
+	req := httptest.NewRequest(http.MethodPost, "/api/uploads", bytes.NewReader(truncated))
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set(uploadTaskIDHeader, created.ID)
+	req.Header.Set(uploadTotalBytesHeader, "5")
+	req.Header.Set(uploadItemCountHeader, "1")
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected upload 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var task transfer.Task
+	if err := json.Unmarshal(rec.Body.Bytes(), &task); err != nil {
+		t.Fatal(err)
+	}
+	if task.Status != "success" {
+		t.Fatalf("task status = %q, want success", task.Status)
+	}
+	if task.Detail != "Uploaded 1/1 files" {
+		t.Fatalf("task detail = %q, want Uploaded 1/1 files", task.Detail)
+	}
+}
+
 func newTestHandler(t *testing.T, root string) http.Handler {
 	t.Helper()
 	store := indexer.NewStore(t.TempDir())
@@ -1428,7 +1761,7 @@ func newHandlerWithMountsAndConfig(store *indexer.Store, mountsList []mounts.Mou
 		Resolver:    fsops.NewMountResolver(mountsList),
 		Store:       store,
 		Auth:        manager,
-			TaskManager: transfer.NewManager(context.Background(), store),
+		TaskManager: transfer.NewManager(context.Background(), store),
 	})
 }
 

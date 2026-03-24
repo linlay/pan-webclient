@@ -119,6 +119,33 @@ func TestSaveUploadedFileAddsIncrementingSuffixForCollisions(t *testing.T) {
 	}
 }
 
+func TestSaveUploadedFileRemovesPartialFileOnCopyError(t *testing.T) {
+	root := t.TempDir()
+	resolver := NewMountResolver([]mounts.Mount{{ID: "root", Name: "Root", Path: root}})
+
+	_, written, err := SaveUploadedFileWithProgress(
+		resolver,
+		"root",
+		"/",
+		"broken.txt",
+		&failingUploadReader{},
+		nil,
+	)
+	if err == nil {
+		t.Fatal("expected upload error")
+	}
+	if written != 4 {
+		t.Fatalf("written = %d, want 4", written)
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("expected partial upload file to be removed, got %d entries", len(entries))
+	}
+}
+
 func TestMovePathFallsBackToCopyWhenRenameCrossesDevices(t *testing.T) {
 	originalRename := moveRename
 	moveRename = func(oldpath, newpath string) error {
@@ -216,6 +243,18 @@ func mustWriteFile(t *testing.T, path string) {
 	if err := os.WriteFile(path, []byte("ok"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+}
+
+type failingUploadReader struct {
+	reads int
+}
+
+func (r *failingUploadReader) Read(p []byte) (int, error) {
+	if r.reads > 0 {
+		return 0, errors.New("forced upload failure")
+	}
+	r.reads++
+	return copy(p, "part"), nil
 }
 
 func containsEntry(entries []Entry, name string) bool {
