@@ -1001,6 +1001,25 @@ func (a *api) taskRoute(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 		return
 	}
+	if len(parts) == 2 && parts[1] == "cancel" && r.Method == http.MethodPost {
+		var req struct {
+			Detail string `json:"detail"`
+		}
+		if !decodeJSON(w, r, &req) {
+			return
+		}
+		task, err := a.taskManager.Cancel(id, req.Detail)
+		if err != nil {
+			if strings.Contains(err.Error(), "not pending") {
+				writeError(w, http.StatusConflict, "TASK_NOT_PENDING", "only pending tasks can be cancelled")
+				return
+			}
+			writeError(w, http.StatusNotFound, "TASK_NOT_FOUND", "task not found")
+			return
+		}
+		writeJSON(w, http.StatusOK, task)
+		return
+	}
 	task, artifact, err := a.taskManager.Get(id)
 	if err != nil {
 		writeError(w, http.StatusNotFound, "TASK_NOT_FOUND", "task not found")

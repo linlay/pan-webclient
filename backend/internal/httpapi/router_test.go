@@ -494,6 +494,74 @@ func TestTaskDeleteRejectsActiveTask(t *testing.T) {
 	}
 }
 
+func TestTaskCancelMarksPendingTaskFailed(t *testing.T) {
+	root := t.TempDir()
+	store := indexer.NewStore(t.TempDir())
+	if err := store.Init(); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.PutTask(indexer.TaskRecord{
+		ID:        "task-pending",
+		Kind:      "upload",
+		Status:    "pending",
+		Detail:    "Uploading files",
+		CreatedAt: 1,
+		UpdatedAt: 2,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := newHandlerWithStore(root, store)
+	cookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	body, _ := json.Marshal(map[string]string{"detail": "Upload failed"})
+	rec := authedRequest(handler, cookie, http.MethodPost, "/api/tasks/task-pending/cancel", body)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var task transfer.Task
+	if err := json.Unmarshal(rec.Body.Bytes(), &task); err != nil {
+		t.Fatal(err)
+	}
+	if task.Status != "failed" || task.Detail != "Upload failed" {
+		t.Fatalf("unexpected task payload: %+v", task)
+	}
+	record, err := store.GetTask("task-pending")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.Status != "failed" || record.Detail != "Upload failed" {
+		t.Fatalf("unexpected stored task: %+v", record)
+	}
+}
+
+func TestTaskCancelRejectsNonPendingTask(t *testing.T) {
+	root := t.TempDir()
+	store := indexer.NewStore(t.TempDir())
+	if err := store.Init(); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.PutTask(indexer.TaskRecord{
+		ID:        "task-running",
+		Kind:      "upload",
+		Status:    "running",
+		Detail:    "Uploading files",
+		CreatedAt: 1,
+		UpdatedAt: 2,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := newHandlerWithStore(root, store)
+	cookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	body, _ := json.Marshal(map[string]string{})
+	rec := authedRequest(handler, cookie, http.MethodPost, "/api/tasks/task-running/cancel", body)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestPublicShareForFileAllowsPreviewAndDownload(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "hello.txt"), []byte("hello share"), 0o644); err != nil {

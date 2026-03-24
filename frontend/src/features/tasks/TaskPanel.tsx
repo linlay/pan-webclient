@@ -60,6 +60,7 @@ function progressColor(status: TransferTask["status"]) {
 export function TaskPanel(props: {
 	tasks: TransferTask[];
 	collapsed: boolean;
+	onCancelTask: (id: string) => void;
 	isMobile: boolean;
 	onDeleteTask: (id: string) => void;
 	onToggle: () => void;
@@ -104,6 +105,7 @@ export function TaskPanel(props: {
 							</div>
 						) : (
 							props.tasks.map((task) => {
+								const canCancel = task.status === "pending";
 								const canDelete =
 									task.status === "success" ||
 									task.status === "failed";
@@ -196,6 +198,24 @@ export function TaskPanel(props: {
 												{task.status === "pending" ||
 												task.status === "running" ? (
 													<div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+												) : null}
+												{canCancel ? (
+													<button
+														className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-red-500 dark:hover:bg-slate-700"
+														onClick={(event) => {
+															event.stopPropagation();
+															props.onCancelTask(
+																task.id,
+															);
+														}}
+														title={t("tasks.cancelTask")}
+														type="button"
+													>
+														<MaterialIcon
+															name="close"
+															className="text-sm"
+														/>
+													</button>
 												) : null}
 												{canDelete ? (
 													<button

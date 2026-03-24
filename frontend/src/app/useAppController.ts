@@ -362,7 +362,7 @@ export function useAppController() {
         .catch((error: Error) =>
           setNotice({ tone: "error", text: error.message }),
         );
-    }, 1200);
+    }, 1000);
     return () => window.clearInterval(handle);
   }, [tasks]);
 
@@ -1018,27 +1018,38 @@ export function useAppController() {
       await refreshCurrentView();
       setNotice({ tone: "info", text: task.detail });
     } catch (error) {
-      const failedTask = uploadTask
-        ? await api.task(uploadTask.id).catch(() => null)
-        : null;
+      const errorText =
+        error instanceof Error
+          ? error.message
+          : t("controller.errors.uploadFailed");
+      const fallbackFailedTask: TransferTask = {
+        ...(uploadTask ?? localTask),
+        status: "failed",
+        detail: errorText,
+        updatedAt: Math.floor(Date.now() / 1000),
+      };
       setTasks((prev) =>
-        failedTask
-          ? mergeTasks(
-            prev.filter((item) => item.id !== localTask.id),
-            [failedTask],
-          )
-          : prev.filter(
-            (item) =>
-              item.id !== localTask.id &&
-              item.id !== (uploadTask?.id ?? ""),
-          ),
+        mergeTasks(
+          prev.filter((item) => item.id !== localTask.id),
+          [fallbackFailedTask],
+        ),
       );
+      if (uploadTask) {
+        const serverTask = await api.task(uploadTask.id).catch(() => null);
+        if (serverTask && serverTask.status !== "pending" && serverTask.status !== "running") {
+          setTasks((prev) => mergeTasks(prev, [serverTask]));
+        } else if (serverTask?.status === "pending") {
+          const cancelledTask = await api
+            .cancelTask(uploadTask.id, errorText)
+            .catch(() => null);
+          if (cancelledTask) {
+            setTasks((prev) => mergeTasks(prev, [cancelledTask]));
+          }
+        }
+      }
       setNotice({
         tone: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : t("controller.errors.uploadFailed"),
+        text: errorText,
       });
     }
   }
@@ -1063,6 +1074,26 @@ export function useAppController() {
       triggerTaskDownload(task.id);
     }
     if (isMobile) setMobileInspectorOpen(true);
+  }
+
+  async function handleCancelTask(taskId: string) {
+    const task = tasks.find((item) => item.id === taskId);
+    if (!task || isLocalTaskId(task.id) || task.status !== "pending") {
+      return;
+    }
+    try {
+      const cancelledTask = await api.cancelTask(taskId);
+      setTasks((prev) => mergeTasks(prev, [cancelledTask]));
+      setNotice({ tone: "info", text: t("controller.info.taskCancelled") });
+    } catch (error) {
+      setNotice({
+        tone: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : t("controller.errors.operationFailed"),
+      });
+    }
   }
 
   function handleDeleteTask(taskId: string) {
@@ -1325,6 +1356,7 @@ export function useAppController() {
     handleCloseDesktopPreview,
     handleCloseMobileInspector,
     handleCloseMobileNav,
+    handleCancelTask,
     handleCopyShare,
     handleDeleteShare,
     handleDeleteTask,
