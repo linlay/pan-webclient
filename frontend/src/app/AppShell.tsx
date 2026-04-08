@@ -40,6 +40,7 @@ export function AppShell(props: AppShellProps) {
 			currentPath={props.currentPath}
 			deletingShareId={props.deletingShareId}
 			editor={props.editor}
+			handleCancelTask={props.handleCancelTask}
 			handleCopyShare={props.handleCopyShare}
 			handleDeleteShare={props.handleDeleteShare}
 			handleDeleteTask={props.handleDeleteTask}

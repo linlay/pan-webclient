@@ -15,6 +15,7 @@ services:
       - ./data:/app/data
     expose:
       - "${API_PORT:-8080}"
+    restart: unless-stopped
 
   frontend:
     container_name: pan-webclient-frontend
@@ -26,3 +27,4 @@ services:
       - api
     ports:
       - "${NGINX_PORT:-11946}:80"
+    restart: unless-stopped

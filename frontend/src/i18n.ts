@@ -199,6 +199,7 @@ const resources = {
       },
       tasks: {
         back: "Back",
+        cancelTask: "Cancel task",
         deleteTask: "Delete task",
         downloadZip: "Download ZIP",
         empty: "No tasks yet",
@@ -217,6 +218,7 @@ const resources = {
         detail: {
           preparingArchive: "Preparing archive",
           buildingArchive: "Building ZIP archive",
+          taskCancelled: "Task cancelled",
           uploadingOne: "Uploading {{name}}",
           uploadingMany: "Uploading {{count}} files",
         },
@@ -499,6 +501,7 @@ const resources = {
           copyComplete: "Copy complete",
           movedToTrash: "Moved to trash",
           downloadTaskCreated: "Download task created",
+          taskCancelled: "Task cancelled",
           taskDeleted: "Task deleted",
           saveSuccess: "Saved successfully",
           restoreSuccess: "Restored to the original location",
@@ -716,6 +719,7 @@ const resources = {
       },
       tasks: {
         back: "返回",
+        cancelTask: "取消任务",
         deleteTask: "删除任务",
         downloadZip: "下载 ZIP",
         empty: "暂无任务",
@@ -734,6 +738,7 @@ const resources = {
         detail: {
           preparingArchive: "正在准备打包",
           buildingArchive: "正在生成 ZIP",
+          taskCancelled: "任务已取消",
           uploadingOne: "正在上传 {{name}}",
           uploadingMany: "正在上传 {{count}} 个文件",
         },
@@ -1011,6 +1016,7 @@ const resources = {
           copyComplete: "复制完成",
           movedToTrash: "已移入垃圾桶",
           downloadTaskCreated: "已创建下载任务",
+          taskCancelled: "任务已取消",
           taskDeleted: "任务已删除",
           saveSuccess: "保存成功",
           restoreSuccess: "已恢复到原位置",

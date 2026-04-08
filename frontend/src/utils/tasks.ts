@@ -113,6 +113,9 @@ export function taskSummary(task: TransferTask) {
 }
 
 export function taskDisplayDetail(task: TransferTask) {
+  if (task.detail === "Task cancelled") {
+    return translate("tasks.detail.taskCancelled");
+  }
   if (isUploadTaskComplete(task)) {
     return "";
   }

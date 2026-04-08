@@ -116,6 +116,26 @@ func (m *Manager) Delete(id string) error {
 	return m.store.DeleteTask(id)
 }
 
+func (m *Manager) Cancel(id, detail string) (Task, error) {
+	task, artifact, err := m.Get(id)
+	if err != nil {
+		return Task{}, err
+	}
+	if task.Status != "pending" {
+		return Task{}, fmt.Errorf("task is not pending")
+	}
+	if strings.TrimSpace(detail) == "" {
+		detail = "Task cancelled"
+	}
+	task.Status = "failed"
+	task.Detail = detail
+	task.UpdatedAt = time.Now().Unix()
+	if err := m.Put(task, artifact); err != nil {
+		return Task{}, err
+	}
+	return task, nil
+}
+
 func NewTask(kind, detail string) Task {
 	now := time.Now().Unix()
 	return Task{
@@ -147,8 +167,8 @@ func (m *Manager) StartZipTask(resolver *fsops.MountResolver, mountID string, it
 
 		tasksDir := m.store.TasksDir()
 		_ = os.MkdirAll(tasksDir, 0o755)
-			filename := SanitizeArchiveName(archiveName, "bundle.zip")
-			artifactPath := filepath.Join(tasksDir, task.ID+"-"+filename)
+		filename := SanitizeArchiveName(archiveName, "bundle.zip")
+		artifactPath := filepath.Join(tasksDir, task.ID+"-"+filename)
 		lastPersist := time.Now()
 		persistProgress := func(force bool) {
 			if !force && time.Since(lastPersist) < 250*time.Millisecond {
@@ -158,10 +178,10 @@ func (m *Manager) StartZipTask(resolver *fsops.MountResolver, mountID string, it
 			_ = m.Put(task, artifactPath)
 			lastPersist = time.Now()
 		}
-			if err := buildZip(m.ctx, resolver, mountID, items, artifactPath, func(delta int64) {
-				task.CompletedBytes += delta
-				persistProgress(false)
-			}); err != nil {
+		if err := buildZip(m.ctx, resolver, mountID, items, artifactPath, func(delta int64) {
+			task.CompletedBytes += delta
+			persistProgress(false)
+		}); err != nil {
 			task.Status = "failed"
 			task.Detail = err.Error()
 			task.UpdatedAt = time.Now().Unix()

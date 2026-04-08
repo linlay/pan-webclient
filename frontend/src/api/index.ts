@@ -343,6 +343,11 @@ export const api = {
       body: JSON.stringify({ mountId, items, archiveName }),
     }),
   task: (id: string) => request<TransferTask>(`/api/tasks/${id}`),
+  cancelTask: (id: string, detail?: string) =>
+    request<TransferTask>(`/api/tasks/${id}/cancel`, {
+      method: "POST",
+      body: JSON.stringify(detail ? { detail } : {}),
+    }),
   deleteTask: (id: string) =>
     request<{ ok: boolean }>(`/api/tasks/${id}`, {
       method: "DELETE",

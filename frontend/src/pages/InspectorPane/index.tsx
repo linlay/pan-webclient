@@ -19,6 +19,7 @@ export interface InspectorPaneProps {
 	canEditActiveEntry: boolean;
 	currentMount: MountRoot | null;
 	currentPath: string;
+	handleCancelTask: (id: string) => void;
 	editor: EditorDocument | null;
 	handleDeleteTask: (id: string) => void;
 	handleDeleteTrash: (id: string) => void;
@@ -63,6 +64,7 @@ export function InspectorPane(props: InspectorPaneProps) {
 		return (
 			<TaskPanel
 				collapsed={props.taskPanelCollapsed}
+				onCancelTask={props.handleCancelTask}
 				onDeleteTask={props.handleDeleteTask}
 				isMobile={props.isMobile}
 				onBack={props.onBack}
