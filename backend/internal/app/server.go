@@ -6,8 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
-	"strings"
 	"time"
 
 	"pan-webclient/backend/internal/auth"
@@ -24,13 +22,7 @@ type Server struct {
 	taskCancel context.CancelFunc
 }
 
-var lookPath = exec.LookPath
-
 func New(cfg config.Config) (*Server, error) {
-	if err := ensureAuthDependencies(cfg); err != nil {
-		return nil, err
-	}
-
 	mountList := mounts.FromConfig(cfg.Mounts)
 	resolver := fsops.NewMountResolver(mountList)
 	store := indexer.NewStore(cfg.DataDir)
@@ -66,16 +58,6 @@ func New(cfg config.Config) (*Server, error) {
 		httpServer: server,
 		taskCancel: taskCancel,
 	}, nil
-}
-
-func ensureAuthDependencies(cfg config.Config) error {
-	if strings.TrimSpace(cfg.AdminPasswordHash) == "" {
-		return nil
-	}
-	if _, err := lookPath("htpasswd"); err != nil {
-		return fmt.Errorf("web login requires htpasswd in PATH: %w", err)
-	}
-	return nil
 }
 
 func (s *Server) Run() error {

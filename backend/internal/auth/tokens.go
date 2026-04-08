@@ -15,9 +15,10 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Claims struct {
@@ -55,26 +56,11 @@ func (m *Manager) CheckCredentials(username, password string) bool {
 	if subtle.ConstantTimeCompare([]byte(username), []byte(m.adminUser)) != 1 {
 		return false
 	}
-	passwordFile, err := os.CreateTemp("", "pan-htpasswd-*")
-	if err != nil {
+	normalizedHash := strings.Replace(m.adminPassHash, "$2y$", "$2a$", 1)
+	if normalizedHash == "" {
 		return false
 	}
-	passwordFilePath := passwordFile.Name()
-	defer func() {
-		_ = passwordFile.Close()
-		_ = os.Remove(passwordFilePath)
-	}()
-
-	if _, err := passwordFile.WriteString(m.adminUser + ":" + m.adminPassHash + "\n"); err != nil {
-		return false
-	}
-	if err := passwordFile.Close(); err != nil {
-		return false
-	}
-
-	cmd := exec.Command("htpasswd", "-vi", passwordFilePath, m.adminUser)
-	cmd.Stdin = strings.NewReader(password)
-	return cmd.Run() == nil
+	return bcrypt.CompareHashAndPassword([]byte(normalizedHash), []byte(password)) == nil
 }
 
 func (m *Manager) IssueSession(username string, ttl time.Duration) (string, error) {

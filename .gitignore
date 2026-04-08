@@ -1,4 +1,5 @@
 bin/
+backend/server
 dist/
 configs/*.pem
 !configs/*.example.pem

@@ -8,7 +8,6 @@ import (
 	"encoding/pem"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -80,39 +79,7 @@ func TestEnsureRuntimeDirsDoesNotMigrateLegacyAppsData(t *testing.T) {
 	}
 }
 
-func TestNewFailsWhenHtpasswdIsUnavailable(t *testing.T) {
-	originalLookPath := lookPath
-	lookPath = func(file string) (string, error) {
-		return "", &execError{name: file}
-	}
-	t.Cleanup(func() {
-		lookPath = originalLookPath
-	})
-
-	_, err := New(config.Config{
-		APIPort:           "8080",
-		DataDir:           t.TempDir(),
-		SessionSecret:     "session-secret",
-		AdminUsername:     "admin",
-		AdminPasswordHash: "bcrypt-hash",
-	})
-	if err == nil || !strings.Contains(err.Error(), "web login requires htpasswd in PATH") {
-		t.Fatalf("expected missing htpasswd error, got %v", err)
-	}
-}
-
-func TestNewAcceptsAvailableHtpasswd(t *testing.T) {
-	originalLookPath := lookPath
-	lookPath = func(file string) (string, error) {
-		if file != "htpasswd" {
-			t.Fatalf("lookPath called with %q, want htpasswd", file)
-		}
-		return "/usr/bin/htpasswd", nil
-	}
-	t.Cleanup(func() {
-		lookPath = originalLookPath
-	})
-
+func TestNewAcceptsInProcessBcryptAuth(t *testing.T) {
 	keyPath := writeTestRSAPublicKey(t)
 	server, err := New(config.Config{
 		APIPort:                   "8080",
@@ -163,12 +130,4 @@ func writeTestRSAPublicKey(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return publicKeyPath
-}
-
-type execError struct {
-	name string
-}
-
-func (e *execError) Error() string {
-	return "executable file not found in $PATH: " + e.name
 }

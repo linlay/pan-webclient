@@ -138,7 +138,7 @@ func TestBearerTokenAuthUsesInjectedJWT(t *testing.T) {
 	}
 }
 
-func TestOnlyCanonicalAPIBaseIsRegistered(t *testing.T) {
+func TestAPIOnlyModeDoesNotRegisterProgramRoutes(t *testing.T) {
 	root := t.TempDir()
 	handler := newTestHandler(t, root)
 	cookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
@@ -148,6 +148,64 @@ func TestOnlyCanonicalAPIBaseIsRegistered(t *testing.T) {
 		if rec.Code != http.StatusNotFound {
 			t.Fatalf("%s expected 404, got %d", path, rec.Code)
 		}
+	}
+}
+
+func TestProgramModeServesUIAndExternalAPIPaths(t *testing.T) {
+	root := t.TempDir()
+	handler := newProgramTestHandler(t, root)
+	cookie := issueTestSession(t, auth.NewManager("secret", nil, "admin", routerTestPasswordHash))
+
+	rootRec := requestWithCookies(handler, nil, http.MethodGet, "/", nil)
+	if rootRec.Code != http.StatusFound || rootRec.Header().Get("Location") != "/pan/" {
+		t.Fatalf("/ expected redirect to /pan/, got code=%d location=%q", rootRec.Code, rootRec.Header().Get("Location"))
+	}
+
+	panRec := requestWithCookies(handler, nil, http.MethodGet, "/pan/", nil)
+	if panRec.Code != http.StatusOK {
+		t.Fatalf("/pan/ expected 200, got %d", panRec.Code)
+	}
+	if !strings.Contains(panRec.Body.String(), `id="root"`) {
+		t.Fatalf("/pan/ expected SPA shell, got %q", panRec.Body.String())
+	}
+	if panRec.Header().Get("Cache-Control") != noStoreCacheControl {
+		t.Fatalf("/pan/ Cache-Control = %q, want %q", panRec.Header().Get("Cache-Control"), noStoreCacheControl)
+	}
+
+	appRec := requestWithCookies(handler, nil, http.MethodGet, "/apppan/files", nil)
+	if appRec.Code != http.StatusOK {
+		t.Fatalf("/apppan/files expected 200, got %d", appRec.Code)
+	}
+	if !strings.Contains(appRec.Body.String(), `id="root"`) {
+		t.Fatalf("/apppan/files expected SPA shell, got %q", appRec.Body.String())
+	}
+
+	assetRec := requestWithCookies(handler, nil, http.MethodGet, "/pan/js/main.1234abcd.js", nil)
+	if assetRec.Code != http.StatusOK {
+		t.Fatalf("hashed asset expected 200, got %d", assetRec.Code)
+	}
+	if assetRec.Header().Get("Cache-Control") != "public, immutable" {
+		t.Fatalf("hashed asset Cache-Control = %q", assetRec.Header().Get("Cache-Control"))
+	}
+
+	missingAssetRec := requestWithCookies(handler, nil, http.MethodGet, "/pan/js/missing.1234abcd.js", nil)
+	if missingAssetRec.Code != http.StatusNotFound {
+		t.Fatalf("missing hashed asset expected 404, got %d", missingAssetRec.Code)
+	}
+
+	webAPIRec := authedRequest(handler, cookie, http.MethodGet, "/pan/api/mounts", nil)
+	if webAPIRec.Code != http.StatusOK {
+		t.Fatalf("/pan/api/mounts expected 200, got %d: %s", webAPIRec.Code, webAPIRec.Body.String())
+	}
+
+	appAPIRec := authedRequest(handler, cookie, http.MethodGet, "/apppan/api/mounts", nil)
+	if appAPIRec.Code != http.StatusOK {
+		t.Fatalf("/apppan/api/mounts expected 200, got %d: %s", appAPIRec.Code, appAPIRec.Body.String())
+	}
+
+	rootAssetRec := requestWithCookies(handler, nil, http.MethodGet, "/js/main.1234abcd.js", nil)
+	if rootAssetRec.Code != http.StatusNotFound {
+		t.Fatalf("/js/* at root expected 404, got %d", rootAssetRec.Code)
 	}
 }
 
@@ -1762,6 +1820,33 @@ func newHandlerWithMountsAndConfig(store *indexer.Store, mountsList []mounts.Mou
 		Store:       store,
 		Auth:        manager,
 		TaskManager: transfer.NewManager(context.Background(), store),
+	})
+}
+
+func newProgramTestHandler(t *testing.T, root string) http.Handler {
+	t.Helper()
+	distDir := filepath.Join(t.TempDir(), "frontend", "dist")
+	if err := os.MkdirAll(filepath.Join(distDir, "js"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(distDir, "index.html"), []byte(`<!doctype html><html><body><div id="root"></div></body></html>`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(distDir, "js", "main.1234abcd.js"), []byte(`console.log("ok")`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	store := indexer.NewStore(t.TempDir())
+	if err := store.Init(); err != nil {
+		t.Fatal(err)
+	}
+	return newHandlerWithConfig(root, store, config.Config{
+		SessionCookieName: "pan_session",
+		SessionSecret:     "secret",
+		AdminUsername:     "admin",
+		AdminPasswordHash: routerTestPasswordHash,
+		MaxEditFileBytes:  1024 * 1024,
+		FrontendDistDir:   distDir,
 	})
 }
 

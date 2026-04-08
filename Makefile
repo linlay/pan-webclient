@@ -10,7 +10,7 @@ API_PORT_VALUE := $(or $(API_PORT),$(ENV_API_PORT),8080)
 VERSION := $(shell cat VERSION 2>/dev/null || echo "dev")
 ARCH := $(shell uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
 
-.PHONY: build build-backend build-frontend compose-mounts run stop docker-up docker-down release apppan-smoke clean
+.PHONY: build build-backend build-frontend compose-mounts run stop docker-up docker-down release release-program release-image apppan-smoke clean
 
 build: build-backend build-frontend
 
@@ -20,7 +20,7 @@ build-backend:
 	cd backend && GOCACHE=$(GO_CACHE) go build -o ../bin/$(APP_NAME) ./cmd/server
 
 build-frontend:
-	if [ ! -d frontend/node_modules ]; then cd frontend && npm ci; fi
+	cd frontend && npm ci
 	cd frontend && npm run build
 
 compose-mounts:
@@ -40,7 +40,13 @@ docker-down: compose-mounts
 	NGINX_PORT=$(NGINX_PORT_VALUE) API_PORT=$(API_PORT_VALUE) docker compose $(COMPOSE_FILES) down --remove-orphans
 
 release:
+	$(MAKE) release-program VERSION=$(VERSION) ARCH=$(ARCH)
+
+release-program:
 	VERSION=$(VERSION) ARCH=$(ARCH) bash scripts/release.sh
+
+release-image:
+	VERSION=$(VERSION) ARCH=$(ARCH) bash scripts/release-image.sh
 
 apppan-smoke:
 	bash scripts/apppan-smoke.sh

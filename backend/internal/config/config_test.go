@@ -360,6 +360,53 @@ func TestLoadFindsParentDotEnvAndResolvesConfigAndDataPathsFromEnvDir(t *testing
 	}
 }
 
+func TestLoadResolvesFrontendDistDirRelativeToDotEnvDir(t *testing.T) {
+	clearConfigEnv(t)
+	runtimeRoot := t.TempDir()
+	previousWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	backendDir := filepath.Join(runtimeRoot, "backend")
+	frontendDistDir := filepath.Join(runtimeRoot, "frontend", "dist")
+	if err := os.MkdirAll(filepath.Join(runtimeRoot, "configs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(backendDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(frontendDistDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(runtimeRoot, "configs", "local-public-key.pem"), []byte(testPublicKeyPEM), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(runtimeRoot, ".env"), []byte(strings.Join([]string{
+		"WEB_SESSION_SECRET=session-secret",
+		"AUTH_PASSWORD_HASH_BCRYPT=" + testBcryptHash,
+		"APP_AUTH_LOCAL_PUBLIC_KEY_FILE=./configs/local-public-key.pem",
+		"FRONTEND_DIST_DIR=./frontend/dist",
+	}, "\n")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(backendDir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(previousWD); err != nil {
+			t.Fatalf("restore working directory: %v", err)
+		}
+	})
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if !samePath(t, cfg.FrontendDistDir, frontendDistDir) {
+		t.Fatalf("FrontendDistDir = %q, want %q", cfg.FrontendDistDir, frontendDistDir)
+	}
+}
+
 func TestLoadRejectsInvalidPublicKeyPEM(t *testing.T) {
 	clearConfigEnv(t)
 	dir := prepareConfigWorkspace(t)
@@ -557,6 +604,7 @@ func clearConfigEnv(t *testing.T) {
 		"APP_AUTH_LOCAL_PUBLIC_KEY_FILE",
 		"AUTH_APP_PUBLIC_KEY_FILE",
 		"PAN_DATA_DIR",
+		"FRONTEND_DIST_DIR",
 		"SESSION_COOKIE_NAME",
 		"WEB_SESSION_SECRET",
 		"PAN_ADMIN_USERNAME",

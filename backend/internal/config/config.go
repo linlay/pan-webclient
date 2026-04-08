@@ -31,6 +31,7 @@ type Config struct {
 	APIPort                   string  `json:"api_port"`
 	AppAuthLocalPublicKeyFile string  `json:"app_auth_local_public_key_file"`
 	DataDir                   string  `json:"pan_data_dir"`
+	FrontendDistDir           string  `json:"frontend_dist_dir"`
 	SessionCookieName         string  `json:"session_cookie_name"`
 	SessionSecret             string  `json:"-"`
 	AdminUsername             string  `json:"-"`
@@ -65,6 +66,7 @@ func Load() (Config, error) {
 		lookupEnv(dotEnv, "APP_AUTH_LOCAL_PUBLIC_KEY_FILE"),
 	)
 	applyString(&cfg.DataDir, lookupEnv(dotEnv, "PAN_DATA_DIR"))
+	applyString(&cfg.FrontendDistDir, lookupEnv(dotEnv, "FRONTEND_DIST_DIR"))
 	applyString(&cfg.SessionCookieName, lookupEnv(dotEnv, "SESSION_COOKIE_NAME"))
 	applyString(&cfg.SessionSecret, lookupEnv(dotEnv, "WEB_SESSION_SECRET"))
 	applyString(&cfg.AdminUsername, lookupEnv(dotEnv, "PAN_ADMIN_USERNAME"))
@@ -135,6 +137,13 @@ func Load() (Config, error) {
 		return cfg, fmt.Errorf("resolve data dir: %w", err)
 	}
 	cfg.DataDir = absDataDir
+	if strings.TrimSpace(cfg.FrontendDistDir) != "" {
+		absFrontendDistDir, err := resolvePathAgainstBase(configBaseDir, cfg.FrontendDistDir)
+		if err != nil {
+			return cfg, fmt.Errorf("resolve frontend dist dir: %w", err)
+		}
+		cfg.FrontendDistDir = absFrontendDistDir
+	}
 	resolvedPublicKeyFile, err := resolveLocalPublicKeyFile(
 		cfg.AppAuthLocalPublicKeyFile,
 		configBaseDir,
