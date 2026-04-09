@@ -38,6 +38,7 @@ const (
 	uploadItemCountHeader            = "X-Upload-Item-Count"
 	uploadTaskIDMaxLen               = 80
 	uploadTaskPersistInterval        = 250 * time.Millisecond
+	webSessionMaxAgeSeconds          = 24 * 60 * 60
 )
 
 type Dependencies struct {
@@ -67,6 +68,7 @@ func New(deps Dependencies) http.Handler {
 
 	apiMux := http.NewServeMux()
 	apiMux.HandleFunc("/api/health", a.health)
+	apiMux.HandleFunc("/api/app/session/exchange", a.appSessionExchange)
 	apiMux.HandleFunc("/api/web/session/login", a.webLogin)
 	apiMux.HandleFunc("/api/web/session/logout", a.webLogout)
 	apiMux.HandleFunc("/api/web/session/me", a.withAuth(a.sessionMe))
@@ -131,6 +133,39 @@ func (a *api) health(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (a *api) appSessionExchange(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+	token := auth.BearerToken(r)
+	if token == "" {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "missing or invalid credentials")
+		return
+	}
+	claims, err := a.auth.VerifyAccessToken(token)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", err.Error())
+		return
+	}
+
+	expiresAt := time.Now().Add(webSessionMaxAgeSeconds * time.Second)
+	sessionToken, err := a.auth.IssueSession(claims.Sub, webSessionMaxAgeSeconds*time.Second)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "TOKEN_ERROR", err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok":                true,
+		"username":          claims.Sub,
+		"sessionCookieName": a.cfg.SessionCookieName,
+		"sessionToken":      sessionToken,
+		"maxAgeSeconds":     webSessionMaxAgeSeconds,
+		"expiresAt":         expiresAt.Unix(),
+	})
+}
+
 func (a *api) webLogin(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
@@ -159,7 +194,7 @@ func (a *api) webLogin(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		MaxAge:   24 * 60 * 60,
+		MaxAge:   webSessionMaxAgeSeconds,
 	})
 	writeJSON(w, http.StatusOK, map[string]any{
 		"username":   req.Username,

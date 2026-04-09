@@ -15,6 +15,25 @@ export function isAppMode(pathname: string = window.location.pathname): boolean 
 	return pathname === APP_UI_BASE || pathname.startsWith(`${APP_UI_BASE}/`);
 }
 
+export function isDesktopEmbeddedMode(
+	search: string = window.location.search,
+): boolean {
+	return new URLSearchParams(search).get("desktopApp") === "1";
+}
+
+export function shouldUsePasswordLogin(options?: {
+	appMode?: boolean;
+	search?: string;
+}): boolean {
+	return !Boolean(options?.appMode) && !isDesktopEmbeddedMode(options?.search);
+}
+
+export function shouldShowLogoutAction(
+	search: string = window.location.search,
+): boolean {
+	return !isDesktopEmbeddedMode(search);
+}
+
 export function uiBasePath(
 	pathname: string = window.location.pathname,
 ): typeof WEB_UI_BASE | typeof APP_UI_BASE {

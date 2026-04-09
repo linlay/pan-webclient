@@ -6,6 +6,8 @@ type ThemeMode = "system" | "light" | "dark";
 
 export function LoginForm(props: {
 	appMode?: boolean;
+	desktopEmbeddedMode?: boolean;
+	passwordLoginEnabled?: boolean;
 	notice: { tone: "info" | "error"; text: string } | null;
 	themeMode: ThemeMode;
 	resolvedTheme: "light" | "dark";
@@ -18,6 +20,11 @@ export function LoginForm(props: {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
+	const infoMessage = props.desktopEmbeddedMode
+		? t("auth.desktopEmbedMessage")
+		: props.appMode
+			? t("auth.appModeMessage")
+			: "";
 
 	async function submit(event: FormEvent) {
 		event.preventDefault();
@@ -72,7 +79,9 @@ export function LoginForm(props: {
 									{t("auth.welcomeBack")}
 								</h1>
 								<p className="text-slate-500 dark:text-slate-400 text-sm">
-									{t("auth.enterCredentials")}
+									{props.desktopEmbeddedMode
+										? t("auth.desktopEmbedWaiting")
+										: t("auth.enterCredentials")}
 								</p>
 							</div>
 						</div>
@@ -80,10 +89,10 @@ export function LoginForm(props: {
 
 					{/* Form */}
 					<div className="px-8 py-6">
-						{props.appMode ? (
+						{!props.passwordLoginEnabled ? (
 							<div className="flex flex-col gap-4">
 								<div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300">
-									{t("auth.appModeMessage")}
+									{infoMessage}
 								</div>
 								{props.notice ? (
 									<div

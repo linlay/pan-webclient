@@ -1,4 +1,8 @@
-import { isAppMode } from "@/api/routing";
+import {
+	isAppMode,
+	isDesktopEmbeddedMode,
+	shouldUsePasswordLogin,
+} from "@/api/routing";
 import { AppShell } from "@/app/AppShell";
 import { useAppController } from "@/app/useAppController";
 import { LoginForm } from "@/features/auth/LoginForm";
@@ -8,6 +12,8 @@ import { useTranslation } from "react-i18next";
 export function App() {
 	const controller = useAppController();
 	const { t } = useTranslation();
+	const appMode = isAppMode();
+	const desktopEmbeddedMode = isDesktopEmbeddedMode();
 
 	if (controller.loadingSession) {
 		return (
@@ -27,7 +33,12 @@ export function App() {
 	if (!controller.user) {
 		return (
 			<LoginForm
-				appMode={isAppMode()}
+				appMode={appMode}
+				desktopEmbeddedMode={desktopEmbeddedMode}
+				passwordLoginEnabled={shouldUsePasswordLogin({
+					appMode,
+					search: window.location.search,
+				})}
 				notice={controller.notice}
 				onLogin={controller.handleLogin}
 				onThemeModeChange={controller.setThemeMode}

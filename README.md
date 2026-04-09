@@ -402,3 +402,25 @@ docker build -f frontend/Dockerfile -t pan-webclient-frontend:debug .
 - 若 program 模式页面能打开但静态资源 404，先检查 `FRONTEND_DIST_DIR` 是否指向正确的 `frontend/dist`
 - 若挂载为空或访问失败，开发态先检查 `.cache/docker-compose.mounts.yml`；program 模式则检查 `configs/mounts/*.json` 是否指向预期宿主机目录
 - 若 App Bearer Token 无法访问，检查 JWT 是否由匹配私钥签发、是否过期，以及 `APP_AUTH_LOCAL_PUBLIC_KEY_FILE` 是否正确
+
+## 8. 桌面集成
+
+pan-webclient 通过插件系统导入 zenmind-desktop。
+
+### 打包插件
+```bash
+make release-program
+```
+
+产物为 `dist/release/pan-webclient-program-*.tar.gz`，包含 `plugin-manifest.json`。
+
+### 安装
+在 zenmind-desktop 控制中心点击"安装插件"，选择上述 tar.gz 包。
+
+### 登录鉴权
+桌面端通过 RS256 JWT 自动建立网盘会话：
+1. zenmind-desktop 持有 RSA 私钥，签发短期 JWT
+2. pan-webclient 使用 `APP_AUTH_LOCAL_PUBLIC_KEY_FILE` 指向的公钥验签
+3. 验签通过后，`/api/app/session/exchange` 端点签发 Web Session Cookie
+
+密钥对由 zenmind-app-server 管理。zenmind-desktop 可通过 `panAuth.setupFromAppServer` 从认证服务导出密钥对，再通过 `panAuth.distributePublicKey` 将公钥写入 pan-webclient 的 `configs/local-public-key.pem`。

@@ -8,10 +8,13 @@ import {
 	WEB_UI_BASE,
 	apiPath,
 	apiPrefix,
+	isDesktopEmbeddedMode,
 	shareIdFromPath,
 	sharePath,
 	resolveExternalUrl,
 	isAppMode,
+	shouldShowLogoutAction,
+	shouldUsePasswordLogin,
 	uiBasePath,
 } from "./routing.ts";
 
@@ -26,6 +29,16 @@ assert.equal(uiBasePath("/apppan/files"), APP_UI_BASE);
 assert.equal(apiPrefix("/apppan/files"), APP_API_BASE);
 assert.equal(apiPath("/api/files", "/apppan/files"), "/apppan/api/files");
 assert.equal(apiPath("/files", "/apppan/files"), "/apppan/api/files");
+assert.equal(isDesktopEmbeddedMode("?desktopApp=1"), true);
+assert.equal(isDesktopEmbeddedMode("?desktopApp=0"), false);
+assert.equal(shouldUsePasswordLogin({ appMode: false, search: "" }), true);
+assert.equal(shouldUsePasswordLogin({ appMode: true, search: "" }), false);
+assert.equal(
+	shouldUsePasswordLogin({ appMode: false, search: "?desktopApp=1" }),
+	false,
+);
+assert.equal(shouldShowLogoutAction(""), true);
+assert.equal(shouldShowLogoutAction("?desktopApp=1"), false);
 
 assert.equal(apiPath("/pan/api/files", "/apppan/files"), "/pan/api/files");
 assert.equal(apiPath("/apppan/api/files", "/pan/files"), "/apppan/api/files");

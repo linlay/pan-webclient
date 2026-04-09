@@ -50,6 +50,7 @@ build_program_bundle() {
   echo "[release] assembling program bundle for $target_os..."
   cp "$REPO_ROOT/.env.example" "$bundle_root/.env.example"
   cp "$PROGRAM_ASSETS_DIR/README.txt" "$bundle_root/README.txt"
+  cp "$REPO_ROOT/plugin-manifest.json" "$bundle_root/plugin-manifest.json"
   cp "$REPO_ROOT/configs/local-public-key.example.pem" "$bundle_root/configs/local-public-key.example.pem"
   find "$REPO_ROOT/configs/mounts" -maxdepth 1 -type f -name '*.example.json' \
     -exec cp {} "$bundle_root/configs/mounts/" \;

@@ -11,6 +11,9 @@
 - Gateway: Nginx
 - Storage: 宿主机文件系统 + `./data`
 - Auth: Web Cookie Session + externally issued App Bearer token
+  - App Bearer token 使用 RS256 JWT，由外部签发（如 zenmind-desktop 或 zenmind-app-server）
+  - 公钥通过 `APP_AUTH_LOCAL_PUBLIC_KEY_FILE` 配置，用于验签
+  - 在桌面集成场景中，密钥对由 zenmind-app-server 管理，zenmind-desktop 自动分发公钥
 
 ## 2. 当前架构
 - Nginx 是唯一浏览器入口。
@@ -64,6 +67,7 @@
 - 除 `/` 重定向到 `/pan/` 和 API 入口外，不要兼容根路径静态资源或根路径 HMR `/ws`。
 - 后端返回的资源链接使用 canonical `/api/*`；前端负责按当前 UI 基路径转换成外部可访问地址。
 - App 私钥不保存在本仓库；仓库内只允许放公钥示例文件。
+- 在桌面集成场景中，公钥由 zenmind-desktop 从 zenmind-app-server 导出后自动写入 `configs/local-public-key.pem`。
 - 运行时若需要访问仓库外目录，必须在容器编排里显式增加 bind mount。
 - 正式发布只接受 `vX.Y.Z` 版本格式；每次本地只构建一个目标架构 bundle。
 - `arm64` 优先在 Mac arm64 主机构建，`amd64` 优先在 Windows/x86_64 主机构建。

@@ -138,6 +138,77 @@ func TestBearerTokenAuthUsesInjectedJWT(t *testing.T) {
 	}
 }
 
+func TestAppSessionExchangeIssuesWebSession(t *testing.T) {
+	root := t.TempDir()
+	handler, privateKey := newJWTTestHandler(t, root)
+
+	token := signRouterTestJWT(t, privateKey, map[string]any{
+		"sub": "desktop-app",
+		"exp": time.Now().Add(time.Hour).Unix(),
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/app/session/exchange", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var payload struct {
+		OK                bool   `json:"ok"`
+		Username          string `json:"username"`
+		SessionCookieName string `json:"sessionCookieName"`
+		SessionToken      string `json:"sessionToken"`
+		MaxAgeSeconds     int    `json:"maxAgeSeconds"`
+		ExpiresAt         int64  `json:"expiresAt"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if !payload.OK || payload.Username != "desktop-app" {
+		t.Fatalf("unexpected exchange payload: %+v", payload)
+	}
+	if payload.SessionCookieName != "pan_session" {
+		t.Fatalf("unexpected session cookie name: %+v", payload)
+	}
+	if payload.SessionToken == "" || payload.MaxAgeSeconds != webSessionMaxAgeSeconds || payload.ExpiresAt == 0 {
+		t.Fatalf("unexpected session exchange metadata: %+v", payload)
+	}
+
+	meReq := httptest.NewRequest(http.MethodGet, "/api/web/session/me", nil)
+	meReq.AddCookie(&http.Cookie{Name: payload.SessionCookieName, Value: payload.SessionToken})
+	meRec := httptest.NewRecorder()
+	handler.ServeHTTP(meRec, meReq)
+	if meRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 after exchange, got %d: %s", meRec.Code, meRec.Body.String())
+	}
+}
+
+func TestAppSessionExchangeRejectsMissingOrInvalidBearer(t *testing.T) {
+	root := t.TempDir()
+	handler, privateKey := newJWTTestHandler(t, root)
+
+	missingReq := httptest.NewRequest(http.MethodPost, "/api/app/session/exchange", nil)
+	missingRec := httptest.NewRecorder()
+	handler.ServeHTTP(missingRec, missingReq)
+	if missingRec.Code != http.StatusUnauthorized {
+		t.Fatalf("missing bearer expected 401, got %d", missingRec.Code)
+	}
+
+	expired := signRouterTestJWT(t, privateKey, map[string]any{
+		"sub": "desktop-app",
+		"exp": time.Now().Add(-time.Minute).Unix(),
+	})
+	invalidReq := httptest.NewRequest(http.MethodPost, "/api/app/session/exchange", nil)
+	invalidReq.Header.Set("Authorization", "Bearer "+expired)
+	invalidRec := httptest.NewRecorder()
+	handler.ServeHTTP(invalidRec, invalidReq)
+	if invalidRec.Code != http.StatusUnauthorized {
+		t.Fatalf("invalid bearer expected 401, got %d", invalidRec.Code)
+	}
+}
+
 func TestAPIOnlyModeDoesNotRegisterProgramRoutes(t *testing.T) {
 	root := t.TempDir()
 	handler := newTestHandler(t, root)

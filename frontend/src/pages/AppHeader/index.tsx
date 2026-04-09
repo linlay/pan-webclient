@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { shouldShowLogoutAction } from "@/api/routing";
 import { LanguageMenuButton } from "@/features/shared/LanguageMenuButton";
 import { MaterialIcon } from "@/features/shared/Icons";
 import { MenuButton } from "@/features/shared/MenuButton";
@@ -31,6 +32,7 @@ export function AppHeader(props: AppHeaderProps) {
 	const [localSearch, setLocalSearch] = useState(props.searchText);
 	const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 	const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const showLogoutAction = shouldShowLogoutAction();
 
 	// Sync external changes (if any)
 	useEffect(() => {
@@ -289,17 +291,21 @@ export function AppHeader(props: AppHeaderProps) {
 								),
 								onSelect: () => props.onSetTheme("dark"),
 							},
-							{
-								label: t("header.logOut"),
-								icon: (
-									<MaterialIcon
-										name="logout"
-										className="text-sm"
-									/>
-								),
-								danger: true,
-								onSelect: props.onLogout,
-							},
+							...(showLogoutAction
+								? [
+										{
+											label: t("header.logOut"),
+											icon: (
+												<MaterialIcon
+													name="logout"
+													className="text-sm"
+												/>
+											),
+											danger: true,
+											onSelect: props.onLogout,
+										},
+									]
+								: []),
 						]}
 						align="right"
 						buttonClassName="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs overflow-hidden hover:bg-primary/30 transition-colors"
