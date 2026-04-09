@@ -17,7 +17,7 @@ pan-webclient program bundle
 ========
 
 .env.example                  — 环境变量模板
-start.sh / stop.sh            — macOS 启停脚本
+start.sh / stop.sh            — Unix（darwin/linux）启停脚本
 release-scripts/windows/      — Windows 启停脚本
 README.txt                    — 本文件
 configs/                      — 配置文件与挂载示例

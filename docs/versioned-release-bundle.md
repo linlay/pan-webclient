@@ -39,7 +39,8 @@ make release-image
 
 - `VERSION`
 - `ARCH`
-- `PROGRAM_TARGETS`：仅 program bundle 使用，默认 `darwin,windows`
+- `PROGRAM_TARGETS`：仅 program bundle 使用，按 `PROGRAM_TARGETS + ARCH` 构建
+- `PROGRAM_TARGET_MATRIX`：仅 program bundle 使用，按 `os/arch` 矩阵构建，优先级高于 `PROGRAM_TARGETS`
 
 产物命名规则：
 
@@ -53,19 +54,19 @@ make release-image
 
 program bundle 是宿主机直接运行的完整交付物。它不依赖 Nginx 或 Docker 才能提供浏览器入口。
 
-当前默认 program 目标平台是：
+当前默认 program 目标矩阵是：
 
-- `darwin`
-- `windows`
+- `darwin/arm64`
+- `windows/amd64`
 
 ### 3.2 构建过程
 
 `scripts/release-program.sh` 负责：
 
 1. 校验 `VERSION` 和 `ARCH`
-2. 解析 `PROGRAM_TARGETS`
+2. 按优先级解析 `PROGRAM_TARGET_MATRIX` 或 `PROGRAM_TARGETS`
 3. 构建一份 `frontend/dist`
-4. 按目标平台交叉编译 `pan-api` / `pan-api.exe`
+4. 按目标 `OS/ARCH` 组合交叉编译 `pan-api` / `pan-api.exe`
 5. 组装 program bundle
 6. 压缩为最终 tar.gz
 
@@ -91,7 +92,7 @@ pan-webclient/
 
 其中：
 
-- macOS bundle 带 `start.sh` / `stop.sh`
+- Unix bundle（darwin/linux）带 `start.sh` / `stop.sh`
 - Windows bundle 带 `release-scripts/windows/start.ps1`、`stop.ps1`、`start.cmd`、`stop.cmd`
 - bundle 不包含 `images/`、`compose.release.yml` 或 Docker 启停脚本
 
@@ -176,12 +177,12 @@ Program 相关附属资产：
 ## 6. 验证重点
 
 - `make release` 与 `make release-program` 行为一致
-- `make release-program` 默认产出 darwin 和 windows 两个 program bundle
+- `make release-program` 默认产出 `darwin/arm64` 和 `windows/amd64` 两个 program bundle
 - program bundle 内包含二进制、配置模板和 `frontend/dist`
 - program bundle 不包含镜像 tar 或 compose 文件
 - host-run 程序正确提供 `/pan/`、`/apppan/`、`/pan/api/*`、`/apppan/api/*`
 - `make release-image` 仍只产出 Linux image bundle
-- 非法 `VERSION`、非法 `ARCH` 或非法 `PROGRAM_TARGETS` 会快速失败
+- 非法 `VERSION`、非法 `ARCH`、非法 `PROGRAM_TARGETS` 或非法 `PROGRAM_TARGET_MATRIX` 会快速失败
 
 ## 7. 迁移这套模式时建议保留的骨架
 

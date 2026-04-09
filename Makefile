@@ -8,7 +8,9 @@ ENV_API_PORT := $(shell sed -n 's/^API_PORT=//p' .env 2>/dev/null | tail -n 1)
 NGINX_PORT_VALUE := $(or $(NGINX_PORT),$(ENV_NGINX_PORT),11946)
 API_PORT_VALUE := $(or $(API_PORT),$(ENV_API_PORT),8080)
 VERSION := $(shell cat VERSION 2>/dev/null || echo "dev")
-ARCH := $(shell uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
+ARCH ?= $(shell uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
+PASS_PROGRAM_TARGETS = $(if $(filter undefined,$(origin PROGRAM_TARGETS)),,PROGRAM_TARGETS=$(PROGRAM_TARGETS))
+PASS_PROGRAM_TARGET_MATRIX = $(if $(filter undefined,$(origin PROGRAM_TARGET_MATRIX)),,PROGRAM_TARGET_MATRIX=$(PROGRAM_TARGET_MATRIX))
 
 .PHONY: build build-backend build-frontend compose-mounts run stop docker-up docker-down release release-program release-image apppan-smoke clean
 
@@ -40,10 +42,10 @@ docker-down: compose-mounts
 	NGINX_PORT=$(NGINX_PORT_VALUE) API_PORT=$(API_PORT_VALUE) docker compose $(COMPOSE_FILES) down --remove-orphans
 
 release:
-	$(MAKE) release-program VERSION=$(VERSION) ARCH=$(ARCH)
+	$(MAKE) release-program VERSION=$(VERSION) ARCH=$(ARCH) $(PASS_PROGRAM_TARGETS) $(PASS_PROGRAM_TARGET_MATRIX)
 
 release-program:
-	VERSION=$(VERSION) ARCH=$(ARCH) bash scripts/release.sh
+	VERSION=$(VERSION) ARCH=$(ARCH) $(PASS_PROGRAM_TARGETS) $(PASS_PROGRAM_TARGET_MATRIX) bash scripts/release.sh
 
 release-image:
 	VERSION=$(VERSION) ARCH=$(ARCH) bash scripts/release-image.sh

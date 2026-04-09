@@ -258,7 +258,7 @@ APPPAN_BEARER_TOKEN='你的-jwt-token' make apppan-smoke
   - program bundle：`pan-webclient-program-vX.Y.Z-darwin-<arch>.tar.gz` / `pan-webclient-program-vX.Y.Z-windows-<arch>.tar.gz`
   - image bundle：`pan-webclient-image-vX.Y.Z-linux-<arch>.tar.gz`
 - 产物输出目录固定为 `dist/release/`
-- `release` / `release-program` 默认同时打 `darwin` 和 `windows`
+- `release` / `release-program` 默认固定打 `darwin/arm64` 和 `windows/amd64`
 - `release-image` 固定打 Linux 镜像产物
 
 ### 本地构建正式发布 bundle
@@ -267,21 +267,32 @@ APPPAN_BEARER_TOKEN='你的-jwt-token' make apppan-smoke
 Mac / Linux:
 
 ```bash
-make release VERSION=v1.0.0 ARCH=arm64
+make release VERSION=v1.0.0
 ```
 
 它等价于：
 
 ```bash
-make release-program VERSION=v1.0.0 ARCH=arm64
+make release-program VERSION=v1.0.0
 ```
 
-也可以只打单个平台：
+也可以显式指定矩阵：
+
+```bash
+PROGRAM_TARGET_MATRIX=darwin/arm64,windows/amd64 make release-program VERSION=v1.0.0
+```
+
+也可以继续使用旧的单架构覆盖方式：
 
 ```bash
 PROGRAM_TARGETS=darwin make release-program VERSION=v1.0.0 ARCH=arm64
 PROGRAM_TARGETS=windows make release-program VERSION=v1.0.0 ARCH=amd64
 ```
+
+变量优先级：
+- 设置了 `PROGRAM_TARGET_MATRIX` 时，按 `os/arch` 矩阵构建
+- 否则如果设置了 `PROGRAM_TARGETS`，按 `PROGRAM_TARGETS + ARCH` 构建
+- 否则默认使用 `darwin/arm64,windows/amd64`
 
 该命令会一次性完成以下工作：
 - 构建一份 `frontend/dist`
@@ -310,7 +321,7 @@ program bundle 固定包含：
 - `configs/local-public-key.example.pem`
 - `configs/mounts/*.example.json`
 - `frontend/dist/`
-- macOS: `start.sh`、`stop.sh`
+- Unix（darwin/linux）: `start.sh`、`stop.sh`
 - Windows: `release-scripts/windows/start.ps1`、`stop.ps1`、`start.cmd`、`stop.cmd`
 
 program bundle 不包含 Docker 镜像 tar，也不包含 `compose.release.yml`。

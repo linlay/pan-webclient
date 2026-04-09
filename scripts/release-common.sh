@@ -28,10 +28,7 @@ resolve_release_context() {
   [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "VERSION must match vX.Y.Z (got: $VERSION)"
 
   ARCH="${ARCH:-$(detect_arch)}"
-  case "$ARCH" in
-    amd64|arm64) ;;
-    *) die "ARCH must be amd64 or arm64 (got: $ARCH)" ;;
-  esac
+  validate_target_arch "$ARCH"
 
   PLATFORM="linux/$ARCH"
   RELEASE_DIR="$REPO_ROOT/dist/release"
@@ -47,8 +44,15 @@ require_program_release_tools() {
 
 validate_target_os() {
   case "$1" in
-    darwin|windows) ;;
-    *) die "PROGRAM_TARGETS entries must be darwin or windows (got: $1)" ;;
+    darwin|windows|linux) ;;
+    *) die "target OS must be darwin, windows, or linux (got: $1)" ;;
+  esac
+}
+
+validate_target_arch() {
+  case "$1" in
+    amd64|arm64) ;;
+    *) die "ARCH must be amd64 or arm64 (got: $1)" ;;
   esac
 }
 
@@ -62,13 +66,51 @@ binary_name_for_os() {
   printf '%s\n' "$PROGRAM_NAME"
 }
 
-parse_program_targets() {
-  local raw="${PROGRAM_TARGETS:-darwin,windows}"
+parse_program_target_matrix_entries() {
+  local raw="${PROGRAM_TARGET_MATRIX//[[:space:]]/}"
+  local entry
+  local target_os
+  local target_arch
+
+  [[ -n "$raw" ]] || die "PROGRAM_TARGET_MATRIX is set but empty"
+
+  for entry in ${raw//,/ }; do
+    [[ -n "$entry" ]] || continue
+    if [[ ! "$entry" =~ ^([^/]+)/([^/]+)$ ]]; then
+      die "PROGRAM_TARGET_MATRIX entries must be os/arch (got: $entry)"
+    fi
+    target_os="${BASH_REMATCH[1]}"
+    target_arch="${BASH_REMATCH[2]}"
+    validate_target_os "$target_os"
+    validate_target_arch "$target_arch"
+    printf '%s %s\n' "$target_os" "$target_arch"
+  done
+}
+
+parse_program_targets_with_arch() {
+  local raw="${PROGRAM_TARGETS//[[:space:]]/}"
   raw="${raw//,/ }"
+
+  [[ -n "$raw" ]] || die "PROGRAM_TARGETS is set but empty"
+
   for target in $raw; do
     validate_target_os "$target"
-    printf '%s\n' "$target"
+    printf '%s %s\n' "$target" "$ARCH"
   done
+}
+
+parse_program_target_matrix() {
+  if [[ "${PROGRAM_TARGET_MATRIX+x}" == "x" ]]; then
+    parse_program_target_matrix_entries
+    return
+  fi
+
+  if [[ "${PROGRAM_TARGETS+x}" == "x" ]]; then
+    parse_program_targets_with_arch
+    return
+  fi
+
+  PROGRAM_TARGET_MATRIX="darwin/arm64,windows/amd64" parse_program_target_matrix_entries
 }
 
 build_frontend_dist() {
