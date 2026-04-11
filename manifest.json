@@ -1,0 +1,54 @@
+{
+  "id": "pan-webclient",
+  "name": "网盘",
+  "kind": "builtin",
+  "version": "v0.1.0",
+  "description": "内置网盘服务，包含 Go 后端和已构建 React 前端。",
+  "frontend": {
+    "mode": "standalone",
+    "entry": "/pan/",
+    "directAccess": true,
+    "hostManaged": false
+  },
+  "backend": {
+    "entry": "backend/pan-api"
+  },
+  "scripts": {
+    "start": ["start.sh", "--daemon"],
+    "stop": "stop.sh",
+    "deploy": "deploy.sh"
+  },
+  "configFiles": [
+    {
+      "key": "env",
+      "label": ".env",
+      "relativePath": ".env",
+      "templateRelativePath": ".env.example",
+      "required": true
+    }
+  ],
+  "runtime": {
+    "pidRelativePath": "run/pan-api.pid",
+    "logRelativePath": "run/pan-api.log",
+    "requiredPaths": [
+      "backend/pan-api",
+      "start.sh",
+      "stop.sh",
+      "deploy.sh",
+      "scripts/program-common.sh",
+      ".env.example",
+      "manifest.json",
+      "configs/local-public-key.example.pem",
+      "configs/mounts",
+      "frontend/dist/index.html"
+    ]
+  },
+  "web": {
+    "routePath": "/pan/",
+    "portEnvKey": "API_PORT",
+    "defaultPort": 8080
+  },
+  "desktop": {
+    "bundleTopLevelDir": "pan-webclient"
+  }
+}

@@ -412,7 +412,7 @@ pan-webclient 通过插件系统导入 zenmind-desktop。
 make release-program
 ```
 
-产物为 `dist/release/pan-webclient-program-*.tar.gz`，包含 `plugin-manifest.json`。
+产物为 `dist/release/pan-webclient-program-*.tar.gz`，包含 `manifest.json`。
 
 ### 安装
 在 zenmind-desktop 控制中心点击"安装插件"，选择上述 tar.gz 包。
