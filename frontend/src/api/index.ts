@@ -14,8 +14,12 @@ import type {
   TrashItem,
   TransferTask,
 } from "../types/contracts/index";
-import { getAppAccessToken, refreshAppAccessToken } from "./appAuth";
-import { apiUrl, isAppMode } from "./routing";
+import { apiUrl } from "./routing";
+import {
+  applyTokenAuthToUploadRequest,
+  buildRequestAuth,
+  shouldReplayWithFreshToken,
+} from "./requestAuth";
 import { uploadRequestErrorMessage } from "./uploadLimits";
 import { translate } from "@/i18n";
 
@@ -28,33 +32,16 @@ async function requestWithReplay<T>(
   init: RequestInit | undefined,
   allowReplay: boolean,
 ): Promise<T> {
-  const appMode = isAppMode();
-  const headers = new Headers(init?.headers ?? undefined);
-  if (!headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
-  }
-
-  if (appMode) {
-    let token = getAppAccessToken();
-    if (!token) {
-      token = await refreshAppAccessToken("missing");
-    }
-    if (token) {
-      headers.set("Authorization", `Bearer ${token}`);
-    }
-  }
+  const { headers, credentials, tokenAuth } = await buildRequestAuth(init);
 
   const response = await fetch(apiUrl(path), {
-    credentials: appMode ? "omit" : "include",
+    credentials,
     ...init,
     headers,
   });
 
-  if (response.status === 401 && appMode && allowReplay) {
-    const refreshedToken = await refreshAppAccessToken("unauthorized");
-    if (refreshedToken) {
-      return requestWithReplay<T>(path, init, false);
-    }
+  if (await shouldReplayWithFreshToken(response.status, tokenAuth, allowReplay)) {
+    return requestWithReplay<T>(path, init, false);
   }
 
   if (!response.ok) {
@@ -218,14 +205,8 @@ export const api = {
         "POST",
         apiUrl(`/api/public/shares/${encodeURIComponent(shareId)}/uploads`),
       );
-      request.withCredentials = !isAppMode();
+      applyTokenAuthToUploadRequest(request);
       request.responseType = "json";
-      if (isAppMode()) {
-        const token = getAppAccessToken();
-        if (token) {
-          request.setRequestHeader("Authorization", `Bearer ${token}`);
-        }
-      }
       request.upload.onprogress = (event) => {
         onProgress?.({
           loaded: event.loaded,
@@ -291,7 +272,7 @@ export const api = {
     return new Promise<TransferTask>((resolve, reject) => {
       const request = new XMLHttpRequest();
       request.open("POST", apiUrl("/api/uploads"));
-      request.withCredentials = !isAppMode();
+      applyTokenAuthToUploadRequest(request);
       request.responseType = "json";
       request.setRequestHeader("X-Upload-Task-ID", taskId);
       request.setRequestHeader(
@@ -299,12 +280,6 @@ export const api = {
         `${Math.max(0, Math.floor(fallbackTotal))}`,
       );
       request.setRequestHeader("X-Upload-Item-Count", `${rows.length}`);
-      if (isAppMode()) {
-        const token = getAppAccessToken();
-        if (token) {
-          request.setRequestHeader("Authorization", `Bearer ${token}`);
-        }
-      }
       request.onerror = () =>
         reject(new Error(translate("controller.errors.uploadFailed")));
       request.onload = () => {

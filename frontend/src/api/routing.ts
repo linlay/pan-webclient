@@ -21,6 +21,13 @@ export function isDesktopEmbeddedMode(
 	return new URLSearchParams(search).get("desktopApp") === "1";
 }
 
+export function needsTokenAuth(
+	pathname: string = window.location.pathname,
+	search: string = window.location.search,
+): boolean {
+	return isAppMode(pathname) || isDesktopEmbeddedMode(search);
+}
+
 export function shouldUsePasswordLogin(options?: {
 	appMode?: boolean;
 	search?: string;

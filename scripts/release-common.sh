@@ -213,19 +213,21 @@ write_program_manifest() {
   local stop_script="stop.sh"
   local deploy_script="deploy.sh"
   local program_common="scripts/program-common.sh"
+  local error_log_json=""
 
   if [[ "$target_os" == "windows" ]]; then
     start_script="start.ps1"
     stop_script="stop.ps1"
     deploy_script="deploy.ps1"
     program_common="scripts/program-common.ps1"
+    error_log_json='    "errorLogRelativePath": "run/pan-api.stderr.log",'
   fi
 
   cat >"$dest" <<EOF
 {
   "id": "$APP_NAME",
   "name": "网盘",
-  "kind": "builtin",
+  "kind": "plugin",
   "version": "$VERSION",
   "description": "内置网盘服务，包含 Go 后端和已构建 React 前端。",
   "platform": {
@@ -258,6 +260,7 @@ write_program_manifest() {
   "runtime": {
     "pidRelativePath": "run/pan-api.pid",
     "logRelativePath": "run/pan-api.log",
+${error_log_json}
     "requiredPaths": [
       "$backend_entry",
       "$start_script",

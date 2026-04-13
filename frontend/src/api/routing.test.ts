@@ -9,6 +9,7 @@ import {
 	apiPath,
 	apiPrefix,
 	isDesktopEmbeddedMode,
+	needsTokenAuth,
 	shareIdFromPath,
 	sharePath,
 	resolveExternalUrl,
@@ -31,6 +32,9 @@ assert.equal(apiPath("/api/files", "/apppan/files"), "/apppan/api/files");
 assert.equal(apiPath("/files", "/apppan/files"), "/apppan/api/files");
 assert.equal(isDesktopEmbeddedMode("?desktopApp=1"), true);
 assert.equal(isDesktopEmbeddedMode("?desktopApp=0"), false);
+assert.equal(needsTokenAuth("/pan/files", ""), false);
+assert.equal(needsTokenAuth("/apppan/files", ""), true);
+assert.equal(needsTokenAuth("/pan/files", "?desktopApp=1"), true);
 assert.equal(shouldUsePasswordLogin({ appMode: false, search: "" }), true);
 assert.equal(shouldUsePasswordLogin({ appMode: true, search: "" }), false);
 assert.equal(

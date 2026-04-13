@@ -1,7 +1,7 @@
 {
   "id": "pan-webclient",
   "name": "网盘",
-  "kind": "builtin",
+  "kind": "plugin",
   "version": "v0.1.0",
   "description": "内置网盘服务，包含 Go 后端和已构建 React 前端。",
   "frontend": {
@@ -30,6 +30,7 @@
   "runtime": {
     "pidRelativePath": "run/pan-api.pid",
     "logRelativePath": "run/pan-api.log",
+    "errorLogRelativePath": "run/pan-api.stderr.log",
     "requiredPaths": [
       "backend/pan-api",
       "start.sh",

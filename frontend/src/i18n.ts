@@ -64,7 +64,7 @@ const resources = {
         appModeMessage:
           "/apppan does not use password login. Please let the host app inject a Bearer token before opening this page.",
         desktopEmbedMessage:
-          "This Desktop window is waiting for the host app to establish a local session automatically.",
+          "This Desktop window is waiting for the host app to issue an access token automatically.",
         desktopEmbedWaiting: "Connecting to the Desktop host...",
         emailOrUsername: "Email or Username",
         enterCredentials:
@@ -593,7 +593,7 @@ const resources = {
         appModeMessage:
           "/apppan 入口不使用密码登录。请由宿主 App 注入 Bearer Token 后再访问当前页面。",
         desktopEmbedMessage:
-          "当前 Desktop 窗口正在等待宿主应用自动建立本地会话。",
+          "当前 Desktop 窗口正在等待宿主应用自动签发访问令牌。",
         desktopEmbedWaiting: "正在连接 Desktop 宿主...",
         emailOrUsername: "邮箱或用户名",
         enterCredentials: "输入账户密码登录 Zenmind Pan",

@@ -8,7 +8,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { api, rawFileUrl } from "@/api";
-import { isAppMode } from "@/api/routing";
+import { needsTokenAuth } from "@/api/routing";
 import { uploadSizeErrorMessage } from "@/api/uploadLimits";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
@@ -418,7 +418,7 @@ export function useAppController() {
       await Promise.all([loadMountBootstrap(), loadRuntimeData()]);
     } catch (error) {
       setUser(null);
-      if (isAppMode()) {
+      if (needsTokenAuth()) {
         setNotice({
           tone: "error",
           text:
