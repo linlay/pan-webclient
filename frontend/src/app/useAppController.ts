@@ -596,16 +596,27 @@ export function useAppController() {
     void inspectEntry(next[0], revealOnMobile);
   }
 
-  function handleSetSelection(next: FileEntry[]) {
-    commitSelection(next, { inspectSingle: !isMobile });
+  function handleSetSelection(
+    next: FileEntry[],
+    options: { inspectSingle?: boolean; revealOnMobile?: boolean } = {},
+  ) {
+    const {
+      inspectSingle = false,
+      revealOnMobile = false,
+    } = options;
+    commitSelection(next, { inspectSingle, revealOnMobile });
   }
 
-  function handleToggleSelection(entry: FileEntry) {
+  function handleToggleSelection(
+    entry: FileEntry,
+    options: { inspectSingle?: boolean; revealOnMobile?: boolean } = {},
+  ) {
     const exists = selectedEntries.some((item) => sameEntry(item, entry));
     handleSetSelection(
       exists
         ? selectedEntries.filter((item) => !sameEntry(item, entry))
         : [...selectedEntries, entry],
+      options,
     );
   }
 

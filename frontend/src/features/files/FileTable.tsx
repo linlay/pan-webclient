@@ -20,6 +20,11 @@ import {
 } from "@/utils";
 import { useTranslation } from "react-i18next";
 
+type SelectionChangeOptions = {
+	inspectSingle?: boolean;
+	revealOnMobile?: boolean;
+};
+
 export function FileTable(props: {
 	isMobile?: boolean;
 	entries: FileEntry[];
@@ -29,8 +34,14 @@ export function FileTable(props: {
 	viewMode: "grid" | "list";
 	onActivate: (entry: FileEntry) => void;
 	onSelectionModeChange?: (next: boolean) => void;
-	onSetSelection?: (entries: FileEntry[]) => void;
-	onToggleSelection: (entry: FileEntry) => void;
+	onSetSelection?: (
+		entries: FileEntry[],
+		options?: SelectionChangeOptions,
+	) => void;
+	onToggleSelection: (
+		entry: FileEntry,
+		options?: SelectionChangeOptions,
+	) => void;
 	onRename: (entry: FileEntry) => void;
 	onMove: (entry: FileEntry) => void;
 	onCopy: (entry: FileEntry) => void;
@@ -74,8 +85,14 @@ type ListViewProps = {
 	showPath: boolean;
 	onActivate: (entry: FileEntry) => void;
 	onSelectionModeChange?: (next: boolean) => void;
-	onSetSelection?: (entries: FileEntry[]) => void;
-	onToggleSelection: (entry: FileEntry) => void;
+	onSetSelection?: (
+		entries: FileEntry[],
+		options?: SelectionChangeOptions,
+	) => void;
+	onToggleSelection: (
+		entry: FileEntry,
+		options?: SelectionChangeOptions,
+	) => void;
 	onRename: (entry: FileEntry) => void;
 	onMove: (entry: FileEntry) => void;
 	onCopy: (entry: FileEntry) => void;
@@ -91,7 +108,10 @@ function GridView(props: {
 	entries: FileEntry[];
 	selectedEntries: FileEntry[];
 	onActivate: (entry: FileEntry) => void;
-	onToggleSelection: (entry: FileEntry) => void;
+	onToggleSelection: (
+		entry: FileEntry,
+		options?: SelectionChangeOptions,
+	) => void;
 	onShare?: (entry: FileEntry) => void;
 }) {
 	const { t } = useTranslation();
@@ -109,7 +129,9 @@ function GridView(props: {
 							if (e.key === "Enter") props.onActivate(entry);
 							if (e.key === " ") {
 								e.preventDefault();
-								props.onToggleSelection(entry);
+								props.onToggleSelection(entry, {
+									inspectSingle: false,
+								});
 							}
 						}}
 						role="button"
@@ -234,7 +256,9 @@ function ListView(props: ListViewProps) {
 										props.onActivate(entry);
 									if (e.key === " ") {
 										e.preventDefault();
-										props.onToggleSelection(entry);
+										props.onToggleSelection(entry, {
+											inspectSingle: false,
+										});
 									}
 								}}
 								tabIndex={0}
@@ -246,7 +270,9 @@ function ListView(props: ListViewProps) {
 										checked={selected}
 										onChange={(e) => {
 											e.stopPropagation();
-											props.onToggleSelection(entry);
+											props.onToggleSelection(entry, {
+												inspectSingle: false,
+											});
 										}}
 										onClick={(e) => e.stopPropagation()}
 									/>
@@ -429,7 +455,9 @@ function MobileListView(props: ListViewProps) {
 						? t("files.selectedCount", {
 								count: props.selectedEntries.length,
 							})
-						: t("files.itemsCount", { count: props.entries.length })}
+						: t("files.itemsCount", {
+								count: props.entries.length,
+							})}
 				</span>
 				<button
 					className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
@@ -477,7 +505,9 @@ function MobileListView(props: ListViewProps) {
 										checked={selected}
 										className="rounded border-slate-300 text-primary focus:ring-primary"
 										onChange={() =>
-											props.onToggleSelection(entry)
+											props.onToggleSelection(entry, {
+												inspectSingle: false,
+											})
 										}
 										onClick={(e) => e.stopPropagation()}
 										type="checkbox"
