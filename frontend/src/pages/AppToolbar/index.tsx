@@ -34,10 +34,10 @@ export function AppToolbar(props: AppToolbarProps) {
 
 	return (
 		<div
-			className={`border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 ${
+			className={`border border-sidebar-border bg-white/80 dark:border-white/10 dark:bg-night-2/78 ${
 				props.isMobile
-					? "mb-4 rounded-2xl p-1.5"
-					: "mb-6 rounded-xl p-2"
+					? "mb-4 rounded-[8px] p-1.5"
+					: "mb-6 rounded-[6px] p-2"
 			} flex flex-wrap items-center justify-between gap-3`}
 		>
 			<div
@@ -48,7 +48,7 @@ export function AppToolbar(props: AppToolbarProps) {
 				{!props.isMobile && (
 					<>
 						<button
-							className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-primary rounded-lg hover:bg-primary/90 transition-all shadow-sm"
+							className="flex items-center gap-1.5 rounded-[4px] border border-primary bg-primary px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-primary-hover dark:border-dark-primary dark:bg-dark-primary dark:hover:bg-dark-link"
 							onClick={props.onCreateFolder}
 							type="button"
 						>
@@ -56,7 +56,7 @@ export function AppToolbar(props: AppToolbarProps) {
 							{t("toolbar.newFolder")}
 						</button>
 						<button
-							className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-all shadow-sm"
+							className="flex items-center gap-1.5 rounded-[4px] border border-sidebar-border bg-white px-3 py-1.5 text-xs font-bold text-heading-text transition-colors hover:bg-panel-wash dark:border-white/10 dark:bg-night-2 dark:text-[#f4f8ff]/88 dark:hover:bg-night-3"
 							onClick={props.onUploadClick}
 							type="button"
 						>
@@ -64,7 +64,7 @@ export function AppToolbar(props: AppToolbarProps) {
 							{t("common.upload")}
 						</button>
 						<button
-							className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-all shadow-sm"
+							className="flex items-center gap-1.5 rounded-[4px] border border-sidebar-border bg-white px-3 py-1.5 text-xs font-bold text-heading-text transition-colors hover:bg-panel-wash dark:border-white/10 dark:bg-night-2 dark:text-[#f4f8ff]/88 dark:hover:bg-night-3"
 							onClick={props.onRefresh}
 							type="button"
 						>
@@ -73,7 +73,7 @@ export function AppToolbar(props: AppToolbarProps) {
 						</button>
 						{props.canShareCurrentFolder ? (
 							<button
-								className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-all shadow-sm"
+								className="flex items-center gap-1.5 rounded-[4px] border border-sidebar-border bg-white px-3 py-1.5 text-xs font-bold text-heading-text transition-colors hover:bg-panel-wash dark:border-white/10 dark:bg-night-2 dark:text-[#f4f8ff]/88 dark:hover:bg-night-3"
 								onClick={props.onShareCurrentFolder}
 								type="button"
 							>
@@ -89,12 +89,12 @@ export function AppToolbar(props: AppToolbarProps) {
 
 				{props.hasSelection ? (
 					<>
-						<div className="h-6 w-px bg-slate-300 dark:bg-slate-600 mx-1 hidden sm:block" />
+						<div className="mx-1 hidden h-6 w-px bg-slate-300 dark:bg-white/10 sm:block" />
 						<button
 							className={
 								props.isMobile
-									? "flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
-									: "flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-all"
+									? "flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-semibold text-body-text hover:bg-panel-wash transition-all dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
+									: "flex items-center gap-1.5 rounded-[4px] px-3 py-1.5 text-xs font-bold text-body-text hover:bg-panel-wash transition-all dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
 							}
 							onClick={props.onBatchDownload}
 							type="button"
@@ -109,8 +109,8 @@ export function AppToolbar(props: AppToolbarProps) {
 							<button
 								className={
 									props.isMobile
-										? "flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
-										: "flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-all"
+										? "flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-semibold text-body-text hover:bg-panel-wash transition-all dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
+										: "flex items-center gap-1.5 rounded-[4px] px-3 py-1.5 text-xs font-bold text-body-text hover:bg-panel-wash transition-all dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
 								}
 								onClick={props.onShare}
 								type="button"
@@ -126,8 +126,8 @@ export function AppToolbar(props: AppToolbarProps) {
 							<button
 								className={
 									props.isMobile
-										? "flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
-										: "flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-all"
+										? "flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-semibold text-body-text hover:bg-panel-wash transition-all dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
+										: "flex items-center gap-1.5 rounded-[4px] px-3 py-1.5 text-xs font-bold text-body-text hover:bg-panel-wash transition-all dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
 								}
 								onClick={props.onRename}
 								type="button"
@@ -139,8 +139,8 @@ export function AppToolbar(props: AppToolbarProps) {
 						<button
 							className={
 								props.isMobile
-									? "flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
-									: "flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-all"
+									? "flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-semibold text-body-text hover:bg-panel-wash transition-all dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
+									: "flex items-center gap-1.5 rounded-[4px] px-3 py-1.5 text-xs font-bold text-body-text hover:bg-panel-wash transition-all dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
 							}
 							onClick={() => props.onMoveCopy("move")}
 							type="button"
@@ -151,8 +151,8 @@ export function AppToolbar(props: AppToolbarProps) {
 						<button
 							className={
 								props.isMobile
-									? "flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
-									: "flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-all"
+									? "flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-semibold text-body-text hover:bg-panel-wash transition-all dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
+									: "flex items-center gap-1.5 rounded-[4px] px-3 py-1.5 text-xs font-bold text-body-text hover:bg-panel-wash transition-all dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
 							}
 							onClick={() => props.onMoveCopy("copy")}
 							type="button"
@@ -179,7 +179,7 @@ export function AppToolbar(props: AppToolbarProps) {
 				className={
 					props.isMobile
 						? "hidden"
-						: "flex flex-shrink-0 items-center gap-2 px-2 text-xs font-medium text-slate-400 sm:px-4"
+						: "flex flex-shrink-0 items-center gap-2 px-2 text-xs font-medium text-body-text/65 dark:text-[#97A3B7]/78 sm:px-4"
 				}
 				>
 					<span>

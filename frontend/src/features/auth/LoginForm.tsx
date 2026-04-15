@@ -42,43 +42,33 @@ export function LoginForm(props: {
 	}
 
 	return (
-		<div className="bg-bg-light dark:bg-bg-dark min-h-screen flex items-center justify-center relative overflow-hidden font-display">
-			{/* Background Decoration */}
-			<div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
-				<div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-primary/10 rounded-full blur-3xl" />
-				<div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl" />
+		<div className="tencent-flat tencent-login-bg relative flex min-h-screen items-center justify-center overflow-hidden font-display">
+			<div className="pointer-events-none absolute inset-0 overflow-hidden">
+				<div className="absolute left-8 top-8 hidden text-primary/10 lg:block">
+					<MaterialIcon className="!text-[110px] rotate-12" name="hub" />
+				</div>
+				<div className="absolute -bottom-10 right-[-30px] hidden text-primary/[0.06] lg:block">
+					<MaterialIcon
+						className="!text-[340px] -rotate-[12deg]"
+						name="cloud_queue"
+					/>
+				</div>
+				<div className="absolute right-[-10%] top-[-10%] h-[420px] w-[420px] rounded-full bg-primary/5 blur-3xl" />
+				<div className="absolute bottom-[-12%] left-[-12%] h-[520px] w-[520px] rounded-full bg-accent/5 blur-3xl" />
 			</div>
 
-			{/* Decorative Icons */}
-			<div className="hidden lg:block absolute bottom-10 right-10 opacity-20 pointer-events-none">
-				<MaterialIcon
-					className="!text-[200px] text-primary"
-					name="cloud_done"
-				/>
-			</div>
-			<div className="hidden lg:block absolute top-10 left-10 opacity-10 pointer-events-none rotate-12">
-				<MaterialIcon
-					className="!text-[150px] text-primary"
-					name="backup"
-				/>
-			</div>
-
-			<div className="flex flex-col items-center justify-center p-4 z-10 w-full">
-				<div className="flex flex-col max-w-[480px] w-full bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-fade-in">
-					{/* Header */}
-					<div className="p-8 pb-4 text-center">
+			<div className="relative z-10 flex w-full flex-col items-center justify-center p-4">
+				<div className="tencent-frosted-panel flex w-full max-w-[440px] flex-col overflow-hidden rounded-[8px] animate-fade-in">
+					<div className="border-b border-white/50 px-10 pb-6 pt-10 text-center dark:border-white/10">
 						<div className="flex flex-col items-center gap-4">
-							<div className="w-12 h-12 bg-primary flex items-center justify-center rounded-xl text-white shadow-lg shadow-primary/30">
-								<MaterialIcon
-									className="!text-3xl"
-									name="cloud"
-								/>
+							<div className="flex h-14 w-14 items-center justify-center rounded-[2px] border border-white/70 bg-primary text-white dark:border-dark-primary/30 dark:bg-dark-primary">
+								<MaterialIcon className="!text-3xl" name="cloud" />
 							</div>
 							<div className="flex flex-col gap-1">
-								<h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+								<h1 className="text-2xl font-bold tracking-tight text-heading-text dark:text-white">
 									{t("auth.welcomeBack")}
 								</h1>
-								<p className="text-slate-500 dark:text-slate-400 text-sm">
+								<p className="text-sm text-body-text/80 dark:text-[#c7d4eb]/78">
 									{props.desktopEmbeddedMode
 										? t("auth.desktopEmbedWaiting")
 										: t("auth.enterCredentials")}
@@ -87,19 +77,18 @@ export function LoginForm(props: {
 						</div>
 					</div>
 
-					{/* Form */}
-					<div className="px-8 py-6">
+					<div className="px-10 py-6">
 						{!props.passwordLoginEnabled ? (
 							<div className="flex flex-col gap-4">
-								<div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300">
+								<div className="rounded-[2px] border border-sidebar-border bg-panel-wash/80 px-4 py-4 text-sm text-body-text dark:border-white/10 dark:bg-night-2/84 dark:text-[#c7d4eb]/78">
 									{infoMessage}
 								</div>
 								{props.notice ? (
 									<div
-										className={`text-sm rounded-lg px-4 py-3 ${
+										className={`rounded-[2px] px-4 py-3 text-sm ${
 											props.notice.tone === "error"
-												? "text-red-500 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20"
-												: "text-green-600 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20"
+												? "border border-red-200 bg-red-50 text-red-500 dark:border-red-500/20 dark:bg-red-500/10"
+												: "border border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/10"
 										}`}
 									>
 										{props.notice.text}
@@ -107,21 +96,18 @@ export function LoginForm(props: {
 								) : null}
 							</div>
 						) : (
-							<form
-								className="flex flex-col gap-5"
-								onSubmit={submit}
-							>
+							<form className="flex flex-col gap-5" onSubmit={submit}>
 								<div className="flex flex-col gap-2">
-									<label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+									<label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-body-text dark:text-[#c7d4eb]/78">
 										{t("auth.emailOrUsername")}
 									</label>
 									<div className="relative">
 										<MaterialIcon
-											className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl"
+											className="absolute left-3 top-1/2 -translate-y-1/2 text-xl text-body-text/45 dark:text-[#97A3B7]/78"
 											name="mail"
 										/>
 										<input
-											className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none text-slate-900 dark:text-white placeholder:text-slate-400"
+										className="w-full rounded-[2px] border border-sidebar-border bg-white/65 py-2.5 pl-11 pr-4 text-sm text-heading-text outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary/20 dark:border-white/10 dark:bg-night-2/84 dark:text-white dark:placeholder:text-[#97A3B7]/70"
 											placeholder="name@company.com"
 											type="text"
 											value={username}
@@ -133,31 +119,27 @@ export function LoginForm(props: {
 								</div>
 
 								<div className="flex flex-col gap-2">
-									<div className="flex justify-between items-center">
-										<label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+									<div className="flex items-center justify-between">
+										<label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-body-text dark:text-[#c7d4eb]/78">
 											{t("auth.password")}
 										</label>
 									</div>
 									<div className="relative">
 										<MaterialIcon
-											className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl"
+											className="absolute left-3 top-1/2 -translate-y-1/2 text-xl text-body-text/45 dark:text-[#97A3B7]/78"
 											name="lock"
 										/>
 										<input
-											className="w-full pl-11 pr-12 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none text-slate-900 dark:text-white placeholder:text-slate-400"
+										className="w-full rounded-[2px] border border-sidebar-border bg-white/65 py-2.5 pl-11 pr-12 text-sm text-heading-text outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary/20 dark:border-white/10 dark:bg-night-2/84 dark:text-white dark:placeholder:text-[#97A3B7]/70"
 											placeholder="••••••••"
-											type={
-												showPassword
-													? "text"
-													: "password"
-											}
+											type={showPassword ? "text" : "password"}
 											value={password}
 											onChange={(e) =>
 												setPassword(e.target.value)
 											}
 										/>
 										<button
-											className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+											className="absolute right-3 top-1/2 -translate-y-1/2 text-body-text/45 transition-colors hover:text-primary dark:text-[#97A3B7]/78 dark:hover:text-[#78A9FF]"
 											type="button"
 											onClick={() =>
 												setShowPassword(!showPassword)
@@ -176,17 +158,17 @@ export function LoginForm(props: {
 								</div>
 
 								{error ? (
-									<div className="text-sm text-red-500 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg px-4 py-3">
+									<div className="rounded-[2px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-500 dark:border-red-500/20 dark:bg-red-500/10">
 										{error}
 									</div>
 								) : null}
 
 								{!error && props.notice ? (
 									<div
-										className={`text-sm rounded-lg px-4 py-3 ${
+										className={`rounded-[2px] px-4 py-3 text-sm ${
 											props.notice.tone === "error"
-												? "text-red-500 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20"
-												: "text-green-600 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20"
+												? "border border-red-200 bg-red-50 text-red-500 dark:border-red-500/20 dark:bg-red-500/10"
+												: "border border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/10"
 										}`}
 									>
 										{props.notice.text}
@@ -194,7 +176,7 @@ export function LoginForm(props: {
 								) : null}
 
 								<button
-									className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-lg shadow-primary/20 flex items-center justify-center gap-2 mt-2 disabled:opacity-50"
+									className="mt-2 flex w-full items-center justify-center gap-2 rounded-[2px] border border-primary/20 bg-[linear-gradient(90deg,#0052D9,#4656FF)] px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-95 disabled:opacity-50 dark:border-dark-primary/40 dark:bg-[linear-gradient(90deg,#0B66FC,#4958FF)]"
 									disabled={loading}
 									type="submit"
 								>
@@ -204,37 +186,43 @@ export function LoginForm(props: {
 											: t("auth.signIn")}
 									</span>
 									{!loading && (
-										<MaterialIcon
-											className="text-lg"
-											name="login"
-										/>
+										<MaterialIcon className="text-lg" name="login" />
 									)}
 								</button>
 							</form>
 						)}
 					</div>
 
-					{/* Footer */}
-					<div className="px-8 pb-6">
-						<div className="flex items-center justify-center gap-4 text-xs text-slate-400">
+					<div className="border-t border-white/50 bg-white/35 px-8 py-5 dark:border-white/10 dark:bg-night-0/56">
+						<div className="flex items-center justify-center gap-3 text-xs">
 							<button
-								className={`px-3 py-1.5 rounded-lg transition-colors ${props.themeMode === "system" ? "bg-primary/10 text-primary" : "hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-								onClick={() =>
-									props.onThemeModeChange("system")
-								}
+								className={`rounded-[2px] border px-3 py-1.5 transition-colors ${
+									props.themeMode === "system"
+										? "border-primary/20 bg-primary/10 text-primary dark:border-dark-primary/35 dark:bg-dark-primary/14 dark:text-[#78A9FF]"
+										: "border-transparent text-body-text/80 hover:bg-white/60 dark:text-[#c7d4eb]/78 dark:hover:bg-night-2/88"
+								}`}
+								onClick={() => props.onThemeModeChange("system")}
 								type="button"
 							>
 								{t("header.systemTheme")}
 							</button>
 							<button
-								className={`px-3 py-1.5 rounded-lg transition-colors ${props.themeMode === "light" ? "bg-primary/10 text-primary" : "hover:bg-slate-100 dark:hover:bg-slate-800"}`}
+								className={`rounded-[2px] border px-3 py-1.5 transition-colors ${
+									props.themeMode === "light"
+										? "border-primary/20 bg-primary/10 text-primary dark:border-dark-primary/35 dark:bg-dark-primary/14 dark:text-[#78A9FF]"
+										: "border-transparent text-body-text/80 hover:bg-white/60 dark:text-[#c7d4eb]/78 dark:hover:bg-night-2/88"
+								}`}
 								onClick={() => props.onThemeModeChange("light")}
 								type="button"
 							>
 								{t("header.lightMode")}
 							</button>
 							<button
-								className={`px-3 py-1.5 rounded-lg transition-colors ${props.themeMode === "dark" ? "bg-primary/10 text-primary" : "hover:bg-slate-100 dark:hover:bg-slate-800"}`}
+								className={`rounded-[2px] border px-3 py-1.5 transition-colors ${
+									props.themeMode === "dark"
+										? "border-primary/20 bg-primary/10 text-primary dark:border-dark-primary/35 dark:bg-dark-primary/14 dark:text-[#78A9FF]"
+										: "border-transparent text-body-text/80 hover:bg-white/60 dark:text-[#c7d4eb]/78 dark:hover:bg-night-2/88"
+								}`}
 								onClick={() => props.onThemeModeChange("dark")}
 								type="button"
 							>
@@ -244,11 +232,8 @@ export function LoginForm(props: {
 					</div>
 				</div>
 
-				{/* App Footer Info */}
-				<div className="mt-8 flex flex-col items-center gap-4 text-slate-500 dark:text-slate-400">
-					<p className="text-xs">
-						© 2026 Zenmind Pan Inc. All rights reserved.
-					</p>
+				<div className="mt-8 flex flex-col items-center gap-4 text-body-text/60 dark:text-[#97A3B7]/78">
+					<p className="text-xs">© 2026 Zenmind Pan Inc. All rights reserved.</p>
 				</div>
 			</div>
 		</div>

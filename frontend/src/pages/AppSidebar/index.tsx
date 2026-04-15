@@ -52,23 +52,23 @@ export function AppSidebar(props: AppSidebarProps) {
 		<ResizableSidebar
 			side="left"
 			defaultWidth={256}
-			className={`border-r border-slate-200 dark:border-slate-800 ${
+			className={`tencent-sidebar-panel border-r border-sidebar-border ${
 				props.isMobile
-					? `bg-bg-light dark:bg-bg-dark fixed inset-y-0 left-0 z-30 transition-transform ${props.mobileNavOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"}`
-					: "bg-white/50 dark:bg-bg-dark/50 backdrop-blur-md relative"
+					? `fixed inset-y-0 left-0 z-30 transition-transform ${props.mobileNavOpen ? "translate-x-0" : "-translate-x-full"} dark:border-white/10`
+					: "relative dark:border-white/10"
 			}`}
 			style={props.isMobile ? { width: "280px" } : undefined}
 		>
 			<div className="p-6 flex items-center gap-3">
-				<div className="flex bg-primary p-1.5 rounded-lg text-white">
+				<div className="flex rounded-[4px] border border-white/70 bg-primary p-1.5 text-white dark:border-dark-primary/30 dark:bg-dark-primary">
 					<MaterialIcon name="cloud_done" />
 				</div>
-				<h2 className="text-lg font-bold tracking-tight">
+				<h2 className="text-lg font-bold tracking-tight text-heading-text dark:text-white">
 					{t("common.appName")}
 				</h2>
 				{props.isMobile ? (
 					<button
-						className="ml-auto p-1 text-slate-400"
+						className="ml-auto rounded-full p-1 text-body-text/70 transition-colors hover:bg-white/70 hover:text-heading-text dark:text-[#97A3B7]/78 dark:hover:bg-night-3 dark:hover:text-white"
 						onClick={props.onCloseMobileNav}
 						type="button"
 					>
@@ -80,12 +80,12 @@ export function AppSidebar(props: AppSidebarProps) {
 			<nav className="flex-1 overflow-y-auto px-4 space-y-6">
 				{/* Favorites */}
 				<div>
-						<h3 className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+						<h3 className="mb-2 px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-body-text/60 dark:text-[#97A3B7]/78">
 							{t("sidebar.favorites")}
 						</h3>
 					<div className="space-y-1">
 						<button
-							className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/10 text-primary font-medium text-left text-sm"
+							className="w-full flex items-center gap-3 rounded-[4px] border-l-2 border-primary bg-white px-3 py-2 text-left text-sm font-semibold text-primary dark:border-dark-primary dark:bg-night-3/86 dark:text-[#78A9FF]"
 							onClick={props.onNavigateHome}
 							type="button"
 						>
@@ -93,7 +93,7 @@ export function AppSidebar(props: AppSidebarProps) {
 								<span>{t("sidebar.quickAccess")}</span>
 						</button>
 						<button
-							className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left text-sm"
+							className="w-full flex items-center gap-3 rounded-[4px] px-3 py-2 text-left text-sm text-body-text transition-colors hover:bg-white/75 dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
 							onClick={props.onOpenShares}
 							type="button"
 						>
@@ -103,13 +103,13 @@ export function AppSidebar(props: AppSidebarProps) {
 								/>
 								<span>{t("sidebar.myShares")}</span>
 							{props.sharesLength > 0 ? (
-								<span className="ml-auto text-xs text-slate-400">
+								<span className="ml-auto text-xs text-body-text/60 dark:text-[#97A3B7]/78">
 									{props.sharesLength}
 								</span>
 							) : null}
 						</button>
 						<button
-							className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left text-sm"
+							className="w-full flex items-center gap-3 rounded-[4px] px-3 py-2 text-left text-sm text-body-text transition-colors hover:bg-white/75 dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
 							onClick={props.onOpenTasks}
 							type="button"
 						>
@@ -119,13 +119,13 @@ export function AppSidebar(props: AppSidebarProps) {
 								/>
 								<span>{t("sidebar.tasks")}</span>
 							{props.tasksLength > 0 ? (
-								<span className="ml-auto text-xs text-slate-400">
+								<span className="ml-auto text-xs text-body-text/60 dark:text-[#97A3B7]/78">
 									{props.tasksLength}
 								</span>
 							) : null}
 						</button>
 						<button
-							className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left text-sm"
+							className="w-full flex items-center gap-3 rounded-[4px] px-3 py-2 text-left text-sm text-body-text transition-colors hover:bg-white/75 dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
 							onClick={props.onOpenTrash}
 							type="button"
 						>
@@ -135,7 +135,7 @@ export function AppSidebar(props: AppSidebarProps) {
 								/>
 								<span>{t("sidebar.trash")}</span>
 							{props.trashItemsLength > 0 ? (
-								<span className="ml-auto text-xs text-slate-400">
+								<span className="ml-auto text-xs text-body-text/60 dark:text-[#97A3B7]/78">
 									{props.trashItemsLength}
 								</span>
 							) : null}
@@ -148,7 +148,7 @@ export function AppSidebar(props: AppSidebarProps) {
 					{props.mounts.length > 1 ? (
 						<div className="mb-4 relative">
 							<select
-								className="w-full appearance-none bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm font-semibold rounded-lg pl-3 pr-8 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-800"
+								className="w-full appearance-none rounded-[4px] border border-sidebar-border bg-white/85 py-2.5 pl-3 pr-8 text-sm font-semibold text-heading-text transition-all hover:bg-white focus:outline-none focus:ring-1 focus:ring-primary/20 dark:border-white/10 dark:bg-night-2/88 dark:text-white dark:hover:bg-night-3"
 								value={activeSegment}
 								onChange={(e) => {
 									const newMountId = e.target.value;
@@ -186,18 +186,18 @@ export function AppSidebar(props: AppSidebarProps) {
 			</nav>
 
 			{/* Storage */}
-			<div className="p-4 border-t border-slate-200 dark:border-slate-800">
-				<div className="bg-slate-100 dark:bg-slate-800/50 rounded-xl p-4">
+			<div className="p-4 border-t border-sidebar-border dark:border-white/10">
+				<div className="rounded-[4px] border border-sidebar-border bg-white/80 p-4 dark:border-white/10 dark:bg-night-2/84">
 						<div className="flex items-center justify-between mb-2">
-							<span className="text-xs font-medium">
+							<span className="text-xs font-medium text-body-text/75 dark:text-[#c7d4eb]/78">
 								{t("sidebar.storage")}
 							</span>
 						</div>
-					<p className="text-[10px] text-slate-500 mb-2 overflow-hidden text-ellipsis">
+					<p className="mb-2 overflow-hidden text-ellipsis text-[10px] text-body-text/70 dark:text-[#97A3B7]/78">
 						{props.currentMountPath || "/"}
 					</p>
 					<button
-						className="w-full py-1.5 text-xs font-bold text-primary border border-primary/20 rounded-lg hover:bg-primary/5 transition-colors"
+						className="w-full rounded-[4px] border border-primary/25 bg-white py-1.5 text-xs font-bold text-primary transition-colors hover:bg-panel-wash dark:border-dark-primary/35 dark:bg-night-2 dark:text-[#78A9FF] dark:hover:bg-night-3"
 						onClick={props.onRefresh}
 						type="button"
 						>

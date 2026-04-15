@@ -50,12 +50,12 @@ export function AppHeader(props: AppHeaderProps) {
 	};
 
 	return (
-		<header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 bg-white/80 dark:bg-bg-dark/80 backdrop-blur-md z-10">
+		<header className="z-10 flex h-16 items-center justify-between border-b border-sidebar-border bg-white/82 px-6 backdrop-blur-md dark:border-white/10 dark:bg-night-1/90">
 			<div className="flex items-center gap-4">
 				{props.isMobile ? (
 					<div className="flex items-center gap-2">
 						<button
-							className="flex p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+							className="flex rounded-[4px] p-1.5 transition-colors hover:bg-panel-wash dark:hover:bg-night-3"
 							onClick={props.onOpenMobileNav}
 							type="button"
 						>
@@ -63,7 +63,7 @@ export function AppHeader(props: AppHeaderProps) {
 						</button>
 						{props.breadcrumbs.length > 1 && (
 							<button
-								className="flex p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-slate-900 dark:hover:text-white"
+								className="flex rounded-[4px] p-1.5 text-body-text/65 transition-colors hover:bg-panel-wash hover:text-heading-text dark:text-[#97A3B7]/78 dark:hover:bg-night-3 dark:hover:text-white"
 								onClick={props.onNavigateUp}
 								type="button"
 							>
@@ -74,7 +74,7 @@ export function AppHeader(props: AppHeaderProps) {
 				) : (
 					<div className="flex items-center gap-1">
 						<button
-							className="flex p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+							className="flex rounded-[4px] p-1.5 text-body-text/65 transition-colors hover:bg-panel-wash hover:text-heading-text disabled:cursor-not-allowed disabled:opacity-30 dark:text-[#97A3B7]/78 dark:hover:bg-night-3 dark:hover:text-white"
 							type="button"
 							onClick={props.onNavigateUp}
 							disabled={props.breadcrumbs.length <= 1}
@@ -84,12 +84,12 @@ export function AppHeader(props: AppHeaderProps) {
 					</div>
 				)}
 				{/* Breadcrumb */}
-				<nav className="flex items-center text-sm font-medium text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis max-w-[40vw]">
+				<nav className="flex max-w-[40vw] items-center overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-body-text">
 					{props.isMobile ? (
-							<span className="text-slate-900 dark:text-white font-bold truncate">
+						<span className="truncate font-bold text-heading-text dark:text-white">
 								{props.breadcrumbs[props.breadcrumbs.length - 1]
 									?.label || t("common.appName")}
-							</span>
+						</span>
 					) : (
 						props.breadcrumbs.map((crumb, index) => (
 							<span
@@ -103,12 +103,12 @@ export function AppHeader(props: AppHeaderProps) {
 									/>
 								) : null}
 								{index === props.breadcrumbs.length - 1 ? (
-									<span className="text-slate-900 dark:text-white font-bold">
+									<span className="font-bold text-heading-text dark:text-white">
 										{crumb.label}
 									</span>
 								) : (
 									<button
-										className="hover:text-primary transition-colors truncate max-w-[120px]"
+										className="max-w-[120px] truncate transition-colors hover:text-primary dark:hover:text-[#78A9FF]"
 										onClick={() =>
 											props.onNavigateBreadcrumb(
 												crumb.path,
@@ -129,11 +129,11 @@ export function AppHeader(props: AppHeaderProps) {
 				{/* Search Desktop */}
 				<div className="relative max-w-md w-full hidden sm:block">
 					<MaterialIcon
-						className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg"
+						className="absolute left-3 top-1/2 -translate-y-1/2 text-body-text/55 text-lg dark:text-[#97A3B7]/78"
 						name="search"
 					/>
 						<input
-							className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-primary/20 text-sm placeholder:text-slate-400 outline-none transition-all"
+							className="w-full rounded-[4px] border border-sidebar-border bg-panel-wash/85 py-2 pl-10 pr-4 text-sm text-heading-text outline-none transition-all placeholder:text-body-text/50 focus:border-primary focus:ring-1 focus:ring-primary/20 dark:border-white/10 dark:bg-night-2/88 dark:text-white dark:placeholder:text-[#97A3B7]/70"
 							placeholder={t("header.searchFilesPlaceholder")}
 							type="text"
 						value={localSearch}
@@ -144,7 +144,7 @@ export function AppHeader(props: AppHeaderProps) {
 				{/* Search Mobile Toggle */}
 				{props.isMobile && (
 					<button
-						className="flex p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+						className="flex rounded-[4px] p-1.5 text-body-text/65 transition-colors hover:bg-panel-wash hover:text-heading-text dark:text-[#97A3B7]/78 dark:hover:bg-night-3 dark:hover:text-white"
 						onClick={() => setIsMobileSearchOpen(true)}
 						type="button"
 					>
@@ -154,9 +154,9 @@ export function AppHeader(props: AppHeaderProps) {
 
 				{/* Mobile Search Overlay */}
 				{props.isMobile && isMobileSearchOpen && (
-					<div className="absolute inset-0 bg-white/95 dark:bg-bg-dark/95 backdrop-blur-md z-50 flex items-center px-4 gap-2 animate-fade-in">
+					<div className="absolute inset-0 z-50 flex items-center gap-2 bg-white/96 px-4 backdrop-blur-md animate-fade-in dark:bg-night-1/96">
 						<button
-							className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors flex-shrink-0"
+							className="shrink-0 rounded-[4px] p-1.5 text-body-text/65 transition-colors hover:bg-panel-wash hover:text-heading-text dark:text-[#97A3B7]/78 dark:hover:bg-night-3 dark:hover:text-white"
 							onClick={() => {
 								setIsMobileSearchOpen(false);
 								handleSearchChange("");
@@ -168,7 +168,7 @@ export function AppHeader(props: AppHeaderProps) {
 						<div className="relative flex-1">
 								<input
 									autoFocus
-									className="w-full pl-3 pr-10 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-primary/20 text-sm placeholder:text-slate-400 outline-none transition-all"
+									className="w-full rounded-[4px] border border-sidebar-border bg-panel-wash/85 py-2 pl-3 pr-10 text-sm text-heading-text outline-none transition-all placeholder:text-body-text/50 focus:border-primary focus:ring-1 focus:ring-primary/20 dark:border-white/10 dark:bg-night-2/88 dark:text-white dark:placeholder:text-[#97A3B7]/70"
 									placeholder={t("header.searchPlaceholder")}
 									type="text"
 								value={localSearch}
@@ -178,7 +178,7 @@ export function AppHeader(props: AppHeaderProps) {
 							/>
 							{localSearch && (
 								<button
-									className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+									className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-body-text/60 hover:text-heading-text dark:text-[#97A3B7]/78 dark:hover:text-white"
 									onClick={() => handleSearchChange("")}
 									type="button"
 								>
@@ -195,9 +195,9 @@ export function AppHeader(props: AppHeaderProps) {
 				{/* View toggle & Sidebar toggle */}
 				{!props.isMobile && (
 					<div className="flex items-center gap-2 flex-shrink-0">
-						<div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-lg flex-shrink-0">
+						<div className="flex flex-shrink-0 items-center rounded-[4px] border border-sidebar-border bg-sidebar-bg/90 p-0.5 dark:border-white/10 dark:bg-night-2/88">
 							<button
-								className={`p-1.5 rounded-md transition-all ${props.viewMode === "grid" ? "bg-white dark:bg-slate-700 shadow-sm text-primary" : "text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}
+								className={`rounded-[3px] p-1.5 transition-all ${props.viewMode === "grid" ? "border border-primary/10 bg-white text-primary dark:border-dark-primary/30 dark:bg-night-3 dark:text-[#78A9FF]" : "text-body-text/65 hover:text-heading-text dark:text-[#97A3B7]/78 dark:hover:text-white"}`}
 								onClick={() => props.onToggleViewMode("grid")}
 								type="button"
 							>
@@ -207,7 +207,7 @@ export function AppHeader(props: AppHeaderProps) {
 								/>
 							</button>
 							<button
-								className={`p-1.5 rounded-md transition-all ${props.viewMode === "list" ? "bg-white dark:bg-slate-700 shadow-sm text-primary" : "text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}
+								className={`rounded-[3px] p-1.5 transition-all ${props.viewMode === "list" ? "border border-primary/10 bg-white text-primary dark:border-dark-primary/30 dark:bg-night-3 dark:text-[#78A9FF]" : "text-body-text/65 hover:text-heading-text dark:text-[#97A3B7]/78 dark:hover:text-white"}`}
 								onClick={() => props.onToggleViewMode("list")}
 								type="button"
 							>
@@ -221,7 +221,7 @@ export function AppHeader(props: AppHeaderProps) {
 				)}
 
 				{/* User actions */}
-				<div className="flex items-center gap-2 border-l border-slate-200 dark:border-slate-800 pl-4 flex-shrink-0">
+				<div className="flex flex-shrink-0 items-center gap-2 border-l border-sidebar-border pl-4 dark:border-white/10">
 					<LanguageMenuButton compact />
 					<MenuButton
 						actions={[
@@ -308,7 +308,7 @@ export function AppHeader(props: AppHeaderProps) {
 								: []),
 						]}
 						align="right"
-						buttonClassName="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs overflow-hidden hover:bg-primary/30 transition-colors"
+						buttonClassName="flex h-8 w-8 items-center justify-center overflow-hidden rounded-[4px] border border-primary/15 bg-panel-wash text-primary text-xs font-bold transition-colors hover:bg-white dark:border-dark-primary/24 dark:bg-night-2/88 dark:text-[#78A9FF] dark:hover:bg-night-3"
 						buttonContent={<MaterialIcon name="person" />}
 						buttonLabel={t("header.userMenu")}
 					/>

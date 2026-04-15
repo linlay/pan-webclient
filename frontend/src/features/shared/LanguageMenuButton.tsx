@@ -22,8 +22,8 @@ export function LanguageMenuButton(props: {
 			buttonClassName={
 				props.buttonClassName ??
 				(props.compact
-					? "rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-					: "rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800")
+					? "rounded-[4px] border border-transparent p-2 text-body-text/70 transition-colors hover:bg-panel-wash hover:text-heading-text dark:text-[#97A3B7]/78 dark:hover:bg-night-3 dark:hover:text-[#f4f8ff]/88"
+					: "rounded-[4px] border border-sidebar-border bg-white/72 px-3 py-2 text-sm font-medium text-body-text transition-colors hover:bg-panel-wash dark:border-white/10 dark:bg-night-2/78 dark:text-[#c7d4eb]/78 dark:hover:bg-night-3")
 			}
 			buttonContent={
 				props.compact ? (

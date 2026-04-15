@@ -48,7 +48,7 @@ export function PreviewPane(props: {
 						</h3>
 					{props.taskCount > 0 ? (
 						<button
-							className="text-xs text-primary font-medium"
+							className="text-xs font-medium text-primary dark:text-[#78A9FF]"
 							onClick={props.onShowTasks}
 							type="button"
 						>
@@ -56,20 +56,20 @@ export function PreviewPane(props: {
 						</button>
 					) : null}
 				</div>
-				<p className="text-sm text-slate-500 mb-4">
+				<p className="mb-4 text-sm text-body-text/80 dark:text-[#c7d4eb]/68">
 					{t("preview.selectedDescription")}
 				</p>
 				<div className="flex flex-wrap gap-2">
 					{props.selectedEntries.slice(0, 5).map((item) => (
 						<span
-							className="px-3 py-1 text-xs bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700"
+							className="rounded-full border border-sidebar-border bg-panel-wash px-3 py-1 text-xs dark:border-white/10 dark:bg-night-2"
 							key={`${item.mountId}:${item.path}`}
 						>
 							{item.name}
 						</span>
 					))}
 					{props.selectedEntries.length > 5 ? (
-						<span className="px-3 py-1 text-xs text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-full">
+						<span className="rounded-full bg-panel-wash px-3 py-1 text-xs text-body-text/60 dark:bg-night-2 dark:text-[#97A3B7]/78">
 							+{props.selectedEntries.length - 5}
 						</span>
 					) : null}
@@ -86,39 +86,41 @@ export function PreviewPane(props: {
 					<h3 className="text-lg font-bold">{t("preview.properties")}</h3>
 				</div>
 				<div className="mb-8 flex flex-col items-center gap-4">
-					<div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-blue-500/10 sm:h-32 sm:w-32">
+					<div className="flex h-24 w-24 items-center justify-center rounded-[8px] bg-primary/10 sm:h-32 sm:w-32">
 						<MaterialIcon
 							name="folder"
-							className="text-blue-500 !text-6xl filled-icon"
+							className="text-primary !text-6xl filled-icon"
 						/>
 					</div>
-					<h4 className="text-md font-bold text-center">
+					<h4 className="text-md text-center font-bold text-heading-text dark:text-white">
 						{entry.name}
 					</h4>
-					<p className="text-xs text-slate-500">{t("preview.fileFolder")}</p>
+					<p className="text-xs text-body-text/75 dark:text-[#97A3B7]/78">
+						{t("preview.fileFolder")}
+					</p>
 				</div>
 				<div className="space-y-4">
 					<div className="flex justify-between text-sm">
-						<span className="text-slate-500 font-medium">
+						<span className="font-medium text-body-text/80 dark:text-[#97A3B7]/78">
 							{t("preview.mount")}:
 						</span>
-						<span className="font-medium">
+						<span className="font-medium text-heading-text dark:text-white">
 							{props.currentMount?.name ?? entry.mountId}
 						</span>
 					</div>
 					<div className="flex justify-between text-sm">
-						<span className="text-slate-500 font-medium">
+						<span className="font-medium text-body-text/80 dark:text-[#97A3B7]/78">
 							{t("preview.location")}:
 						</span>
-						<span className="font-medium truncate ml-4">
+						<span className="ml-4 truncate font-medium text-heading-text dark:text-white">
 							{entry.path}
 						</span>
 					</div>
 					<div className="flex justify-between text-sm">
-						<span className="text-slate-500 font-medium">
+						<span className="font-medium text-body-text/80 dark:text-[#97A3B7]/78">
 							{t("preview.modified")}:
 						</span>
-						<span className="font-medium">
+						<span className="font-medium text-heading-text dark:text-white">
 							{formatDateTime(entry.modTime)}
 						</span>
 					</div>
@@ -133,19 +135,19 @@ export function PreviewPane(props: {
 			<div className="flex h-full min-h-0 flex-col items-center justify-center overflow-y-auto p-6 py-16 text-center sm:py-20">
 				<MaterialIcon
 					name="touch_app"
-					className="text-slate-300 dark:text-slate-600 !text-6xl mb-4"
+					className="text-primary/25 dark:text-[#3E78FF]/28 !text-6xl mb-4"
 				/>
-					<h3 className="text-lg font-bold mb-2">
+					<h3 className="mb-2 text-lg font-bold text-heading-text dark:text-white">
 						{props.currentMount?.name ?? t("preview.noMountSelected")}
 					</h3>
-					<p className="text-sm text-slate-500">
+					<p className="text-sm text-body-text/75 dark:text-[#97A3B7]/78">
 						{props.searchQuery
 							? t("preview.searching", { query: props.searchQuery })
 							: t("preview.selectToView")}
 					</p>
 				{props.taskCount > 0 ? (
 					<button
-						className="mt-4 text-sm text-primary font-medium hover:underline"
+						className="mt-4 text-sm font-medium text-primary hover:underline dark:text-[#78A9FF]"
 						onClick={props.onShowTasks}
 						type="button"
 					>
@@ -172,8 +174,8 @@ export function PreviewPane(props: {
 			<div
 				className={`shrink-0 overflow-hidden border px-4 py-4 sm:px-5 sm:py-5 ${
 					immersivePreview
-						? "rounded-[28px] border-slate-200/90 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.12),_transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] shadow-[0_18px_40px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_transparent_28%),linear-gradient(180deg,rgba(15,23,42,0.98),rgba(15,23,42,0.96))]"
-						: "rounded-2xl border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-900/70"
+						? "rounded-[18px] border-sidebar-border bg-[linear-gradient(180deg,rgba(240,245,255,0.98),rgba(255,255,255,0.96))] dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(19,32,58,0.96),rgba(9,18,33,0.94))]"
+						: "rounded-[12px] border-sidebar-border bg-white/84 dark:border-white/10 dark:bg-night-2/84"
 				}`}
 			>
 				<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -200,16 +202,16 @@ export function PreviewPane(props: {
 						</div>
 						<div className="min-w-0 flex-1">
 							<div className="flex flex-wrap items-center gap-2">
-									<span className="rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:border-slate-700 dark:bg-slate-900/75 dark:text-slate-300">
+									<span className="rounded-full border border-sidebar-border bg-panel-wash px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-body-text/80 dark:border-white/10 dark:bg-night-2 dark:text-[#c7d4eb]/78">
 										{t("preview.preview")}
 									</span>
-								<span className="text-xs font-medium text-slate-400 dark:text-slate-500">
+								<span className="text-xs font-medium text-body-text/65 dark:text-[#97A3B7]/78">
 									{props.currentMount?.name ??
 										props.preview.mountId}
 								</span>
 							</div>
 							<h3
-								className={`mt-3 min-w-0 truncate font-bold text-slate-900 dark:text-white ${
+								className={`mt-3 min-w-0 truncate font-bold text-heading-text dark:text-white ${
 									immersivePreview
 										? "text-2xl"
 										: "text-base sm:text-lg"
@@ -220,7 +222,7 @@ export function PreviewPane(props: {
 							<div className="mt-3 flex flex-wrap items-center gap-2">
 								{fileMetaItems.map((item) => (
 									<span
-										className="rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-900/75 dark:text-slate-300"
+										className="rounded-full border border-sidebar-border bg-white/82 px-3 py-1.5 text-xs font-medium text-body-text dark:border-white/10 dark:bg-night-2 dark:text-[#c7d4eb]/78"
 										key={item}
 									>
 										{item}
@@ -233,7 +235,7 @@ export function PreviewPane(props: {
 						<div className="flex shrink-0 items-center gap-2 self-start rounded-[22px] p-1.5backdrop-blur">
 							{props.onClosePreview ? (
 								<button
-										className="inline-flex h-11 w-11 items-center justify-center rounded-[16px] text-slate-400 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+										className="inline-flex h-11 w-11 items-center justify-center rounded-[16px] text-slate-400 transition-colors hover:text-slate-900 dark:text-[#97A3B7]/78 dark:hover:text-white"
 										onClick={props.onClosePreview}
 										title={t("preview.closePreview")}
 										type="button"
@@ -267,7 +269,7 @@ function renderPreviewContent(
 ) {
 	if (preview.kind === "image") {
 		return (
-			<div className="flex h-full min-h-[260px] items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/70">
+			<div className="flex h-full min-h-[260px] items-center justify-center overflow-hidden rounded-[12px] border border-sidebar-border bg-white/84 dark:border-white/10 dark:bg-night-2/84">
 				<button
 					className="group flex h-full w-full items-center justify-center p-4"
 					onClick={() => onImagePreview?.(streamUrl)}
@@ -287,7 +289,7 @@ function renderPreviewContent(
 			<iframe
 				src={streamUrl}
 				title={preview.name}
-				className="h-full min-h-[320px] w-full rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+				className="h-full min-h-[320px] w-full rounded-[12px] border border-sidebar-border bg-white dark:border-white/10 dark:bg-night-2"
 			/>
 		);
 	}
@@ -296,16 +298,16 @@ function renderPreviewContent(
 			<video
 				controls
 				src={streamUrl}
-				className="h-full min-h-[320px] w-full rounded-2xl border border-slate-200 bg-black object-contain dark:border-slate-700"
+				className="h-full min-h-[320px] w-full rounded-[12px] border border-sidebar-border bg-black object-contain dark:border-white/10"
 			/>
 		);
 	}
 	if (preview.kind === "audio") {
 		return (
-			<div className="flex h-full min-h-[240px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 p-6 dark:border-slate-700 dark:bg-slate-900/60">
+			<div className="flex h-full min-h-[240px] items-center justify-center rounded-[12px] border border-sidebar-border bg-white/84 p-6 dark:border-white/10 dark:bg-night-2/84">
 				<div className="w-full max-w-xl">
 					<div className="mb-4 flex items-center justify-center">
-						<div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+						<div className="flex h-16 w-16 items-center justify-center rounded-[8px] bg-panel-wash text-body-text dark:bg-night-3 dark:text-[#c7d4eb]/78">
 							<MaterialIcon
 								name="music_note"
 								className="!text-3xl"
@@ -319,14 +321,14 @@ function renderPreviewContent(
 	}
 	if (preview.kind === "text") {
 		return (
-			<pre className="h-full min-h-[320px] overflow-auto rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-700 dark:bg-slate-800/50">
+			<pre className="h-full min-h-[320px] overflow-auto rounded-[12px] border border-sidebar-border bg-white/84 p-4 text-sm dark:border-white/10 dark:bg-night-2/84">
 				{preview.content}
 			</pre>
 		);
 	}
 	if (preview.kind === "markdown") {
 		return (
-			<div className="h-full min-h-[320px] overflow-auto rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900/60">
+			<div className="h-full min-h-[320px] overflow-auto rounded-[12px] border border-sidebar-border bg-white p-5 dark:border-white/10 dark:bg-night-2/84">
 				<article
 					className="markdown-preview"
 					dangerouslySetInnerHTML={{
@@ -337,18 +339,18 @@ function renderPreviewContent(
 		);
 	}
 	return (
-		<div className="flex h-full min-h-[260px] items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center dark:border-slate-700 dark:bg-slate-900/40">
+		<div className="flex h-full min-h-[260px] items-center justify-center rounded-[12px] border border-dashed border-sidebar-border bg-white/84 p-6 text-center dark:border-white/10 dark:bg-night-2/84">
 			<div>
-				<div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+				<div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[8px] bg-panel-wash text-body-text dark:bg-night-3 dark:text-[#c7d4eb]/78">
 					<MaterialIcon
 						name={previewIconName(preview)}
 						className="!text-3xl"
 					/>
 				</div>
-				<div className="mt-4 text-base font-bold text-slate-900 dark:text-white">
+				<div className="mt-4 text-base font-bold text-heading-text dark:text-white">
 					{translate("preview.noInlinePreviewTitle")}
 				</div>
-				<p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+				<p className="mt-2 text-sm text-body-text/75 dark:text-[#97A3B7]/78">
 					{translate("preview.noInlinePreviewDescription")}
 				</p>
 			</div>

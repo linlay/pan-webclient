@@ -59,7 +59,7 @@ export function MenuButton(props: {
 				aria-label={props.buttonLabel}
 				className={
 					props.buttonClassName ??
-					"p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+					"rounded-[4px] p-2 transition-colors hover:bg-panel-wash dark:hover:bg-night-3"
 				}
 				onClick={(e) => {
 					e.stopPropagation();
@@ -73,7 +73,7 @@ export function MenuButton(props: {
 			{open ? (
 				<div
 					ref={menuRef}
-					className={`absolute z-[100] w-48 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl animate-fade-in ${
+					className={`bg-light absolute z-[100] w-48 rounded-[8px] border border-sidebar-border bg-white/96 py-1.5 animate-fade-in dark:border-white/10 dark:bg-night-2/96 ${
 						dropUp ? "bottom-full mb-2" : "top-full mt-2"
 					} ${props.align === "right" ? "right-0" : "left-0"}`}
 				>
@@ -83,7 +83,7 @@ export function MenuButton(props: {
 							className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm transition-colors text-left ${
 								action.danger
 									? "text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
-									: "text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+									: "text-heading-text hover:bg-panel-wash dark:text-[#f4f8ff]/88 dark:hover:bg-night-3"
 							} ${action.disabled ? "opacity-40 cursor-not-allowed" : ""}`}
 							disabled={action.disabled}
 							onClick={(e) => {

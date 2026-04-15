@@ -28,10 +28,10 @@ export function SidebarTree(props: {
 					<section key={mount.id}>
 						{props.singleMountMode ? null : (
 							<button
-								className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left ${
+								className={`w-full flex items-center gap-3 rounded-[4px] px-3 py-2 text-left transition-colors ${
 									activeRoot
-										? "bg-primary/10 text-primary font-medium"
-										: "hover:bg-slate-100 dark:hover:bg-slate-800"
+										? "border-l-2 border-primary bg-white font-semibold text-primary dark:border-dark-primary dark:bg-night-3/86 dark:text-[#78A9FF]"
+										: "text-body-text hover:bg-white/75 dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
 								}`}
 								onClick={() => props.onSelect(mount.id, "/")}
 								type="button"
@@ -41,7 +41,7 @@ export function SidebarTree(props: {
 									<span className="block text-sm font-medium">
 										{mount.name}
 									</span>
-									<span className="block text-xs text-slate-500 truncate">
+									<span className="block truncate text-xs text-body-text/65 dark:text-[#97A3B7]/78">
 										{mount.path}
 									</span>
 								</div>
@@ -50,7 +50,7 @@ export function SidebarTree(props: {
 
 						{/* Directory Tree */}
 						<div className="mt-2">
-							<h3 className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+							<h3 className="mb-2 px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-body-text/60 dark:text-[#97A3B7]/78">
 								Directory Tree
 							</h3>
 							<div
@@ -110,17 +110,17 @@ function TreeBranch(props: {
 	return (
 		<div>
 			<div
-				className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors ${
+				className={`flex cursor-pointer items-center gap-2 rounded-[4px] px-3 py-1.5 transition-colors ${
 					active
-						? "bg-primary/5 text-primary"
-						: "hover:bg-slate-100 dark:hover:bg-slate-800"
+						? "bg-primary/6 text-primary dark:bg-dark-primary/16 dark:text-[#78A9FF]"
+						: "text-body-text hover:bg-white/75 dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
 				}`}
 				style={{ paddingLeft: `${props.depth * 16 + 12}px` }}
 				onClick={() => props.onSelect(props.mountId, props.node.path)}
 			>
 				{props.node.hasChildren ? (
 					<button
-						className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-0 border-0 bg-transparent"
+						className="border-0 bg-transparent p-0 text-body-text/55 hover:text-primary dark:text-[#97A3B7]/78 dark:hover:text-[#78A9FF]"
 						onClick={(e) => {
 							e.stopPropagation();
 							props.onToggle(props.mountId, props.node.path);
@@ -133,15 +133,15 @@ function TreeBranch(props: {
 						/>
 					</button>
 				) : (
-					<MaterialIcon className="text-sm text-slate-300" name="chevron_right" />
+					<MaterialIcon className="text-sm text-body-text/30 dark:text-[#97A3B7]/38" name="chevron_right" />
 				)}
-				<span className={`text-sm ${active ? "font-medium" : ""}`}>
+				<span className={`text-sm ${active ? "font-semibold" : ""}`}>
 					{props.node.name}
 				</span>
 			</div>
 
 			{expanded && children.length > 0 ? (
-				<div className="border-l border-slate-200 dark:border-slate-800 ml-4">
+				<div className="ml-4 border-l border-sidebar-border dark:border-white/8">
 					{children.map((child) => (
 						<TreeBranch
 							currentMountId={props.currentMountId}

@@ -16,7 +16,7 @@ export function MobileFAB(props: MobileFABProps) {
 				buttonContent={
 					<MaterialIcon name="add" className="text-3xl block" />
 				}
-				buttonClassName="size-14 bg-primary text-white rounded-full shadow-lg shadow-primary/30 flex items-center justify-center active:scale-90 transition-transform hover:bg-primary"
+				buttonClassName="flex size-14 items-center justify-center rounded-full border border-primary bg-primary text-white transition-colors active:scale-90 hover:bg-primary-hover dark:border-dark-primary dark:bg-dark-primary dark:hover:bg-dark-link"
 				align="right"
 				actions={[
 					{

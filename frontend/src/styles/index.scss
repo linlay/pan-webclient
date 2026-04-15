@@ -22,6 +22,20 @@ body {
 		"PingFang SC", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
+	color: #4b5b76;
+	background-color: #ecf2ff;
+	background-image:
+		radial-gradient(
+			circle at top left,
+			rgba(0, 82, 217, 0.08),
+			transparent 28%
+		),
+		radial-gradient(
+			circle at bottom right,
+			rgba(70, 86, 255, 0.06),
+			transparent 32%
+		),
+		linear-gradient(180deg, #f7faff 0%, #ecf2ff 100%);
 }
 
 // ─── Scrollbar ───
@@ -35,20 +49,20 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-	background: rgba(0, 0, 0, 0.15);
+	background: rgba(75, 91, 118, 0.24);
 	border-radius: 3px;
 
 	&:hover {
-		background: rgba(0, 0, 0, 0.25);
+		background: rgba(75, 91, 118, 0.34);
 	}
 }
 
 .dark {
 	::-webkit-scrollbar-thumb {
-		background: rgba(255, 255, 255, 0.15);
+		background: rgba(148, 163, 184, 0.28);
 
 		&:hover {
-			background: rgba(255, 255, 255, 0.25);
+			background: rgba(148, 163, 184, 0.38);
 		}
 	}
 }
@@ -57,6 +71,101 @@ body {
 .dark body,
 body.dark {
 	color-scheme: dark;
+	color: #dbe7ff;
+	background-color: #0f172a;
+	background-image:
+		radial-gradient(
+			circle at top left,
+			rgba(59, 130, 246, 0.16),
+			transparent 24%
+		),
+		radial-gradient(
+			circle at top right,
+			rgba(127, 118, 255, 0.1),
+			transparent 22%
+		),
+		linear-gradient(180deg, #0f172a 0%, #111b31 100%);
+}
+
+.tencent-flat [class*="shadow"] {
+	box-shadow: none !important;
+}
+
+.tencent-flat [class*="drop-shadow"] {
+	filter: none !important;
+}
+
+.tencent-login-bg {
+	background-color: #ecf2ff;
+	background-image:
+		radial-gradient(
+			at 0% 0%,
+			rgba(0, 82, 217, 0.08) 0px,
+			transparent 50%
+		),
+		radial-gradient(
+			at 100% 100%,
+			rgba(70, 86, 255, 0.05) 0px,
+			transparent 50%
+		),
+		linear-gradient(
+			135deg,
+			rgba(255, 255, 255, 0.42) 0%,
+			rgba(255, 255, 255, 0) 100%
+		);
+}
+
+.tencent-frosted-panel {
+	background: rgba(255, 255, 255, 0.86);
+	border: 1px solid rgba(255, 255, 255, 0.55);
+	backdrop-filter: blur(14px);
+	-webkit-backdrop-filter: blur(14px);
+}
+
+.tencent-app-panel {
+	background: rgba(255, 255, 255, 0.82);
+	border: 1px solid rgba(229, 232, 237, 0.88);
+	backdrop-filter: blur(14px);
+	-webkit-backdrop-filter: blur(14px);
+}
+
+.tencent-sidebar-panel {
+	background: linear-gradient(
+		180deg,
+		rgba(247, 250, 255, 0.98) 0%,
+		rgba(242, 245, 249, 0.98) 100%
+	);
+}
+
+.dark .tencent-frosted-panel,
+body.dark .tencent-frosted-panel {
+	background:
+		linear-gradient(
+			180deg,
+			rgba(9, 18, 33, 0.9) 0%,
+			rgba(15, 23, 42, 0.84) 100%
+		);
+	border-color: rgba(151, 163, 183, 0.18);
+}
+
+.dark .tencent-app-panel,
+body.dark .tencent-app-panel {
+	background:
+		linear-gradient(
+			180deg,
+			rgba(19, 32, 58, 0.9) 0%,
+			rgba(15, 23, 42, 0.82) 100%
+		);
+	border-color: rgba(151, 163, 183, 0.16);
+}
+
+.dark .tencent-sidebar-panel,
+body.dark .tencent-sidebar-panel {
+	background: linear-gradient(
+		180deg,
+		rgba(15, 23, 42, 0.98) 0%,
+		rgba(19, 32, 58, 0.98) 100%
+	);
 }
 
 // ─── Utility: Truncate ───
@@ -128,7 +237,7 @@ body.dark {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: rgba(0, 0, 0, 0.4);
+	background: rgba(15, 23, 42, 0.24);
 	backdrop-filter: blur(4px);
 	padding: 16px;
 }

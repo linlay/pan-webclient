@@ -17,12 +17,12 @@ export function App() {
 
 	if (controller.loadingSession) {
 		return (
-			<div className="min-h-screen flex items-center justify-center bg-bg-light dark:bg-bg-dark">
-				<div className="flex flex-col items-center gap-4">
-					<div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center text-white animate-pulse">
+			<div className="tencent-flat tencent-login-bg min-h-screen flex items-center justify-center px-4">
+				<div className="tencent-frosted-panel flex flex-col items-center gap-4 rounded-[8px] px-8 py-7 animate-fade-in">
+					<div className="flex h-12 w-12 items-center justify-center rounded-[2px] border border-white/60 bg-primary text-white animate-pulse dark:border-dark-primary/30 dark:bg-dark-primary">
 						<MaterialIcon name="cloud" />
 					</div>
-					<p className="text-slate-500 text-sm">
+					<p className="text-body-text text-sm dark:text-[#c7d4eb]/78">
 						{t("app.connectingWorkspace")}
 					</p>
 				</div>

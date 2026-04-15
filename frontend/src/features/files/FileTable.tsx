@@ -56,12 +56,12 @@ export function FileTable(props: {
 			<div className="flex flex-col items-center justify-center py-20 text-center">
 				<MaterialIcon
 					name="folder_open"
-					className="text-slate-300 dark:text-slate-600 !text-6xl mb-4"
+					className="text-primary/25 dark:text-[#3E78FF]/28 !text-6xl mb-4"
 				/>
-				<strong className="text-slate-500 dark:text-slate-400 text-lg">
+				<strong className="text-heading-text dark:text-[#f4f8ff]/92 text-lg">
 					{t("files.emptyTitle")}
 				</strong>
-				<p className="text-slate-400 dark:text-slate-500 text-sm mt-2">
+				<p className="text-body-text/70 dark:text-[#97A3B7]/78 text-sm mt-2">
 					{t("files.emptyDescription")}
 				</p>
 			</div>
@@ -138,14 +138,14 @@ function GridView(props: {
 						tabIndex={0}
 					>
 						<div
-							className={`relative rounded-[24px] p-2 transition-all duration-200 ${
+							className={`relative rounded-[14px] p-2 transition-all duration-200 ${
 								selected
 									? "bg-primary/6"
-									: "hover:-translate-y-1 hover:bg-slate-50/90 dark:hover:bg-slate-800/35"
+									: "hover:bg-white/78 dark:hover:bg-night-3/44"
 							}`}
 						>
 							{selected ? (
-								<div className="absolute right-3 top-3 z-10 rounded-full bg-white/95 p-1 text-primary shadow-sm dark:bg-slate-900/95">
+								<div className="absolute right-3 top-3 z-10 rounded-full border border-primary/10 bg-white/95 p-1 text-primary dark:border-dark-primary/20 dark:bg-night-2/96 dark:text-[#78A9FF]">
 									<MaterialIcon
 										name="check_circle"
 										className="text-base"
@@ -153,8 +153,8 @@ function GridView(props: {
 								</div>
 							) : null}
 							<div
-								className={`relative flex aspect-[1/0.82] items-center justify-center overflow-hidden rounded-[20px] border border-white/90 bg-white shadow-[0_8px_18px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 ${
-									selected ? "ring-2 ring-primary/15" : ""
+								className={`relative flex aspect-[1/0.82] items-center justify-center overflow-hidden rounded-[12px] border border-sidebar-border bg-white dark:border-white/10 dark:bg-night-2 ${
+									selected ? "ring-1 ring-primary/15" : ""
 								}`}
 							>
 								<div
@@ -167,10 +167,10 @@ function GridView(props: {
 							</div>
 
 							<div className="mt-2.5 min-w-0 px-0.5">
-								<div className="truncate text-[14px] font-semibold leading-5 text-slate-900 dark:text-slate-100">
+								<div className="truncate text-[14px] font-semibold leading-5 text-heading-text dark:text-[#f4f8ff]/92">
 									{entry.name}
 								</div>
-								<div className="mt-1 flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
+								<div className="mt-1 flex items-center gap-1.5 text-xs text-body-text/65 dark:text-[#97A3B7]/78">
 									<span className="truncate">
 										{entry.isDir
 											? t("files.directory")
@@ -204,10 +204,10 @@ function ListView(props: ListViewProps) {
 		);
 
 	return (
-		<div className="rounded-xl border border-slate-200 dark:border-slate-800 w-full min-w-max">
+		<div className="w-full min-w-max rounded-[6px] border border-sidebar-border bg-white/84 dark:border-white/10 dark:bg-night-2/82">
 			<table className="w-full text-left text-sm border-collapse">
-				<thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 uppercase text-[10px] font-bold tracking-wider">
-					<tr className="border-b border-slate-200 dark:border-slate-800">
+				<thead className="bg-sidebar-bg/85 text-body-text/70 uppercase text-[10px] font-bold tracking-wider dark:bg-night-0/94 dark:text-[#97A3B7]/78">
+					<tr className="border-b border-sidebar-border dark:border-white/10">
 						<th className="px-4 py-3 w-10 text-center">
 							<div className="flex items-center justify-center">
 								<input
@@ -237,7 +237,7 @@ function ListView(props: ListViewProps) {
 						<th className="px-4 py-3 w-10"></th>
 					</tr>
 				</thead>
-				<tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+				<tbody className="divide-y divide-sidebar-border/70 dark:divide-white/8">
 					{props.entries.map((entry) => {
 						const selected = isEntrySelected(
 							entry,
@@ -246,7 +246,7 @@ function ListView(props: ListViewProps) {
 						const { icon, textColor } = getFileVisual(entry);
 						return (
 							<tr
-								className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer ${
+								className={`cursor-pointer transition-colors hover:bg-panel-wash/80 dark:hover:bg-night-3/44 ${
 									selected ? "bg-primary/5" : ""
 								}`}
 								key={`${entry.mountId}:${entry.path}`}
@@ -278,7 +278,7 @@ function ListView(props: ListViewProps) {
 									/>
 								</td>
 								<td className="px-4 py-3">
-									<div className="flex items-center gap-3 font-medium text-slate-900 dark:text-slate-100">
+									<div className="flex items-center gap-3 font-medium text-heading-text dark:text-[#f4f8ff]/92">
 										<MaterialIcon
 											className={`${textColor} text-xl`}
 											name={icon}
@@ -288,7 +288,7 @@ function ListView(props: ListViewProps) {
 												{entry.name}
 											</span>
 											{/* Mobile specific merged details row */}
-											<div className="md:hidden flex items-center gap-2 mt-0.5 text-[11px] text-slate-400 font-normal">
+											<div className="md:hidden mt-0.5 flex items-center gap-2 text-[11px] font-normal text-body-text/65 dark:text-[#97A3B7]/78">
 												<span>
 													{formatDateTime(
 														entry.modTime,
@@ -304,20 +304,20 @@ function ListView(props: ListViewProps) {
 												</span>
 											</div>
 											{props.showPath ? (
-												<span className="block text-xs text-slate-400 truncate mt-0.5">
+												<span className="mt-0.5 block truncate text-xs text-body-text/60 dark:text-[#97A3B7]/78">
 													{entry.path}
 												</span>
 											) : null}
 										</div>
 									</div>
 								</td>
-								<td className="px-4 py-3 text-slate-500 hidden md:table-cell">
+								<td className="hidden px-4 py-3 text-body-text/80 dark:text-[#c7d4eb]/68 md:table-cell">
 									{formatDateTime(entry.modTime)}
 								</td>
-								<td className="px-4 py-3 text-slate-500 hidden lg:table-cell">
+								<td className="hidden px-4 py-3 text-body-text/80 dark:text-[#c7d4eb]/68 lg:table-cell">
 									{describeEntryType(entry)}
 								</td>
-								<td className="px-4 py-3 text-right text-slate-500 hidden sm:table-cell">
+								<td className="hidden px-4 py-3 text-right text-body-text/80 dark:text-[#c7d4eb]/68 sm:table-cell">
 									{entry.isDir
 										? "--"
 										: formatBytes(entry.size)}
@@ -373,7 +373,7 @@ function ListView(props: ListViewProps) {
 													props.onDelete(entry),
 											},
 										]}
-										buttonClassName="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors text-slate-400"
+										buttonClassName="rounded-[4px] p-1.5 text-body-text/60 transition-colors hover:bg-panel-wash hover:text-heading-text dark:text-[#97A3B7]/78 dark:hover:bg-night-3 dark:hover:text-white"
 										buttonContent={
 											<MaterialIcon
 												name="more_vert"
@@ -450,7 +450,7 @@ function MobileListView(props: ListViewProps) {
 	return (
 		<div className="space-y-3">
 			<div className="flex items-center justify-between px-1">
-				<span className="text-xs font-medium text-slate-400">
+				<span className="text-xs font-medium text-body-text/65 dark:text-[#97A3B7]/78">
 					{selectionMode && props.selectedEntries.length > 0
 						? t("files.selectedCount", {
 								count: props.selectedEntries.length,
@@ -462,8 +462,8 @@ function MobileListView(props: ListViewProps) {
 				<button
 					className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
 						selectionMode
-							? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
-							: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-200"
+							? "bg-primary text-white dark:bg-dark-primary"
+							: "border border-sidebar-border bg-white/80 text-body-text dark:border-white/10 dark:bg-night-2 dark:text-[#c7d4eb]/78"
 					}`}
 					onClick={() => setSelectionModeEnabled(!selectionMode)}
 					type="button"
@@ -471,7 +471,7 @@ function MobileListView(props: ListViewProps) {
 					{selectionMode ? t("common.done") : t("common.select")}
 				</button>
 			</div>
-			<div className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+			<div className="rounded-[8px] border border-sidebar-border bg-white/88 dark:border-white/10 dark:bg-night-2/84">
 				{props.entries.map((entry, index) => {
 					const selected = isEntrySelected(
 						entry,
@@ -483,7 +483,7 @@ function MobileListView(props: ListViewProps) {
 						<div
 							className={`flex items-center gap-3 px-4 py-3 transition-colors ${
 								selectionMode && selected ? "bg-primary/5" : ""
-							} ${index > 0 ? "border-t border-slate-100 dark:border-slate-800" : ""}`}
+							} ${index > 0 ? "border-t border-sidebar-border/70 dark:border-white/8" : ""}`}
 							key={entryKey(entry)}
 							onClick={() => handleActivate(entry)}
 							onKeyDown={(e) => {
@@ -520,10 +520,10 @@ function MobileListView(props: ListViewProps) {
 									name={icon}
 								/>
 								<div className="min-w-0 flex-1">
-									<div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+									<div className="truncate text-sm font-medium text-heading-text dark:text-[#f4f8ff]/92">
 										{entry.name}
 									</div>
-									<div className="mt-0.5 flex items-center gap-2 text-[11px] font-normal text-slate-400">
+									<div className="mt-0.5 flex items-center gap-2 text-[11px] font-normal text-body-text/65 dark:text-[#97A3B7]/78">
 										<span>
 											{formatDateTime(entry.modTime)}
 										</span>
@@ -535,7 +535,7 @@ function MobileListView(props: ListViewProps) {
 										</span>
 									</div>
 									{props.showPath ? (
-										<div className="mt-0.5 truncate text-[11px] text-slate-400">
+										<div className="mt-0.5 truncate text-[11px] text-body-text/60 dark:text-[#97A3B7]/78">
 											{entry.path}
 										</div>
 									) : null}
@@ -586,7 +586,7 @@ function MobileListView(props: ListViewProps) {
 										},
 									]}
 									align="right"
-									buttonClassName="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+									buttonClassName="rounded-[4px] p-1.5 text-body-text/60 transition-colors hover:bg-panel-wash dark:text-[#97A3B7]/78 dark:hover:bg-night-3"
 									buttonContent={
 										<MaterialIcon
 											name="more_vert"

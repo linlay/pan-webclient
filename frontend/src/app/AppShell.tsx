@@ -71,7 +71,7 @@ export function AppShell(props: AppShellProps) {
 	);
 
 	return (
-		<div className="flex h-screen overflow-hidden bg-bg-light dark:bg-bg-dark text-slate-900 dark:text-slate-100 font-display">
+		<div className="tencent-flat flex h-screen overflow-hidden bg-transparent font-display text-body-text dark:text-[#f4f8ff]/92">
 			<AppSidebar
 				currentMountId={props.currentMountId}
 				currentMountPath={props.currentMount?.path || "/"}
@@ -106,7 +106,7 @@ export function AppShell(props: AppShellProps) {
 				/>
 			) : null}
 
-			<main className="flex-1 flex flex-col min-w-0 bg-white dark:bg-bg-dark">
+			<main className="flex min-w-0 flex-1 flex-col bg-white/45 backdrop-blur-sm dark:bg-night-1/88">
 				<AppHeader
 					breadcrumbs={props.breadcrumbs}
 					canShareCurrentFolder={props.canShareCurrentDirectory}
@@ -150,15 +150,15 @@ export function AppShell(props: AppShellProps) {
 
 						{props.searchQuery ? (
 							<div className="mb-4 flex items-center gap-3 px-2">
-								<span className="text-xs uppercase tracking-wider text-slate-400">
+								<span className="text-xs uppercase tracking-wider text-body-text/65 dark:text-[#97A3B7]/78">
 									{t("common.search")}
 								</span>
-								<strong className="text-sm">
+								<strong className="text-sm text-heading-text dark:text-white">
 									{t("app.resultsCount", {
 										count: props.visibleRows.length,
 									})}
 								</strong>
-								<span className="text-xs text-slate-400">
+								<span className="text-xs text-body-text/70 dark:text-[#97A3B7]/78">
 									"{props.searchQuery}"
 								</span>
 							</div>
@@ -195,10 +195,10 @@ export function AppShell(props: AppShellProps) {
 
 					{props.notice ? (
 						<div
-							className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-xl text-sm font-medium animate-fade-in ${
+							className={`fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[6px] border px-5 py-3 text-sm font-medium animate-fade-in ${
 								props.notice.tone === "error"
-									? "bg-red-500 text-white"
-									: "bg-slate-900 dark:bg-white text-white dark:text-slate-900"
+									? "border-red-500 bg-red-500 text-white"
+									: "border-sidebar-border bg-white/96 text-heading-text dark:border-white/10 dark:bg-night-2/96 dark:text-white"
 							}`}
 						>
 							{props.notice.text}
@@ -224,7 +224,7 @@ export function AppShell(props: AppShellProps) {
 					defaultWidth={320}
 					minWidth={280}
 					maxWidth={500}
-					className="border-l border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-bg-dark/50 backdrop-blur-md overflow-hidden relative transition-colors"
+					className="tencent-app-panel relative overflow-hidden border-l border-sidebar-border transition-colors dark:border-white/10"
 				>
 					{inspectorPane}
 				</ResizableSidebar>
@@ -234,8 +234,8 @@ export function AppShell(props: AppShellProps) {
 				<button
 					className={`fixed top-1/2 -translate-y-1/2 z-40 flex items-center justify-center transition-all duration-300 ${
 						props.inspectorOpen
-							? "w-4 h-12 bg-white dark:bg-bg-dark border border-r-0 border-slate-200 dark:border-slate-800 rounded-l-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:w-8 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-[-4px_0_12px_rgba(0,0,0,0.02)]"
-							: "w-12 h-12 bg-white/60 dark:bg-bg-dark/60 backdrop-blur-md border border-slate-200/50 dark:border-slate-700/50 rounded-full text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-primary hover:scale-110 hover:bg-white dark:hover:bg-slate-800 shadow-[0_8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
+							? "h-12 w-4 rounded-l-[6px] border border-r-0 border-sidebar-border bg-white/92 text-body-text/70 hover:w-8 hover:bg-panel-wash hover:text-heading-text dark:border-white/10 dark:bg-night-2/96 dark:text-[#97A3B7]/78 dark:hover:bg-night-3 dark:hover:text-white"
+							: "h-12 w-12 rounded-full border border-sidebar-border bg-white/82 text-body-text/70 hover:scale-105 hover:bg-panel-wash hover:text-primary dark:border-white/10 dark:bg-night-2/90 dark:text-[#97A3B7]/78 dark:hover:bg-night-3 dark:hover:text-[#78A9FF]"
 					}`}
 					style={{
 						right: props.inspectorOpen
@@ -266,7 +266,7 @@ export function AppShell(props: AppShellProps) {
 					onClick={props.handleCloseDesktopPreview}
 				>
 					<div
-						className="relative h-full w-full overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-bg-dark"
+						className="relative h-full w-full overflow-hidden rounded-[20px] border border-sidebar-border bg-white/96 dark:border-white/10 dark:bg-night-1"
 						onClick={(event) => event.stopPropagation()}
 					>
 						{inspectorPane}
@@ -276,7 +276,7 @@ export function AppShell(props: AppShellProps) {
 
 			{desktopEditorOpen ? (
 				<div className="fixed inset-0 z-[90] bg-slate-950/55 p-4 backdrop-blur-md animate-fade-in sm:p-6">
-					<div className="h-full w-full overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-bg-dark">
+					<div className="h-full w-full overflow-hidden rounded-[20px] border border-sidebar-border bg-white/96 dark:border-white/10 dark:bg-night-1">
 						<div className="h-full overflow-y-auto">
 							<EditorPane
 								activeEntry={props.activeEntry}
@@ -294,13 +294,13 @@ export function AppShell(props: AppShellProps) {
 			{props.isMobile &&
 			props.mobileInspectorOpen &&
 			props.inspectorMode !== "preview" ? (
-				<aside className="fixed inset-0 z-30 flex flex-col overflow-hidden bg-white dark:bg-bg-dark animate-fade-in">
-					<div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-bg-dark">
-						<span className="text-sm font-bold">
+				<aside className="fixed inset-0 z-30 flex flex-col overflow-hidden bg-white/96 animate-fade-in dark:bg-night-1/96">
+					<div className="flex items-center justify-between border-b border-sidebar-border bg-white/90 px-4 py-4 dark:border-white/10 dark:bg-night-1/92">
+						<span className="text-sm font-bold text-heading-text dark:text-white">
 							{props.mobileInspectorTitle}
 						</span>
 						<button
-							className="rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+							className="rounded-full p-1 text-body-text/70 transition-colors hover:bg-panel-wash hover:text-heading-text dark:text-[#97A3B7]/78 dark:hover:bg-night-3 dark:hover:text-white"
 							onClick={props.handleCloseMobileInspector}
 							type="button"
 						>
@@ -348,7 +348,7 @@ export function AppShell(props: AppShellProps) {
 					onClick={props.handleCloseFullScreenImage}
 				>
 					<button
-						className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
+						className="absolute top-6 right-6 rounded-full border border-white/20 bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
 						onClick={props.handleCloseFullScreenImage}
 						type="button"
 					>
@@ -357,7 +357,7 @@ export function AppShell(props: AppShellProps) {
 					<img
 						src={props.fullScreenImage}
 						alt={t("preview.preview")}
-						className="max-w-full max-h-full object-contain drop-shadow-2xl rounded-sm"
+						className="max-h-full max-w-full rounded-sm object-contain"
 						onClick={(event) => event.stopPropagation()}
 					/>
 				</div>
