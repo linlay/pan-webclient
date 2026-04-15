@@ -41,7 +41,7 @@ export function PreviewPane(props: {
 		return (
 			<div className="flex h-full min-h-0 flex-col overflow-y-auto p-4 sm:p-6">
 					<div className="mb-6 flex items-center justify-between">
-						<h3 className="text-lg font-bold">
+						<h3 className="text-lg font-bold text-heading-text dark:text-white">
 							{t("preview.selectedTitle", {
 								count: props.selectedEntries.length,
 							})}
@@ -62,14 +62,14 @@ export function PreviewPane(props: {
 				<div className="flex flex-wrap gap-2">
 					{props.selectedEntries.slice(0, 5).map((item) => (
 						<span
-							className="rounded-full border border-sidebar-border bg-panel-wash px-3 py-1 text-xs dark:border-white/10 dark:bg-night-2"
+							className="rounded-full border border-sidebar-border bg-panel-wash px-3 py-1 text-xs dark:border-white/10 dark:bg-night-3/92 dark:text-[#d7e4fb]/82"
 							key={`${item.mountId}:${item.path}`}
 						>
 							{item.name}
 						</span>
 					))}
 					{props.selectedEntries.length > 5 ? (
-						<span className="rounded-full bg-panel-wash px-3 py-1 text-xs text-body-text/60 dark:bg-night-2 dark:text-[#97A3B7]/78">
+						<span className="rounded-full bg-panel-wash px-3 py-1 text-xs text-body-text/60 dark:bg-night-3/92 dark:text-[#97A3B7]/78">
 							+{props.selectedEntries.length - 5}
 						</span>
 					) : null}
@@ -175,7 +175,7 @@ export function PreviewPane(props: {
 				className={`shrink-0 overflow-hidden border px-4 py-4 sm:px-5 sm:py-5 ${
 					immersivePreview
 						? "rounded-[18px] border-sidebar-border bg-[linear-gradient(180deg,rgba(240,245,255,0.98),rgba(255,255,255,0.96))] dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(19,32,58,0.96),rgba(9,18,33,0.94))]"
-						: "rounded-[12px] border-sidebar-border bg-white/84 dark:border-white/10 dark:bg-night-2/84"
+						: "rounded-[12px] border-sidebar-border bg-white/84 dark:border-white/10 dark:bg-night-1/96"
 				}`}
 			>
 				<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -202,7 +202,7 @@ export function PreviewPane(props: {
 						</div>
 						<div className="min-w-0 flex-1">
 							<div className="flex flex-wrap items-center gap-2">
-									<span className="rounded-full border border-sidebar-border bg-panel-wash px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-body-text/80 dark:border-white/10 dark:bg-night-2 dark:text-[#c7d4eb]/78">
+									<span className="rounded-full border border-sidebar-border bg-panel-wash px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-body-text/80 dark:border-white/10 dark:bg-night-3/92 dark:text-[#d7e4fb]/82">
 										{t("preview.preview")}
 									</span>
 								<span className="text-xs font-medium text-body-text/65 dark:text-[#97A3B7]/78">
@@ -222,7 +222,7 @@ export function PreviewPane(props: {
 							<div className="mt-3 flex flex-wrap items-center gap-2">
 								{fileMetaItems.map((item) => (
 									<span
-										className="rounded-full border border-sidebar-border bg-white/82 px-3 py-1.5 text-xs font-medium text-body-text dark:border-white/10 dark:bg-night-2 dark:text-[#c7d4eb]/78"
+										className="rounded-full border border-sidebar-border bg-white/82 px-3 py-1.5 text-xs font-medium text-body-text dark:border-white/10 dark:bg-night-3/92 dark:text-[#c7d4eb]/78"
 										key={item}
 									>
 										{item}
@@ -232,10 +232,10 @@ export function PreviewPane(props: {
 						</div>
 					</div>
 					{props.canEdit || props.onClosePreview ? (
-						<div className="flex shrink-0 items-center gap-2 self-start rounded-[22px] p-1.5backdrop-blur">
+						<div className="flex shrink-0 items-center gap-2 self-start rounded-[22px] border border-transparent p-1.5 dark:border-white/10 dark:bg-night-1/72">
 							{props.onClosePreview ? (
 								<button
-										className="inline-flex h-11 w-11 items-center justify-center rounded-[16px] text-slate-400 transition-colors hover:text-slate-900 dark:text-[#97A3B7]/78 dark:hover:text-white"
+										className="inline-flex h-11 w-11 items-center justify-center rounded-[16px] text-slate-400 transition-colors hover:bg-panel-wash hover:text-slate-900 dark:text-[#97A3B7]/78 dark:hover:bg-night-2 dark:hover:text-white"
 										onClick={props.onClosePreview}
 										title={t("preview.closePreview")}
 										type="button"
@@ -269,7 +269,7 @@ function renderPreviewContent(
 ) {
 	if (preview.kind === "image") {
 		return (
-			<div className="flex h-full min-h-[260px] items-center justify-center overflow-hidden rounded-[12px] border border-sidebar-border bg-white/84 dark:border-white/10 dark:bg-night-2/84">
+			<div className="flex h-full min-h-[260px] items-center justify-center overflow-hidden rounded-[12px] border border-sidebar-border bg-white/84 dark:border-white/10 dark:bg-night-1/96">
 				<button
 					className="group flex h-full w-full items-center justify-center p-4"
 					onClick={() => onImagePreview?.(streamUrl)}
@@ -289,7 +289,7 @@ function renderPreviewContent(
 			<iframe
 				src={streamUrl}
 				title={preview.name}
-				className="h-full min-h-[320px] w-full rounded-[12px] border border-sidebar-border bg-white dark:border-white/10 dark:bg-night-2"
+				className="h-full min-h-[320px] w-full rounded-[12px] border border-sidebar-border bg-white dark:border-white/10 dark:bg-night-1/96"
 			/>
 		);
 	}
@@ -304,10 +304,10 @@ function renderPreviewContent(
 	}
 	if (preview.kind === "audio") {
 		return (
-			<div className="flex h-full min-h-[240px] items-center justify-center rounded-[12px] border border-sidebar-border bg-white/84 p-6 dark:border-white/10 dark:bg-night-2/84">
+			<div className="flex h-full min-h-[240px] items-center justify-center rounded-[12px] border border-sidebar-border bg-white/84 p-6 dark:border-white/10 dark:bg-night-1/96">
 				<div className="w-full max-w-xl">
 					<div className="mb-4 flex items-center justify-center">
-						<div className="flex h-16 w-16 items-center justify-center rounded-[8px] bg-panel-wash text-body-text dark:bg-night-3 dark:text-[#c7d4eb]/78">
+						<div className="flex h-16 w-16 items-center justify-center rounded-[8px] bg-panel-wash text-body-text dark:bg-night-3/92 dark:text-[#d7e4fb]/82">
 							<MaterialIcon
 								name="music_note"
 								className="!text-3xl"
@@ -321,14 +321,14 @@ function renderPreviewContent(
 	}
 	if (preview.kind === "text") {
 		return (
-			<pre className="h-full min-h-[320px] overflow-auto rounded-[12px] border border-sidebar-border bg-white/84 p-4 text-sm dark:border-white/10 dark:bg-night-2/84">
+			<pre className="h-full min-h-[320px] overflow-auto rounded-[12px] border border-sidebar-border bg-white/84 p-4 text-sm dark:border-white/10 dark:bg-night-1/96 dark:text-[#d7e4fb]/82">
 				{preview.content}
 			</pre>
 		);
 	}
 	if (preview.kind === "markdown") {
 		return (
-			<div className="h-full min-h-[320px] overflow-auto rounded-[12px] border border-sidebar-border bg-white p-5 dark:border-white/10 dark:bg-night-2/84">
+			<div className="h-full min-h-[320px] overflow-auto rounded-[12px] border border-sidebar-border bg-white p-5 dark:border-white/10 dark:bg-night-1/96">
 				<article
 					className="markdown-preview"
 					dangerouslySetInnerHTML={{
@@ -339,9 +339,9 @@ function renderPreviewContent(
 		);
 	}
 	return (
-		<div className="flex h-full min-h-[260px] items-center justify-center rounded-[12px] border border-dashed border-sidebar-border bg-white/84 p-6 text-center dark:border-white/10 dark:bg-night-2/84">
+		<div className="flex h-full min-h-[260px] items-center justify-center rounded-[12px] border border-dashed border-sidebar-border bg-white/84 p-6 text-center dark:border-white/10 dark:bg-night-1/96">
 			<div>
-				<div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[8px] bg-panel-wash text-body-text dark:bg-night-3 dark:text-[#c7d4eb]/78">
+				<div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[8px] bg-panel-wash text-body-text dark:bg-night-3/92 dark:text-[#d7e4fb]/82">
 					<MaterialIcon
 						name={previewIconName(preview)}
 						className="!text-3xl"

@@ -23,7 +23,7 @@ export function TaskDeleteDialog(props: {
 			role="presentation"
 		>
 			<form
-				className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl animate-fade-in dark:border-slate-800 dark:bg-slate-900"
+				className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white animate-fade-in dark:border-white/10 dark:bg-night-0/98"
 				onClick={(e) => e.stopPropagation()}
 				onSubmit={(e) => {
 					e.preventDefault();
@@ -32,7 +32,7 @@ export function TaskDeleteDialog(props: {
 				role="alertdialog"
 			>
 				<div className="p-6 pb-4">
-					<p className="mb-1 text-xs uppercase tracking-wider text-slate-400">
+					<p className="mb-1 text-xs uppercase tracking-wider text-slate-400 dark:text-[#97A3B7]/78">
 						{t("sidebar.tasks")}
 					</p>
 					<div className="flex items-start gap-3">
@@ -43,7 +43,7 @@ export function TaskDeleteDialog(props: {
 							<h2 className="text-lg font-bold text-slate-900 dark:text-white">
 								{t("taskDelete.dialogTitle")}
 							</h2>
-							<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+							<p className="mt-1 text-sm text-slate-500 dark:text-[#97A3B7]/78">
 								{t("taskDelete.undoWarning")}
 								{removesArtifact
 									? ` ${t("taskDelete.removeArchive")}`
@@ -54,29 +54,29 @@ export function TaskDeleteDialog(props: {
 				</div>
 
 				<div className="px-6 pb-4">
-					<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
-						<p className="text-xs uppercase tracking-wider text-slate-400">
+					<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-night-2/96">
+						<p className="text-xs uppercase tracking-wider text-slate-400 dark:text-[#97A3B7]/78">
 							{t("taskDelete.taskName")}
 						</p>
 						<p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-white">
 							{taskPrimaryLabel(props.task)}
 						</p>
-						<p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+						<p className="mt-1 truncate text-xs text-slate-500 dark:text-[#97A3B7]/78">
 							{props.task.detail}
 						</p>
 					</div>
 				</div>
 
 				{props.error ? (
-					<div className="mx-6 mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-500 dark:border-red-500/20 dark:bg-red-500/10">
+					<div className="mx-6 mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-500 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-200">
 						{props.error}
 					</div>
 				) : null}
 
-				<div className="flex items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4 dark:border-slate-800 dark:bg-slate-800/50">
+				<div className="flex items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4 dark:border-white/10 dark:bg-night-0/94">
 					<button
 						autoFocus
-						className="rounded-lg border border-slate-200 px-4 py-2 text-sm transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:hover:bg-slate-800"
+						className="rounded-lg border border-slate-200 px-4 py-2 text-sm transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:text-[#c7d4eb]/78 dark:hover:bg-night-2"
 						disabled={props.submitting}
 						onClick={props.onClose}
 						type="button"

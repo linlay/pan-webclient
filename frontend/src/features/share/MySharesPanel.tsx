@@ -15,27 +15,27 @@ export function MySharesPanel(props: {
 }) {
 	const { t } = useTranslation();
 	return (
-		<div className="flex h-full min-h-0 flex-col gap-5 p-5">
+		<div className="flex h-full min-h-0 flex-col gap-5 p-5 text-body-text dark:text-[#f4f8ff]/92">
 			<div className="flex items-start justify-between gap-3">
 				<div>
-					<p className="text-xs uppercase tracking-wider text-slate-400">
+					<p className="text-xs uppercase tracking-wider text-slate-400 dark:text-[#97A3B7]/78">
 						{t("shares.panelTitle")}
 					</p>
-					<h3 className="mt-1 text-[1.7rem] font-bold leading-none">
+					<h3 className="mt-1 text-[1.7rem] font-bold leading-none text-heading-text dark:text-white">
 						{t("shares.panelTitle")}
 					</h3>
 				</div>
 				{!props.isMobile ? (
 					<div className="flex items-center gap-2">
 						<button
-							className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+							className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-[#97A3B7]/78 dark:hover:bg-night-2 dark:hover:text-white"
 							onClick={props.onRefresh}
 							type="button"
 						>
 							<MaterialIcon name="refresh" />
 						</button>
 						<button
-							className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800 transition-colors"
+							className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold transition-colors hover:bg-slate-50 dark:border-white/10 dark:text-[#c7d4eb]/78 dark:hover:bg-night-2"
 							onClick={props.onBack}
 							type="button"
 						>
@@ -48,15 +48,15 @@ export function MySharesPanel(props: {
 			<div className="min-h-0 flex-1 overflow-y-auto pr-1">
 				<div className="space-y-4">
 					{props.items.length === 0 ? (
-						<div className="rounded-[28px] border border-dashed border-slate-200 bg-slate-50/80 px-5 py-12 text-center dark:border-slate-700 dark:bg-slate-800/30">
+						<div className="rounded-[28px] border border-dashed border-slate-200 bg-slate-50/80 px-5 py-12 text-center dark:border-white/10 dark:bg-night-2/48">
 							<MaterialIcon
 								name="share"
-								className="mb-3 !text-5xl text-slate-300 dark:text-slate-600"
+								className="mb-3 !text-5xl text-slate-300 dark:text-[#355078]"
 							/>
-							<p className="text-sm text-slate-500 dark:text-slate-400">
+							<p className="text-sm text-slate-500 dark:text-[#97A3B7]/78">
 								{t("shares.emptyTitle")}
 							</p>
-							<p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+							<p className="mt-1 text-xs text-slate-400 dark:text-[#8FA7CF]/70">
 								{t("shares.emptyDescription")}
 							</p>
 						</div>
@@ -66,7 +66,7 @@ export function MySharesPanel(props: {
 								props.deletingShareId === share.id;
 							return (
 								<div
-									className="rounded-[28px] border border-slate-200 bg-white/90 p-4 shadow-[0_16px_40px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-900/70"
+									className="rounded-[28px] border border-slate-200 bg-white/90 p-4 dark:border-white/10 dark:bg-night-1/96"
 									key={share.id}
 								>
 									<div className="flex items-start gap-3">
@@ -74,7 +74,7 @@ export function MySharesPanel(props: {
 											className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[20px] ${
 												share.isDir
 													? "bg-primary/10 text-primary"
-													: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300"
+													: "bg-slate-100 text-slate-500 dark:bg-night-2 dark:text-[#c7d4eb]/78"
 											}`}
 										>
 											<MaterialIcon
@@ -86,7 +86,7 @@ export function MySharesPanel(props: {
 											<p className="truncate text-[15px] font-semibold text-slate-900 dark:text-white">
 												{share.name}
 											</p>
-											<p className="mt-1 break-all text-xs text-slate-400">
+											<p className="mt-1 break-all text-xs text-slate-400 dark:text-[#97A3B7]/78">
 												{share.mountId}
 												{share.path}
 											</p>
@@ -127,10 +127,10 @@ export function MySharesPanel(props: {
 										)}
 									</div>
 
-									<div className="mt-4 rounded-2xl bg-slate-50/90 px-4 py-3 dark:bg-slate-800/50">
-										<div className="grid gap-2 text-xs text-slate-500 dark:text-slate-400">
+									<div className="mt-4 rounded-2xl bg-slate-50/90 px-4 py-3 dark:bg-night-2/92">
+										<div className="grid gap-2 text-xs text-slate-500 dark:text-[#97A3B7]/78">
 											<div className="grid grid-cols-[56px_minmax(0,1fr)] gap-2">
-												<span className="font-medium text-slate-400">
+												<span className="font-medium text-slate-400 dark:text-[#8FA7CF]/70">
 													{t("shares.meta.created")}
 												</span>
 												<span className="min-w-0">
@@ -138,7 +138,7 @@ export function MySharesPanel(props: {
 												</span>
 											</div>
 											<div className="grid grid-cols-[56px_minmax(0,1fr)] gap-2">
-												<span className="font-medium text-slate-400">
+												<span className="font-medium text-slate-400 dark:text-[#8FA7CF]/70">
 													{t("shares.meta.expiry")}
 												</span>
 												<span className="min-w-0">
@@ -159,7 +159,7 @@ export function MySharesPanel(props: {
 
 									<div className="mt-4 grid grid-cols-2 gap-2">
 										<button
-											className="inline-flex w-full items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+											className="inline-flex w-full items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 dark:border-white/10 dark:bg-night-3/92 dark:text-[#d7e4fb]/82 dark:hover:bg-[#22365b]"
 											onClick={() => void props.onCopy(share)}
 											type="button"
 										>
@@ -207,7 +207,7 @@ function Tag(props: {
 			? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300"
 			: props.tone === "danger"
 				? "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-300"
-				: "bg-white text-slate-500 dark:bg-slate-900 dark:text-slate-300";
+				: "bg-white text-slate-500 dark:bg-night-3/92 dark:text-[#c7d4eb]/78";
 	return (
 		<span
 			className={`inline-flex items-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium ${tone}`}

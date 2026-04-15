@@ -48,7 +48,7 @@ export function OperationDialogView(props: {
 			role="presentation"
 		>
 			<form
-				className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md overflow-hidden animate-fade-in`}
+				className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white animate-fade-in dark:border-white/10 dark:bg-night-0/98"
 				onClick={(e) => e.stopPropagation()}
 				onSubmit={(e) => {
 					e.preventDefault();
@@ -56,25 +56,25 @@ export function OperationDialogView(props: {
 				}}
 			>
 				<div className="p-6 pb-4">
-					<p className="text-xs uppercase tracking-wider text-slate-400 mb-1">
+					<p className="mb-1 text-xs uppercase tracking-wider text-slate-400 dark:text-[#97A3B7]/78">
 						{dialogEyebrow(props.dialog.kind)}
 					</p>
-					<h2 className="text-lg font-bold">
+					<h2 className="text-lg font-bold text-heading-text dark:text-white">
 						{dialogTitle(props.dialog)}
 					</h2>
-					<p className="text-sm text-slate-500 mt-1">
+					<p className="mt-1 text-sm text-slate-500 dark:text-[#97A3B7]/78">
 						{dialogDescription(props.dialog)}
 					</p>
 				</div>
 
 				{requiresInput ? (
 					<div className="px-6 pb-4">
-						<label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+						<label className="mb-2 block text-sm font-medium text-slate-700 dark:text-[#c7d4eb]/78">
 							{dialogFieldLabel(props.dialog.kind)}
 						</label>
 						<input
 							autoFocus
-							className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/50 outline-none"
+							className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 dark:border-white/10 dark:bg-night-2/96 dark:text-white dark:focus:border-dark-primary dark:focus:ring-dark-primary/20"
 							onChange={(e) => props.onChange(e.target.value)}
 							value={value}
 						/>
@@ -86,17 +86,17 @@ export function OperationDialogView(props: {
 				props.directoryTree?.mount ? (
 					<div className="px-6 pb-4">
 						<div className="mb-2 flex items-center justify-between">
-							<label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+							<label className="block text-sm font-medium text-slate-700 dark:text-[#c7d4eb]/78">
 								{t("dialog.targetLevel")}
 							</label>
-							<span className="text-xs text-slate-400">
+							<span className="text-xs text-slate-400 dark:text-[#97A3B7]/78">
 								{props.directoryTree.mount.name}
 							</span>
 						</div>
-						<p className="mb-3 text-xs text-slate-500">
+						<p className="mb-3 text-xs text-slate-500 dark:text-[#97A3B7]/78">
 							{t("dialog.pickTargetDir")}
 						</p>
-						<div className="max-h-72 py-4 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-800/40">
+						<div className="max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/80 py-4 dark:border-white/10 dark:bg-night-1/96">
 							<SidebarTree
 								currentMountId={props.directoryTree.mount.id}
 								currentPath={props.dialog.targetDir}
@@ -122,20 +122,20 @@ export function OperationDialogView(props: {
 
 				{selectedItems.length > 0 ? (
 					<div className="px-6 pb-4">
-						<span className="text-xs uppercase tracking-wider text-slate-400">
+						<span className="text-xs uppercase tracking-wider text-slate-400 dark:text-[#97A3B7]/78">
 							{t("dialog.involvedItems")}
 						</span>
 						<div className="flex flex-wrap gap-1.5 mt-2">
 							{selectedItems.slice(0, 6).map((e) => (
 								<span
-									className="px-2.5 py-1 text-xs bg-slate-100 dark:bg-slate-800 rounded-full"
+									className="rounded-full bg-slate-100 px-2.5 py-1 text-xs dark:bg-night-3/92 dark:text-[#c7d4eb]/78"
 									key={`${e.mountId}:${e.path}`}
 								>
 									{e.name}
 								</span>
 							))}
 							{selectedItems.length > 6 ? (
-								<span className="px-2.5 py-1 text-xs text-slate-400">
+								<span className="px-2.5 py-1 text-xs text-slate-400 dark:text-[#8FA7CF]/70">
 									+{selectedItems.length - 6}
 								</span>
 							) : null}
@@ -144,14 +144,14 @@ export function OperationDialogView(props: {
 				) : null}
 
 				{props.dialog.error ? (
-					<div className="mx-6 mb-4 text-sm text-red-500 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg px-4 py-3">
+					<div className="mx-6 mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-500 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-200">
 						{props.dialog.error}
 					</div>
 				) : null}
 
-				<div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+				<div className="flex items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4 dark:border-white/10 dark:bg-night-0/94">
 					<button
-						className="px-4 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+						className="rounded-lg border border-slate-200 px-4 py-2 text-sm transition-colors hover:bg-slate-100 dark:border-white/10 dark:text-[#c7d4eb]/78 dark:hover:bg-night-2"
 						disabled={props.dialog.submitting}
 						onClick={props.onClose}
 						type="button"

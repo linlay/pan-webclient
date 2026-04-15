@@ -141,10 +141,10 @@ export function ShareDialog(props: {
 			role="presentation"
 		>
 			<div
-				className="animate-fade-in w-full max-w-2xl max-h-[calc(100dvh-2rem)] overflow-x-hidden overflow-y-auto overscroll-contain rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+				className="animate-fade-in max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-x-hidden overflow-y-auto overscroll-contain rounded-[28px] border border-slate-200 bg-white dark:border-white/10 dark:bg-night-0/98"
 				onClick={(e) => e.stopPropagation()}
 			>
-				<div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_45%),linear-gradient(180deg,_rgba(248,250,252,0.95),_rgba(255,255,255,1))] px-6 py-5 dark:border-slate-800 dark:bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.22),_transparent_45%),linear-gradient(180deg,_rgba(15,23,42,0.98),_rgba(15,23,42,1))]">
+				<div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_45%),linear-gradient(180deg,_rgba(248,250,252,0.95),_rgba(255,255,255,1))] px-6 py-5 dark:border-white/10 dark:bg-[radial-gradient(circle_at_top_left,_rgba(11,102,252,0.18),_transparent_45%),linear-gradient(180deg,_rgba(9,18,33,0.98),_rgba(15,23,42,1))]">
 					<div className="flex items-start justify-between gap-4">
 						<div>
 								<p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-500">
@@ -155,14 +155,14 @@ export function ShareDialog(props: {
 										name: props.entry.name,
 									})}
 								</h2>
-								<p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+								<p className="mt-2 text-sm text-slate-500 dark:text-[#97A3B7]/78">
 									{props.entry.isDir
 										? t("shares.dialog.dirDescription")
 										: t("shares.dialog.fileDescription")}
 								</p>
 						</div>
 						<button
-							className="rounded-full p-2 text-slate-400 transition-colors hover:bg-white/80 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+							className="rounded-full p-2 text-slate-400 transition-colors hover:bg-white/80 hover:text-slate-700 dark:text-[#97A3B7]/78 dark:hover:bg-night-2 dark:hover:text-white"
 							onClick={props.onClose}
 							type="button"
 						>
@@ -190,16 +190,16 @@ export function ShareDialog(props: {
 						</div>
 
 						<div className="grid gap-4 md:grid-cols-[1.2fr_0.8fr]">
-							<div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-800/40">
-									<div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+							<div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-night-2/96">
+									<div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-[#97A3B7]/78">
 										{t("shares.dialog.shareLink")}
 									</div>
-								<div className="mt-3 break-all rounded-xl bg-white px-4 py-3 text-sm text-slate-700 shadow-sm dark:bg-slate-900 dark:text-slate-200">
+								<div className="mt-3 break-all rounded-xl bg-white px-4 py-3 text-sm text-slate-700 dark:bg-night-1/96 dark:text-[#d7e4fb]/82">
 									{shareLink}
 								</div>
 								{result.password ? (
-									<div className="mt-3 rounded-xl bg-white px-4 py-3 shadow-sm dark:bg-slate-900">
-											<div className="text-xs uppercase tracking-[0.2em] text-slate-400">
+									<div className="mt-3 rounded-xl bg-white px-4 py-3 dark:bg-night-1/96">
+											<div className="text-xs uppercase tracking-[0.2em] text-slate-400 dark:text-[#97A3B7]/78">
 												{t("shares.dialog.password")}
 											</div>
 										<div className="mt-2 text-3xl font-black tracking-[0.35em] text-slate-900 dark:text-white">
@@ -208,7 +208,7 @@ export function ShareDialog(props: {
 									</div>
 								) : null}
 								<button
-									className="mt-3 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+									className="mt-3 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-700 dark:bg-dark-primary dark:text-white dark:hover:bg-dark-link"
 									onClick={() => void handleCopy()}
 									type="button"
 								>
@@ -219,8 +219,8 @@ export function ShareDialog(props: {
 									</button>
 							</div>
 
-							<div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-									<div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+							<div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-night-1/96">
+									<div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-[#97A3B7]/78">
 										{t("shares.dialog.accessMode")}
 									</div>
 									<div className="mt-3 text-lg font-bold text-slate-900 dark:text-white">
@@ -228,13 +228,13 @@ export function ShareDialog(props: {
 											? t("shares.dialog.accessPasswordTitle")
 											: t("shares.dialog.accessPublicTitle")}
 									</div>
-									<p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+									<p className="mt-2 text-sm text-slate-500 dark:text-[#97A3B7]/78">
 										{result.access === "password"
 											? t("shares.dialog.accessPasswordDescription")
 											: t("shares.dialog.accessPublicDescription")}
 									</p>
-									<div className="mt-4 rounded-2xl bg-slate-50 px-4 py-4 dark:bg-slate-800/50">
-										<div className="text-xs uppercase tracking-[0.2em] text-slate-400">
+									<div className="mt-4 rounded-2xl bg-slate-50 px-4 py-4 dark:bg-night-2/92">
+										<div className="text-xs uppercase tracking-[0.2em] text-slate-400 dark:text-[#97A3B7]/78">
 											{t("shares.dialog.permissionTitle")}
 										</div>
 										<div className="mt-2 font-semibold text-slate-900 dark:text-white">
@@ -242,14 +242,14 @@ export function ShareDialog(props: {
 												? t("shares.dialog.permissionWriteTitle")
 												: t("shares.dialog.permissionReadTitle")}
 										</div>
-										<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+										<p className="mt-1 text-sm text-slate-500 dark:text-[#97A3B7]/78">
 											{result.permission === "write"
 												? t("shares.dialog.permissionWriteDescription")
 												: t("shares.dialog.permissionReadDescription")}
 										</p>
 										{result.permission === "write" ? (
-											<div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
-												<div className="text-xs uppercase tracking-[0.2em] text-slate-400">
+											<div className="mt-4 border-t border-slate-200 pt-4 dark:border-white/10">
+												<div className="text-xs uppercase tracking-[0.2em] text-slate-400 dark:text-[#97A3B7]/78">
 													{t("shares.dialog.writeModeTitle")}
 												</div>
 												<div className="mt-2 font-semibold text-slate-900 dark:text-white">
@@ -279,8 +279,8 @@ export function ShareDialog(props: {
 							<button
 								className={`rounded-2xl border px-4 py-4 text-left transition-all ${
 									access === "public"
-										? "border-primary bg-primary/5 shadow-sm"
-										: "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600"
+										? "border-primary bg-primary/5 dark:border-dark-primary/35 dark:bg-dark-primary/10"
+										: "border-slate-200 bg-white hover:border-slate-300 dark:border-white/10 dark:bg-night-2/96 dark:hover:border-dark-primary/25 dark:hover:bg-night-3"
 								}`}
 								onClick={() => {
 									setAccess("public");
@@ -296,7 +296,7 @@ export function ShareDialog(props: {
 											<div className="font-semibold text-slate-900 dark:text-white">
 												{t("shares.dialog.publicCardTitle")}
 											</div>
-											<div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+											<div className="mt-1 text-sm text-slate-500 dark:text-[#97A3B7]/78">
 												{t("shares.dialog.publicCardDescription")}
 											</div>
 										</div>
@@ -306,8 +306,8 @@ export function ShareDialog(props: {
 							<button
 								className={`rounded-2xl border px-4 py-4 text-left transition-all ${
 									access === "password"
-										? "border-primary bg-primary/5 shadow-sm"
-										: "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600"
+										? "border-primary bg-primary/5 dark:border-dark-primary/35 dark:bg-dark-primary/10"
+										: "border-slate-200 bg-white hover:border-slate-300 dark:border-white/10 dark:bg-night-2/96 dark:hover:border-dark-primary/25 dark:hover:bg-night-3"
 								}`}
 								onClick={() => {
 									setAccess("password");
@@ -323,7 +323,7 @@ export function ShareDialog(props: {
 											<div className="font-semibold text-slate-900 dark:text-white">
 												{t("shares.dialog.passwordCardTitle")}
 											</div>
-											<div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+											<div className="mt-1 text-sm text-slate-500 dark:text-[#97A3B7]/78">
 												{t("shares.dialog.passwordCardDescription")}
 											</div>
 										</div>
@@ -340,8 +340,8 @@ export function ShareDialog(props: {
 									<button
 										className={`rounded-2xl border px-4 py-4 text-left transition-all ${
 											permission === "read"
-												? "border-primary bg-primary/5 shadow-sm"
-												: "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600"
+												? "border-primary bg-primary/5 dark:border-dark-primary/35 dark:bg-dark-primary/10"
+												: "border-slate-200 bg-white hover:border-slate-300 dark:border-white/10 dark:bg-night-2/96 dark:hover:border-dark-primary/25 dark:hover:bg-night-3"
 										}`}
 										onClick={() => {
 											setPermission("read");
@@ -360,7 +360,7 @@ export function ShareDialog(props: {
 												<div className="font-semibold text-slate-900 dark:text-white">
 													{t("shares.dialog.readCardTitle")}
 												</div>
-												<div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+												<div className="mt-1 text-sm text-slate-500 dark:text-[#97A3B7]/78">
 													{t("shares.dialog.readCardDescription")}
 												</div>
 											</div>
@@ -370,8 +370,8 @@ export function ShareDialog(props: {
 									<button
 										className={`rounded-2xl border px-4 py-4 text-left transition-all ${
 											permission === "write"
-												? "border-primary bg-primary/5 shadow-sm"
-												: "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600"
+												? "border-primary bg-primary/5 dark:border-dark-primary/35 dark:bg-dark-primary/10"
+												: "border-slate-200 bg-white hover:border-slate-300 dark:border-white/10 dark:bg-night-2/96 dark:hover:border-dark-primary/25 dark:hover:bg-night-3"
 										}`}
 										onClick={() => {
 											setPermission("write");
@@ -390,7 +390,7 @@ export function ShareDialog(props: {
 												<div className="font-semibold text-slate-900 dark:text-white">
 													{t("shares.dialog.writeCardTitle")}
 												</div>
-												<div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+												<div className="mt-1 text-sm text-slate-500 dark:text-[#97A3B7]/78">
 													{t("shares.dialog.writeCardDescription")}
 												</div>
 											</div>
@@ -399,7 +399,7 @@ export function ShareDialog(props: {
 								</div>
 							</div>
 							) : (
-								<div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-300">
+								<div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4 text-sm text-slate-600 dark:border-white/10 dark:bg-night-2/96 dark:text-[#c7d4eb]/78">
 									{t("shares.dialog.fileReadOnlyNotice")}
 								</div>
 							)}
@@ -414,8 +414,8 @@ export function ShareDialog(props: {
 										<button
 											className={`rounded-2xl border px-4 py-4 text-left transition-all ${
 												writeMode === "local"
-													? "border-primary bg-primary/5 shadow-sm"
-													: "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600"
+													? "border-primary bg-primary/5 dark:border-dark-primary/35 dark:bg-dark-primary/10"
+													: "border-slate-200 bg-white hover:border-slate-300 dark:border-white/10 dark:bg-night-2/96 dark:hover:border-dark-primary/25 dark:hover:bg-night-3"
 											}`}
 											onClick={() => {
 												setWriteMode("local");
@@ -431,7 +431,7 @@ export function ShareDialog(props: {
 													<div className="font-semibold text-slate-900 dark:text-white">
 														{t("shares.dialog.localCardTitle")}
 													</div>
-													<div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+													<div className="mt-1 text-sm text-slate-500 dark:text-[#97A3B7]/78">
 														{t("shares.dialog.localCardDescription")}
 													</div>
 												</div>
@@ -441,8 +441,8 @@ export function ShareDialog(props: {
 										<button
 											className={`rounded-2xl border px-4 py-4 text-left transition-all ${
 												writeMode === "text"
-													? "border-primary bg-primary/5 shadow-sm"
-													: "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600"
+													? "border-primary bg-primary/5 dark:border-dark-primary/35 dark:bg-dark-primary/10"
+													: "border-slate-200 bg-white hover:border-slate-300 dark:border-white/10 dark:bg-night-2/96 dark:hover:border-dark-primary/25 dark:hover:bg-night-3"
 											}`}
 											onClick={() => {
 												setWriteMode("text");
@@ -461,7 +461,7 @@ export function ShareDialog(props: {
 													<div className="font-semibold text-slate-900 dark:text-white">
 														{t("shares.dialog.textCardTitle")}
 													</div>
-													<div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+													<div className="mt-1 text-sm text-slate-500 dark:text-[#97A3B7]/78">
 														{t("shares.dialog.textCardDescription")}
 													</div>
 												</div>
@@ -470,22 +470,22 @@ export function ShareDialog(props: {
 									</div>
 								</div>
 
-								<div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-800/40">
+								<div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-night-2/96">
 									<div className="flex items-center justify-between gap-3">
 											<div>
 												<div className="text-sm font-semibold text-slate-900 dark:text-white">
 													{t("shares.dialog.descriptionTitle")}
 												</div>
-												<div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+												<div className="mt-1 text-sm text-slate-500 dark:text-[#97A3B7]/78">
 													{t("shares.dialog.descriptionDescription")}
 												</div>
 										</div>
-										<div className="shrink-0 text-xs text-slate-400 dark:text-slate-500">
+										<div className="shrink-0 text-xs text-slate-400 dark:text-[#8FA7CF]/70">
 											{description.trim().length}/300
 										</div>
 									</div>
 									<textarea
-										className="mt-3 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+										className="mt-3 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/15 dark:border-white/10 dark:bg-night-3/96 dark:text-white dark:focus:border-dark-primary dark:focus:ring-dark-primary/20"
 										maxLength={300}
 											onChange={(event) =>
 												setDescription(event.target.value)
@@ -507,8 +507,8 @@ export function ShareDialog(props: {
 									<button
 										className={`rounded-2xl border px-4 py-4 text-left transition-all ${
 											expiryPreset === option.value
-												? "border-primary bg-primary/5 shadow-sm"
-												: "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600"
+												? "border-primary bg-primary/5 dark:border-dark-primary/35 dark:bg-dark-primary/10"
+												: "border-slate-200 bg-white hover:border-slate-300 dark:border-white/10 dark:bg-night-2/96 dark:hover:border-dark-primary/25 dark:hover:bg-night-3"
 										}`}
 										key={option.value}
 										onClick={() => {
@@ -520,7 +520,7 @@ export function ShareDialog(props: {
 										<div className="font-semibold text-slate-900 dark:text-white">
 											{option.label}
 										</div>
-										<div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+										<div className="mt-1 text-sm text-slate-500 dark:text-[#97A3B7]/78">
 											{option.description}
 										</div>
 									</button>
@@ -528,11 +528,11 @@ export function ShareDialog(props: {
 							</div>
 							{expiryPreset === "custom" ? (
 								<div className="mt-4">
-										<label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+										<label className="mb-2 block text-sm font-medium text-slate-700 dark:text-[#c7d4eb]/78">
 											{t("shares.dialog.expiryDate")}
 										</label>
 									<input
-										className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800"
+										className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20 dark:border-white/10 dark:bg-night-2/96 dark:text-white dark:focus:border-dark-primary dark:focus:ring-dark-primary/20"
 										max={maxShareCustomDate()}
 										min={minShareCustomDate()}
 										onChange={(e) => setCustomDate(e.target.value)}
@@ -549,9 +549,9 @@ export function ShareDialog(props: {
 							</div>
 						) : null}
 
-						<div className="flex items-center justify-end gap-3 border-t border-slate-200 pt-5 dark:border-slate-800">
+						<div className="flex items-center justify-end gap-3 border-t border-slate-200 pt-5 dark:border-white/10">
 							<button
-								className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+								className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:border-white/10 dark:text-[#c7d4eb]/78 dark:hover:bg-night-2"
 								onClick={props.onClose}
 								type="button"
 								>

@@ -80,15 +80,15 @@ export function LoginForm(props: {
 					<div className="px-10 py-6">
 						{!props.passwordLoginEnabled ? (
 							<div className="flex flex-col gap-4">
-								<div className="rounded-[2px] border border-sidebar-border bg-panel-wash/80 px-4 py-4 text-sm text-body-text dark:border-white/10 dark:bg-night-2/84 dark:text-[#c7d4eb]/78">
+								<div className="rounded-[2px] border border-sidebar-border bg-panel-wash/80 px-4 py-4 text-sm text-body-text dark:border-white/10 dark:bg-night-2/96 dark:text-[#d7e4fb]/82">
 									{infoMessage}
 								</div>
 								{props.notice ? (
 									<div
 										className={`rounded-[2px] px-4 py-3 text-sm ${
 											props.notice.tone === "error"
-												? "border border-red-200 bg-red-50 text-red-500 dark:border-red-500/20 dark:bg-red-500/10"
-												: "border border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/10"
+												? "border border-red-200 bg-red-50 text-red-500 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-200"
+												: "border border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200"
 										}`}
 									>
 										{props.notice.text}
@@ -107,7 +107,7 @@ export function LoginForm(props: {
 											name="mail"
 										/>
 										<input
-										className="w-full rounded-[2px] border border-sidebar-border bg-white/65 py-2.5 pl-11 pr-4 text-sm text-heading-text outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary/20 dark:border-white/10 dark:bg-night-2/84 dark:text-white dark:placeholder:text-[#97A3B7]/70"
+										className="w-full rounded-[2px] border border-sidebar-border bg-white/65 py-2.5 pl-11 pr-4 text-sm text-heading-text outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary/20 dark:border-white/10 dark:bg-night-3/96 dark:text-white dark:placeholder:text-[#97A3B7]/70 dark:focus:border-dark-primary dark:focus:ring-dark-primary/20"
 											placeholder="name@company.com"
 											type="text"
 											value={username}
@@ -130,7 +130,7 @@ export function LoginForm(props: {
 											name="lock"
 										/>
 										<input
-										className="w-full rounded-[2px] border border-sidebar-border bg-white/65 py-2.5 pl-11 pr-12 text-sm text-heading-text outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary/20 dark:border-white/10 dark:bg-night-2/84 dark:text-white dark:placeholder:text-[#97A3B7]/70"
+										className="w-full rounded-[2px] border border-sidebar-border bg-white/65 py-2.5 pl-11 pr-12 text-sm text-heading-text outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary/20 dark:border-white/10 dark:bg-night-3/96 dark:text-white dark:placeholder:text-[#97A3B7]/70 dark:focus:border-dark-primary dark:focus:ring-dark-primary/20"
 											placeholder="••••••••"
 											type={showPassword ? "text" : "password"}
 											value={password}
@@ -158,7 +158,7 @@ export function LoginForm(props: {
 								</div>
 
 								{error ? (
-									<div className="rounded-[2px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-500 dark:border-red-500/20 dark:bg-red-500/10">
+									<div className="rounded-[2px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-500 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-200">
 										{error}
 									</div>
 								) : null}
@@ -167,8 +167,8 @@ export function LoginForm(props: {
 									<div
 										className={`rounded-[2px] px-4 py-3 text-sm ${
 											props.notice.tone === "error"
-												? "border border-red-200 bg-red-50 text-red-500 dark:border-red-500/20 dark:bg-red-500/10"
-												: "border border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/10"
+												? "border border-red-200 bg-red-50 text-red-500 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-200"
+												: "border border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200"
 										}`}
 									>
 										{props.notice.text}
@@ -193,13 +193,13 @@ export function LoginForm(props: {
 						)}
 					</div>
 
-					<div className="border-t border-white/50 bg-white/35 px-8 py-5 dark:border-white/10 dark:bg-night-0/56">
+					<div className="border-t border-white/50 bg-white/35 px-8 py-5 dark:border-white/10 dark:bg-night-0/92">
 						<div className="flex items-center justify-center gap-3 text-xs">
 							<button
 								className={`rounded-[2px] border px-3 py-1.5 transition-colors ${
 									props.themeMode === "system"
-										? "border-primary/20 bg-primary/10 text-primary dark:border-dark-primary/35 dark:bg-dark-primary/14 dark:text-[#78A9FF]"
-										: "border-transparent text-body-text/80 hover:bg-white/60 dark:text-[#c7d4eb]/78 dark:hover:bg-night-2/88"
+										? "border-primary/20 bg-primary/10 text-primary dark:border-dark-primary/35 dark:bg-dark-primary/18 dark:text-[#78A9FF]"
+										: "border-transparent text-body-text/80 hover:bg-white/60 dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
 								}`}
 								onClick={() => props.onThemeModeChange("system")}
 								type="button"
@@ -209,8 +209,8 @@ export function LoginForm(props: {
 							<button
 								className={`rounded-[2px] border px-3 py-1.5 transition-colors ${
 									props.themeMode === "light"
-										? "border-primary/20 bg-primary/10 text-primary dark:border-dark-primary/35 dark:bg-dark-primary/14 dark:text-[#78A9FF]"
-										: "border-transparent text-body-text/80 hover:bg-white/60 dark:text-[#c7d4eb]/78 dark:hover:bg-night-2/88"
+										? "border-primary/20 bg-primary/10 text-primary dark:border-dark-primary/35 dark:bg-dark-primary/18 dark:text-[#78A9FF]"
+										: "border-transparent text-body-text/80 hover:bg-white/60 dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
 								}`}
 								onClick={() => props.onThemeModeChange("light")}
 								type="button"
@@ -220,8 +220,8 @@ export function LoginForm(props: {
 							<button
 								className={`rounded-[2px] border px-3 py-1.5 transition-colors ${
 									props.themeMode === "dark"
-										? "border-primary/20 bg-primary/10 text-primary dark:border-dark-primary/35 dark:bg-dark-primary/14 dark:text-[#78A9FF]"
-										: "border-transparent text-body-text/80 hover:bg-white/60 dark:text-[#c7d4eb]/78 dark:hover:bg-night-2/88"
+										? "border-primary/20 bg-primary/10 text-primary dark:border-dark-primary/35 dark:bg-dark-primary/18 dark:text-[#78A9FF]"
+										: "border-transparent text-body-text/80 hover:bg-white/60 dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
 								}`}
 								onClick={() => props.onThemeModeChange("dark")}
 								type="button"
@@ -232,7 +232,7 @@ export function LoginForm(props: {
 					</div>
 				</div>
 
-				<div className="mt-8 flex flex-col items-center gap-4 text-body-text/60 dark:text-[#97A3B7]/78">
+				<div className="mt-8 flex flex-col items-center gap-4 text-body-text/60 dark:text-[#8FA7CF]/70">
 					<p className="text-xs">© 2026 Zenmind Pan Inc. All rights reserved.</p>
 				</div>
 			</div>

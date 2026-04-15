@@ -140,12 +140,12 @@ function GridView(props: {
 						<div
 							className={`relative rounded-[14px] p-2 transition-all duration-200 ${
 								selected
-									? "bg-primary/6"
-									: "hover:bg-white/78 dark:hover:bg-night-3/44"
+									? "bg-primary/6 dark:bg-dark-primary/10"
+									: "hover:bg-white/78 dark:hover:bg-night-3/52"
 							}`}
 						>
 							{selected ? (
-								<div className="absolute right-3 top-3 z-10 rounded-full border border-primary/10 bg-white/95 p-1 text-primary dark:border-dark-primary/20 dark:bg-night-2/96 dark:text-[#78A9FF]">
+								<div className="absolute right-3 top-3 z-10 rounded-full border border-primary/10 bg-white/95 p-1 text-primary dark:border-dark-primary/20 dark:bg-night-2/95 dark:text-[#78A9FF]">
 									<MaterialIcon
 										name="check_circle"
 										className="text-base"
@@ -153,7 +153,7 @@ function GridView(props: {
 								</div>
 							) : null}
 							<div
-								className={`relative flex aspect-[1/0.82] items-center justify-center overflow-hidden rounded-[12px] border border-sidebar-border bg-white dark:border-white/10 dark:bg-night-2 ${
+								className={`relative flex aspect-[1/0.82] items-center justify-center overflow-hidden rounded-[12px] border border-sidebar-border bg-white dark:border-white/10 dark:bg-night-1/96 ${
 									selected ? "ring-1 ring-primary/15" : ""
 								}`}
 							>
@@ -204,15 +204,15 @@ function ListView(props: ListViewProps) {
 		);
 
 	return (
-		<div className="w-full min-w-max rounded-[6px] border border-sidebar-border bg-white/84 dark:border-white/10 dark:bg-night-2/82">
+		<div className="w-full min-w-max rounded-[6px] border border-sidebar-border bg-white/84 dark:border-white/10 dark:bg-night-1/96">
 			<table className="w-full text-left text-sm border-collapse">
-				<thead className="bg-sidebar-bg/85 text-body-text/70 uppercase text-[10px] font-bold tracking-wider dark:bg-night-0/94 dark:text-[#97A3B7]/78">
+				<thead className="bg-sidebar-bg/85 text-body-text/70 uppercase text-[10px] font-bold tracking-wider dark:bg-night-0 dark:text-[#97A3B7]/78">
 					<tr className="border-b border-sidebar-border dark:border-white/10">
 						<th className="px-4 py-3 w-10 text-center">
 							<div className="flex items-center justify-center">
 								<input
 									type="checkbox"
-									className="rounded border-slate-300 text-primary focus:ring-primary"
+									className="rounded border-slate-300 text-primary focus:ring-primary dark:border-white/20 dark:bg-night-3 dark:text-dark-primary dark:focus:ring-dark-primary/30"
 									checked={allSelected}
 									onChange={(e) => {
 										if (props.onToggleAllSelection) {
@@ -246,8 +246,8 @@ function ListView(props: ListViewProps) {
 						const { icon, textColor } = getFileVisual(entry);
 						return (
 							<tr
-								className={`cursor-pointer transition-colors hover:bg-panel-wash/80 dark:hover:bg-night-3/44 ${
-									selected ? "bg-primary/5" : ""
+								className={`cursor-pointer transition-colors hover:bg-panel-wash/80 dark:hover:bg-night-3/52 ${
+									selected ? "bg-primary/5 dark:bg-dark-primary/10" : ""
 								}`}
 								key={`${entry.mountId}:${entry.path}`}
 								onClick={() => props.onActivate(entry)}
@@ -265,7 +265,7 @@ function ListView(props: ListViewProps) {
 							>
 								<td className="px-4 py-3 text-center">
 									<input
-										className="rounded border-slate-300 text-primary focus:ring-primary"
+										className="rounded border-slate-300 text-primary focus:ring-primary dark:border-white/20 dark:bg-night-3 dark:text-dark-primary dark:focus:ring-dark-primary/30"
 										type="checkbox"
 										checked={selected}
 										onChange={(e) => {
@@ -463,7 +463,7 @@ function MobileListView(props: ListViewProps) {
 					className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
 						selectionMode
 							? "bg-primary text-white dark:bg-dark-primary"
-							: "border border-sidebar-border bg-white/80 text-body-text dark:border-white/10 dark:bg-night-2 dark:text-[#c7d4eb]/78"
+							: "border border-sidebar-border bg-white/80 text-body-text dark:border-white/10 dark:bg-night-3/92 dark:text-[#c7d4eb]/78"
 					}`}
 					onClick={() => setSelectionModeEnabled(!selectionMode)}
 					type="button"
@@ -471,7 +471,7 @@ function MobileListView(props: ListViewProps) {
 					{selectionMode ? t("common.done") : t("common.select")}
 				</button>
 			</div>
-			<div className="rounded-[8px] border border-sidebar-border bg-white/88 dark:border-white/10 dark:bg-night-2/84">
+			<div className="rounded-[8px] border border-sidebar-border bg-white/88 dark:border-white/10 dark:bg-night-1/96">
 				{props.entries.map((entry, index) => {
 					const selected = isEntrySelected(
 						entry,

@@ -30,8 +30,8 @@ export function SidebarTree(props: {
 							<button
 								className={`w-full flex items-center gap-3 rounded-[4px] px-3 py-2 text-left transition-colors ${
 									activeRoot
-										? "border-l-2 border-primary bg-white font-semibold text-primary dark:border-dark-primary dark:bg-night-3/86 dark:text-[#78A9FF]"
-										: "text-body-text hover:bg-white/75 dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
+										? "border-l-2 border-primary bg-white font-semibold text-primary dark:border-dark-primary/90 dark:bg-night-3 dark:text-[#8CB6FF]"
+										: "text-body-text hover:bg-white/75 dark:text-[#c7d4eb]/78 dark:hover:bg-night-2/88"
 								}`}
 								onClick={() => props.onSelect(mount.id, "/")}
 								type="button"
@@ -112,8 +112,8 @@ function TreeBranch(props: {
 			<div
 				className={`flex cursor-pointer items-center gap-2 rounded-[4px] px-3 py-1.5 transition-colors ${
 					active
-						? "bg-primary/6 text-primary dark:bg-dark-primary/16 dark:text-[#78A9FF]"
-						: "text-body-text hover:bg-white/75 dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
+						? "bg-primary/6 text-primary dark:bg-night-3 dark:text-[#8CB6FF]"
+						: "text-body-text hover:bg-white/75 dark:text-[#c7d4eb]/78 dark:hover:bg-night-2/88"
 				}`}
 				style={{ paddingLeft: `${props.depth * 16 + 12}px` }}
 				onClick={() => props.onSelect(props.mountId, props.node.path)}

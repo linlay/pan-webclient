@@ -13,25 +13,25 @@ export function TrashPanel(props: {
 }) {
 	const { t } = useTranslation();
 	return (
-		<div className="p-6 flex flex-col gap-4">
+		<div className="flex flex-col gap-4 p-6 text-body-text dark:text-[#f4f8ff]/92">
 			<div className="flex items-center justify-between">
 				<div>
-					<p className="text-xs uppercase tracking-wider text-slate-400">
+					<p className="text-xs uppercase tracking-wider text-slate-400 dark:text-[#97A3B7]/78">
 						{t("sidebar.trash")}
 					</p>
-					<h3 className="text-lg font-bold">{t("trash.panelTitle")}</h3>
+					<h3 className="text-lg font-bold text-heading-text dark:text-white">{t("trash.panelTitle")}</h3>
 				</div>
 				{!props.isMobile ? (
 					<div className="flex items-center gap-2">
 						<button
-							className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-400"
+							className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 dark:text-[#97A3B7]/78 dark:hover:bg-night-2"
 							onClick={props.onRefresh}
 							type="button"
 						>
 							<MaterialIcon name="refresh" />
 						</button>
 						<button
-							className="px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+							className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm transition-colors hover:bg-slate-50 dark:border-white/10 dark:text-[#c7d4eb]/78 dark:hover:bg-night-2"
 							onClick={props.onBack}
 							type="button"
 						>
@@ -46,28 +46,28 @@ export function TrashPanel(props: {
 					<div className="text-center py-8">
 						<MaterialIcon
 							name="delete_sweep"
-							className="text-slate-300 dark:text-slate-600 !text-5xl mb-2"
+							className="text-slate-300 dark:text-[#355078] !text-5xl mb-2"
 						/>
-						<p className="text-sm text-slate-400">
+						<p className="text-sm text-slate-400 dark:text-[#97A3B7]/78">
 							{t("trash.empty")}
 						</p>
 					</div>
 				) : (
 					props.items.map((item) => (
 						<div
-							className="flex items-center justify-between gap-3 p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50"
+							className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-night-2/96"
 							key={item.id}
 						>
 							<div className="flex items-center gap-3 min-w-0">
 								<MaterialIcon
 									name={item.isDir ? "folder" : "description"}
-									className={`text-lg ${item.isDir ? "text-blue-500 filled-icon" : "text-slate-400"}`}
+									className={`text-lg ${item.isDir ? "text-[#78A9FF] filled-icon" : "text-slate-400 dark:text-[#97A3B7]/78"}`}
 								/>
 								<div className="min-w-0">
-									<p className="text-sm font-medium truncate">
+									<p className="truncate text-sm font-medium text-heading-text dark:text-white">
 										{item.name}
 									</p>
-									<p className="text-xs text-slate-400 truncate">
+									<p className="truncate text-xs text-slate-400 dark:text-[#97A3B7]/78">
 										{item.originalPath} ·{" "}
 										{formatDateTime(item.deletedAt)}
 									</p>

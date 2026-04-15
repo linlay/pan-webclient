@@ -69,18 +69,18 @@ export function TaskPanel(props: {
 }) {
 	const { t } = useTranslation();
 	return (
-		<div className="flex h-full min-h-0 flex-col gap-4 p-6">
+		<div className="flex h-full min-h-0 flex-col gap-4 p-6 text-body-text dark:text-[#f4f8ff]/92">
 			<div className="flex items-center justify-between">
 				<div>
-					<p className="text-xs uppercase tracking-wider text-slate-400">
+					<p className="text-xs uppercase tracking-wider text-slate-400 dark:text-[#97A3B7]/78">
 						{t("sidebar.tasks")}
 					</p>
-					<h3 className="text-lg font-bold">{t("tasks.panelTitle")}</h3>
+					<h3 className="text-lg font-bold text-heading-text dark:text-white">{t("tasks.panelTitle")}</h3>
 				</div>
 				{!props.isMobile ? (
 					<div className="flex items-center gap-2">
 						<button
-							className="px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+							className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm transition-colors hover:bg-slate-50 dark:border-white/10 dark:text-[#c7d4eb]/78 dark:hover:bg-night-2"
 							onClick={props.onBack}
 							type="button"
 						>
@@ -97,9 +97,9 @@ export function TaskPanel(props: {
 							<div className="text-center py-8">
 								<MaterialIcon
 									name="cloud_done"
-									className="text-slate-300 dark:text-slate-600 !text-5xl mb-2"
+									className="text-slate-300 dark:text-[#355078] !text-5xl mb-2"
 								/>
-								<p className="text-sm text-slate-400">
+								<p className="text-sm text-slate-400 dark:text-[#97A3B7]/78">
 									{t("tasks.empty")}
 								</p>
 							</div>
@@ -115,7 +115,7 @@ export function TaskPanel(props: {
 									isUploadTaskComplete(task);
 								return (
 									<div
-										className="w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-left transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/50 dark:hover:bg-slate-800"
+										className="w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-left transition-colors hover:bg-slate-100 dark:border-white/10 dark:bg-night-2/96 dark:hover:bg-night-3"
 										key={task.id}
 										onClick={() =>
 											props.onOpenTask(task.id)
@@ -134,7 +134,7 @@ export function TaskPanel(props: {
 									>
 										<div className="flex items-start justify-between gap-3">
 											<div className="flex min-w-0 items-start gap-3">
-												<div className="mt-0.5 rounded-xl bg-white p-2 shadow-sm dark:bg-slate-900/70">
+												<div className="mt-0.5 rounded-xl border border-sidebar-border bg-white p-2 dark:border-white/10 dark:bg-night-1">
 													<MaterialIcon
 														name={
 															task.kind ===
@@ -147,7 +147,7 @@ export function TaskPanel(props: {
 												</div>
 												<div className="min-w-0">
 													<div className="flex items-center gap-2">
-														<p className="truncate text-sm font-semibold">
+														<p className="truncate text-sm font-semibold text-heading-text dark:text-white">
 															{taskPrimaryLabel(
 																task,
 															)}
@@ -160,7 +160,7 @@ export function TaskPanel(props: {
 															)}
 														</span>
 													</div>
-													<p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+													<p className="mt-1 text-xs text-slate-500 dark:text-[#97A3B7]/78">
 														{taskSummary(task)}
 														{taskTotalBytes(task) >
 														0
@@ -173,13 +173,13 @@ export function TaskPanel(props: {
 																task,
 															)}
 													</p>
-													<p className="mt-1 truncate text-[11px] text-slate-400"></p>
+													<p className="mt-1 truncate text-[11px] text-slate-400 dark:text-[#8FA7CF]/70"></p>
 												</div>
 											</div>
 											<div className="flex flex-shrink-0 items-center gap-1">
 												{readyToDownload ? (
 													<button
-														className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-red-500 dark:hover:bg-slate-700"
+														className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-red-500 dark:hover:bg-night-3"
 														onClick={(event) => {
 															event.stopPropagation();
 															props.onOpenTask(
@@ -201,7 +201,7 @@ export function TaskPanel(props: {
 												) : null}
 												{canCancel ? (
 													<button
-														className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-red-500 dark:hover:bg-slate-700"
+														className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-red-500 dark:hover:bg-night-3"
 														onClick={(event) => {
 															event.stopPropagation();
 															props.onCancelTask(
@@ -219,7 +219,7 @@ export function TaskPanel(props: {
 												) : null}
 												{canDelete ? (
 													<button
-														className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-red-500 dark:hover:bg-slate-700"
+														className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-red-500 dark:hover:bg-night-3"
 														onClick={(e) => {
 															e.stopPropagation();
 															props.onDeleteTask(
@@ -239,7 +239,7 @@ export function TaskPanel(props: {
 										</div>
 										{shouldShowTaskProgress(task) ? (
 											<div className="mt-3">
-												<div className="h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+												<div className="h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-night-3">
 													<div
 														className={`h-full rounded-full transition-all ${progressColor(task.status)}`}
 														style={{
@@ -247,7 +247,7 @@ export function TaskPanel(props: {
 														}}
 													/>
 												</div>
-												<div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+												<div className="mt-2 flex items-center justify-between text-[11px] text-slate-400 dark:text-[#97A3B7]/70">
 													<span>
 														{taskFooterLabel(task)}
 													</span>
@@ -259,7 +259,7 @@ export function TaskPanel(props: {
 												</div>
 											</div>
 										) : (
-											<p className="mt-3 text-[11px] text-slate-400">
+											<p className="mt-3 text-[11px] text-slate-400 dark:text-[#97A3B7]/70">
 												{readyToDownload ||
 												uploadCompleted
 													? `${taskFooterLabel(task)} · `

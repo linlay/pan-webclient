@@ -73,7 +73,7 @@ export function MenuButton(props: {
 			{open ? (
 				<div
 					ref={menuRef}
-					className={`bg-light absolute z-[100] w-48 rounded-[8px] border border-sidebar-border bg-white/96 py-1.5 animate-fade-in dark:border-white/10 dark:bg-night-2/96 ${
+					className={`absolute z-[100] w-48 rounded-[8px] border border-sidebar-border bg-white/95 py-1.5 animate-fade-in dark:border-white/10 dark:bg-night-2/95 ${
 						dropUp ? "bottom-full mb-2" : "top-full mt-2"
 					} ${props.align === "right" ? "right-0" : "left-0"}`}
 				>

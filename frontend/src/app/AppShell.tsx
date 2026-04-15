@@ -106,7 +106,7 @@ export function AppShell(props: AppShellProps) {
 				/>
 			) : null}
 
-			<main className="flex min-w-0 flex-1 flex-col bg-white/45 backdrop-blur-sm dark:bg-night-1/88">
+			<main className="flex min-w-0 flex-1 flex-col bg-white/45 backdrop-blur-sm dark:bg-[linear-gradient(180deg,rgba(9,18,33,0.94),rgba(15,23,42,0.98))]">
 				<AppHeader
 					breadcrumbs={props.breadcrumbs}
 					canShareCurrentFolder={props.canShareCurrentDirectory}
@@ -198,7 +198,7 @@ export function AppShell(props: AppShellProps) {
 							className={`fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[6px] border px-5 py-3 text-sm font-medium animate-fade-in ${
 								props.notice.tone === "error"
 									? "border-red-500 bg-red-500 text-white"
-									: "border-sidebar-border bg-white/96 text-heading-text dark:border-white/10 dark:bg-night-2/96 dark:text-white"
+									: "border-sidebar-border bg-white/95 text-heading-text dark:border-white/10 dark:bg-night-2 dark:text-white"
 							}`}
 						>
 							{props.notice.text}
@@ -234,8 +234,8 @@ export function AppShell(props: AppShellProps) {
 				<button
 					className={`fixed top-1/2 -translate-y-1/2 z-40 flex items-center justify-center transition-all duration-300 ${
 						props.inspectorOpen
-							? "h-12 w-4 rounded-l-[6px] border border-r-0 border-sidebar-border bg-white/92 text-body-text/70 hover:w-8 hover:bg-panel-wash hover:text-heading-text dark:border-white/10 dark:bg-night-2/96 dark:text-[#97A3B7]/78 dark:hover:bg-night-3 dark:hover:text-white"
-							: "h-12 w-12 rounded-full border border-sidebar-border bg-white/82 text-body-text/70 hover:scale-105 hover:bg-panel-wash hover:text-primary dark:border-white/10 dark:bg-night-2/90 dark:text-[#97A3B7]/78 dark:hover:bg-night-3 dark:hover:text-[#78A9FF]"
+							? "h-12 w-4 rounded-l-[6px] border border-r-0 border-sidebar-border bg-white/92 text-body-text/70 hover:w-8 hover:bg-panel-wash hover:text-heading-text dark:border-white/10 dark:bg-night-2 dark:text-[#97A3B7]/78 dark:hover:bg-night-3 dark:hover:text-white"
+							: "h-12 w-12 rounded-full border border-sidebar-border bg-white/82 text-body-text/70 hover:scale-105 hover:bg-panel-wash hover:text-primary dark:border-white/10 dark:bg-night-2 dark:text-[#97A3B7]/78 dark:hover:bg-night-3 dark:hover:text-[#78A9FF]"
 					}`}
 					style={{
 						right: props.inspectorOpen
@@ -266,7 +266,7 @@ export function AppShell(props: AppShellProps) {
 					onClick={props.handleCloseDesktopPreview}
 				>
 					<div
-						className="relative h-full w-full overflow-hidden rounded-[20px] border border-sidebar-border bg-white/96 dark:border-white/10 dark:bg-night-1"
+						className="relative h-full w-full overflow-hidden rounded-[20px] border border-sidebar-border bg-white/95 dark:border-white/10 dark:bg-night-0/98"
 						onClick={(event) => event.stopPropagation()}
 					>
 						{inspectorPane}
@@ -276,7 +276,7 @@ export function AppShell(props: AppShellProps) {
 
 			{desktopEditorOpen ? (
 				<div className="fixed inset-0 z-[90] bg-slate-950/55 p-4 backdrop-blur-md animate-fade-in sm:p-6">
-					<div className="h-full w-full overflow-hidden rounded-[20px] border border-sidebar-border bg-white/96 dark:border-white/10 dark:bg-night-1">
+					<div className="h-full w-full overflow-hidden rounded-[20px] border border-sidebar-border bg-white/95 dark:border-white/10 dark:bg-night-0/98">
 						<div className="h-full overflow-y-auto">
 							<EditorPane
 								activeEntry={props.activeEntry}
@@ -294,8 +294,8 @@ export function AppShell(props: AppShellProps) {
 			{props.isMobile &&
 			props.mobileInspectorOpen &&
 			props.inspectorMode !== "preview" ? (
-				<aside className="fixed inset-0 z-30 flex flex-col overflow-hidden bg-white/96 animate-fade-in dark:bg-night-1/96">
-					<div className="flex items-center justify-between border-b border-sidebar-border bg-white/90 px-4 py-4 dark:border-white/10 dark:bg-night-1/92">
+				<aside className="fixed inset-0 z-30 flex flex-col overflow-hidden bg-white/95 animate-fade-in dark:bg-night-0/98">
+					<div className="flex items-center justify-between border-b border-sidebar-border bg-white/90 px-4 py-4 dark:border-white/10 dark:bg-night-0/96">
 						<span className="text-sm font-bold text-heading-text dark:text-white">
 							{props.mobileInspectorTitle}
 						</span>

@@ -85,7 +85,7 @@ export function AppSidebar(props: AppSidebarProps) {
 						</h3>
 					<div className="space-y-1">
 						<button
-							className="w-full flex items-center gap-3 rounded-[4px] border-l-2 border-primary bg-white px-3 py-2 text-left text-sm font-semibold text-primary dark:border-dark-primary dark:bg-night-3/86 dark:text-[#78A9FF]"
+							className="w-full flex items-center gap-3 rounded-[4px] border-l-2 border-primary bg-white px-3 py-2 text-left text-sm font-semibold text-primary dark:border-dark-primary/90 dark:bg-night-3 dark:text-[#8CB6FF]"
 							onClick={props.onNavigateHome}
 							type="button"
 						>
@@ -93,7 +93,7 @@ export function AppSidebar(props: AppSidebarProps) {
 								<span>{t("sidebar.quickAccess")}</span>
 						</button>
 						<button
-							className="w-full flex items-center gap-3 rounded-[4px] px-3 py-2 text-left text-sm text-body-text transition-colors hover:bg-white/75 dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
+							className="w-full flex items-center gap-3 rounded-[4px] px-3 py-2 text-left text-sm text-body-text transition-colors hover:bg-white/75 dark:text-[#c7d4eb]/78 dark:hover:bg-night-2/88"
 							onClick={props.onOpenShares}
 							type="button"
 						>
@@ -109,7 +109,7 @@ export function AppSidebar(props: AppSidebarProps) {
 							) : null}
 						</button>
 						<button
-							className="w-full flex items-center gap-3 rounded-[4px] px-3 py-2 text-left text-sm text-body-text transition-colors hover:bg-white/75 dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
+							className="w-full flex items-center gap-3 rounded-[4px] px-3 py-2 text-left text-sm text-body-text transition-colors hover:bg-white/75 dark:text-[#c7d4eb]/78 dark:hover:bg-night-2/88"
 							onClick={props.onOpenTasks}
 							type="button"
 						>
@@ -125,7 +125,7 @@ export function AppSidebar(props: AppSidebarProps) {
 							) : null}
 						</button>
 						<button
-							className="w-full flex items-center gap-3 rounded-[4px] px-3 py-2 text-left text-sm text-body-text transition-colors hover:bg-white/75 dark:text-[#c7d4eb]/78 dark:hover:bg-night-3"
+							className="w-full flex items-center gap-3 rounded-[4px] px-3 py-2 text-left text-sm text-body-text transition-colors hover:bg-white/75 dark:text-[#c7d4eb]/78 dark:hover:bg-night-2/88"
 							onClick={props.onOpenTrash}
 							type="button"
 						>
@@ -148,7 +148,7 @@ export function AppSidebar(props: AppSidebarProps) {
 					{props.mounts.length > 1 ? (
 						<div className="mb-4 relative">
 							<select
-								className="w-full appearance-none rounded-[4px] border border-sidebar-border bg-white/85 py-2.5 pl-3 pr-8 text-sm font-semibold text-heading-text transition-all hover:bg-white focus:outline-none focus:ring-1 focus:ring-primary/20 dark:border-white/10 dark:bg-night-2/88 dark:text-white dark:hover:bg-night-3"
+								className="w-full appearance-none rounded-[4px] border border-sidebar-border bg-white/85 py-2.5 pl-3 pr-8 text-sm font-semibold text-heading-text transition-all hover:bg-white focus:outline-none focus:ring-1 focus:ring-primary/20 dark:border-white/10 dark:bg-night-2 dark:text-white dark:hover:bg-night-3 dark:focus:ring-dark-primary/20"
 								value={activeSegment}
 								onChange={(e) => {
 									const newMountId = e.target.value;
@@ -187,7 +187,7 @@ export function AppSidebar(props: AppSidebarProps) {
 
 			{/* Storage */}
 			<div className="p-4 border-t border-sidebar-border dark:border-white/10">
-				<div className="rounded-[4px] border border-sidebar-border bg-white/80 p-4 dark:border-white/10 dark:bg-night-2/84">
+				<div className="rounded-[4px] border border-sidebar-border bg-white/80 p-4 dark:border-white/10 dark:bg-night-2/96">
 						<div className="flex items-center justify-between mb-2">
 							<span className="text-xs font-medium text-body-text/75 dark:text-[#c7d4eb]/78">
 								{t("sidebar.storage")}
@@ -197,7 +197,7 @@ export function AppSidebar(props: AppSidebarProps) {
 						{props.currentMountPath || "/"}
 					</p>
 					<button
-						className="w-full rounded-[4px] border border-primary/25 bg-white py-1.5 text-xs font-bold text-primary transition-colors hover:bg-panel-wash dark:border-dark-primary/35 dark:bg-night-2 dark:text-[#78A9FF] dark:hover:bg-night-3"
+						className="w-full rounded-[4px] border border-primary/25 bg-white py-1.5 text-xs font-bold text-primary transition-colors hover:bg-panel-wash dark:border-dark-primary/35 dark:bg-night-3/92 dark:text-[#8CB6FF] dark:hover:bg-[#213457]"
 						onClick={props.onRefresh}
 						type="button"
 						>
