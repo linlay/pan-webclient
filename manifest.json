@@ -8,7 +8,10 @@
     "mode": "standalone",
     "entry": "/pan/",
     "directAccess": true,
-    "hostManaged": false
+    "hostManaged": false,
+    "embedParams": {
+      "desktopApp": "1"
+    }
   },
   "backend": {
     "entry": "backend/pan-api"
